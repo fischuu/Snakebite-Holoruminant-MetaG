@@ -26,8 +26,14 @@ rule contig_annotate__camper__annotate:
     retries: len(get_escalation_order("contig_annotate__camper__annotate"))
     shell:
         """
+        # Setup tmp-folder, depending whether there is nvme space or not.
 
-        tmp_db_dir={params.nvme}/{params.sample}
+        if [[ -n {params.nvme} ]]; then
+            tmp_db_dir={params.nvme}/{params.sample}
+        else
+            tmp_db_dir={params.out_dir}/camper_db_tmp
+        fi
+
         mkdir -p $tmp_db_dir
 
         # Copy CAMPER DB locally to tmpdir_camper to avoid collisions
