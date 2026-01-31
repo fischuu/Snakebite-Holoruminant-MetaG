@@ -16,7 +16,7 @@ rule read_annotate__diamond__assign:
         runtime=esc("runtime", "read_annotate__diamond__assign"),
         mem_mb=esc("mem_mb", "read_annotate__diamond__assign"),
         cpus_per_task=esc("cpus", "read_annotate__diamond__assign"),
-        partition=esc("partition", "read_annotate__diamond__assign"),
+        slurm_partition=esc("partition", "read_annotate__diamond__assign"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__diamond__assign')['nvme']}",
         attempt=lambda wildcards, attempt: attempt,
     retries: len(get_escalation_order("read_annotate__diamond__assign")) - 1,
@@ -139,7 +139,7 @@ rule read_annotate__diamond__summarise:
         runtime=esc("runtime", "read_annotate__diamond__summarise"),
         mem_mb=esc("mem_mb", "read_annotate__diamond__summarise"),
         cpus_per_task=esc("cpus", "read_annotate__diamond__summarise"),
-        partition=esc("partition", "read_annotate__diamond__summarise"),
+        slurm_partition=esc("partition", "read_annotate__diamond__summarise"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__diamond__summarise')['nvme']}",
         attempt=get_attempt,
     retries: len(get_escalation_order("read_annotate__diamond__summarise"))
