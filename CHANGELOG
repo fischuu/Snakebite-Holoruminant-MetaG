@@ -3,6 +3,7 @@
 
 Version 0.4.*: 
 -----------
+55: DRAM_MAG log folder typo fixed (Issue #46)
 54: Improved escalation retry handling (Issue #45)
 53: The pipeline fetches now its current version from the changelog file to display instead of having it hardcoded
 52: Updated the run script to avoid double definition of pipeline-folder

@@ -11,7 +11,7 @@ rule mag_annotate__dram_mag__annotate:
         trnas=DRAMMAG / "{assembly_id}" / "annotate" / "trnas.tsv",
         rrnas=DRAMMAG / "{assembly_id}" / "annotate" / "rrnas.tsv",
     log:
-        DRAM / "{assembly_id}" / "annotate_{assembly_id}.log",
+        DRAMMAG / "{assembly_id}" / "annotate_{assembly_id}.log",
     container:
         docker["dram"]
     params:
