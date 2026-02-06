@@ -2,7 +2,7 @@
 
 There are a few central files that coordiante and configure the pipeline and we will go one-by-one through them.
 
-## run_Pipeline-Holoruminant-meta.sh
+## run_Snakebite-Holoruminant-MetaG.sh
 This is the pipeline starting wrapper script. It takes care of enabling Snakemake (e.g. in case you
 have it as a module on your server) and also wraps the different Snakemake options nicely. Furthermore, it
 sets up the environment variables for tmp and cache folders of apptainer or singularity.
