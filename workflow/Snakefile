@@ -178,3 +178,24 @@ rule all:
         rules.contig_annotate.input,
         rules.quantify.input,
   #      rules.report.input,
+
+
+# ------------------------------------------------------------------------------
+# Disable retries for rules without real escalation
+# ------------------------------------------------------------------------------
+
+debug("Adjusting retries based on escalation configuration...")
+
+for r in workflow.rules:
+    try:
+        esc_list = get_escalation_order(r.name)
+
+        if esc_list is None or len(esc_list) <= 1:
+            r.retries = 0
+            debug(f"Rule '{r.name}': retries disabled (no escalation)")
+        else:
+            r.retries = len(esc_list)
+            debug(f"Rule '{r.name}': retries set to {r.retries}")
+
+    except Exception as e:
+        debug(f"Rule '{r.name}': could not determine escalation ({e}); leaving retries unchanged")
