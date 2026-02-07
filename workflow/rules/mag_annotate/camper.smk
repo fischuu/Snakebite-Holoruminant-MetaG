@@ -27,7 +27,14 @@ rule mag_annotate__camper__annotate:
     retries: len(get_escalation_order("mag_annotate__camper__annotate"))
     shell:
         """
-        tmp_db_dir={params.nvme}/camper_db
+        # Setup tmp-folder, depending whether there is nvme space or not.
+
+        if [[ -n {params.nvme} ]]; then
+            tmp_db_dir={params.nvme}/{params.sample}
+        else
+            tmp_db_dir={params.out_dir}/camper_db_tmp
+        fi
+
         mkdir -p $tmp_db_dir
         cp {params.camper_db}/* $tmp_db_dir 2>> {log} 1>&2
         

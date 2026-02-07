@@ -3,6 +3,7 @@
 
 Version 0.4.*: 
 -----------
+60: camper in mag annotate crashed in case no nvme drive was given, this is fixed now like in contig case (Issue #52)
 59: In case DRAM does not find certains types, we create now empty output files to keep going (issue #44)
 58: Metaspades slot system introduced (Issue #56)
 57: .done-output added to mag_annotate eggnog (Issue #55)
