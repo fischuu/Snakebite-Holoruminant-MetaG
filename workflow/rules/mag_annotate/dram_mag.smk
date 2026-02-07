@@ -104,11 +104,11 @@ rule mag_annotate__dram_mag__distill:
         2> {log} 1>&2
 
         mv {params.outdir_tmp}/* {params.outdir}/ 2>> {log} 1>&2
-        rm -rf {params.outdir_tmp} 2>> {log} 1>&2
+        rm -rf {params.outdir_tmp}/ 2>> {log} 1>&2
         """
 
 rule mag_annotate__dram_mags:
-    """Run Bakta over the dereplicated mags"""
+    """Run DRAM over the sample-wise mags"""
      input:
         #expand(DRAMMAG / "{assembly_id}" / "annotate"  / "annotations.tsv", assembly_id=ASSEMBLIES),
         expand(DRAMMAG / "{assembly_id}" / "genome_stats.tsv", assembly_id=ASSEMBLIES),

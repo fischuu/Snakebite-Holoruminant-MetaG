@@ -3,6 +3,8 @@
 
 Version 0.4.*: 
 -----------
+57: .done-output added to mag_annotate eggnog (Issue #55)
+56: Type in description fixed
 55: DRAM_MAG log folder typo fixed (Issue #46)
 54: Improved escalation retry handling (Issue #45)
 53: The pipeline fetches now its current version from the changelog file to display instead of having it hardcoded
