@@ -52,9 +52,15 @@ read_yaml() {
 # Helper: Extract pipeline_folder from pipeline config
 ################################################################################
 pipelineFolder="$(read_yaml pipeline_folder "$configFile")"
+metaspades_slots="$(read_yaml metaspades_slots "$configFile")"
 
 if [[ -z "$pipelineFolder" ]]; then
     echo "ERROR: pipeline_folder not defined in $pipelineConfigPath" >&2
+    exit 1
+fi
+
+if [[ -z "$metaspades_slots" ]]; then
+    echo "ERROR: metaspades_slots not defined in $pipelineConfigPath" >&2
     exit 1
 fi
 
@@ -83,4 +89,7 @@ snakemake -s $pipelineFolder/workflow/Snakefile \
           --singularity-prefix $projectFolder/docker_images/ \
           --latency-wait 60 \
           --scheduler greedy \
+          --resources metaspades_slots=$metaspades_slots \
+          --restart-times 0 \
+          --retries 0  \
           $@

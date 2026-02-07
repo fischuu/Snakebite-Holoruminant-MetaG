@@ -18,10 +18,17 @@ shm_storage: "/dev/shm"      # If shm is not available, set to a fast disc (same
 
 copy_dbs: "True"          # If "True", dbs will be copied to faster discspaces, where applicable. Set to "False" to keep the original locations during runtime.
 diamond_shm: "True"       # Set "True", if shm space should be used for diamond, if "False" nvme_storage will be used as fall back (if copy_dbs="True")
+eggnog_shm: "True"       # Set "True", if shm space should be used for diamond, if "False" nvme_storage will be used as fall back (if copy_dbs="True")
 kraken2_shm: "True"       # Set "True", if shm space should be used for diamond, if "False" nvme_storage will be used as fall back (if copy_dbs="True")
 
 assembler: "metaspades"  # "metaspades", "megahit" or e.g. "provided". Megahit serves as fall-back in case metaspades cannot create the assemblies. With any other folder name the pipeline expects self-provided assemblies in results/assemble/<name>/<assembly>.fa.gz .
 
+
+#################################
+##
+## Resource limitations (to limit project-wide the parallel execution of certain rules)
+
+metaspades_slots: 10
 
 #################################
 ##

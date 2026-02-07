@@ -20,6 +20,7 @@ rule assemble__metaspades__run:
         slurm_partition=esc("partition", "assemble__metaspades__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__metaspades__run')['nvme']}",
         attempt=get_attempt,
+        metaspades_slots=1,
     retries: len(get_escalation_order("assemble__metaspades__run"))
     params:
         out_dir=lambda w: METASPADES / w.assembly_id,
