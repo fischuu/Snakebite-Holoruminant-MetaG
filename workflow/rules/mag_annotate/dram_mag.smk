@@ -42,6 +42,14 @@ rule mag_annotate__dram_mag__annotate:
                 --output_dir {params.tmp_dir} \
                 --threads {threads} \
         2>> {log} 1>&2
+        
+        for f in annotations.tsv trnas.tsv rrnas.tsv; do
+          if [ ! -f "{params.tmp_dir}/$f" ]; then
+            echo "DRAM did not generate $f -> creating empty file" >> {log}
+            touch "{params.tmp_dir}/$f"
+          fi
+        done
+
     """
     
 rule mag_annotate__fix_dram_mag_annotations_scaffold:
