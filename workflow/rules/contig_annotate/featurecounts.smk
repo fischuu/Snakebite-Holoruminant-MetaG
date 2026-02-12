@@ -24,7 +24,7 @@ if params["assemble"]["samtools"]["out_type"].upper() == "CRAM":
             echo "=== Running cramToBam for assembly {wildcards.assembly_id}, sample {wildcards.sample_id} and library {wildcards.library_id} ===" > {log}
             echo "Start time: $(date)" >> {log}
             
-            samtools index {input} 2> {log} 1>&2
+            #samtools index {input} 2> {log} 1>&2
             samtools view -b -o {output} {input} 2> {log} 1>&2
             
             echo "End time: $(date)" >> {log}
