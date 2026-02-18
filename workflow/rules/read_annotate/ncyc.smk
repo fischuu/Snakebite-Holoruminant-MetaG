@@ -70,13 +70,18 @@ rule read_annotate__ncyc__run:
         """
         echo "=== Running read_annotate__ncyc__run ===" > {log} 2>&1
 
+        # Extract the database folder (we assume that all files are in the same ncyc folder)
+        db_faa={params.faa}
+        db_folder=$(dirname "$db_faa")
+
         perl {params.folder}/workflow/scripts/NCycProfiler.PL \
                             -d {params.reads_dir} \
                             -db_faa {params.faa} \
+                            -db_folder $db_folder \
                             -m diamond -f fq.gz -s nucl \
                             -si {input}  \
                             -of {params.outdir} \
-                            -o {output} 2>> {log} 1>&2
+                            -o {output} >> {log} 2>&1
         
         echo "=== Finished read_annotate__ncyc__run ===" >> {log} 2>&1
         """
