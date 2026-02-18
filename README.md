@@ -26,6 +26,8 @@ Guide to prepare the configuration files: [Setup](https://github.com/fischuu/Pip
 
 Guide for running the pipeline: [Usage](https://github.com/fischuu/Pipeline-Holoruminant-Meta/blob/main/docs/04-Usage.md)
 
+Information for additional tools: [Extra](https://github.com/fischuu/Pipeline-Holoruminant-Meta/blob/main/docs/05-Extra.md)
+
 For troubleshooting, please visit the collection of most common errors: [Troubleshooting](https://github.com/fischuu/Pipeline-Holoruminant-Meta/blob/main/docs/10-Troubleshooting.md)
 
 
@@ -59,6 +61,8 @@ Please use the issue tracker from the GitHub or contact one of the contributors,
 - [`CoverM`](https://github.com/wwood/CoverM)
 - [`FastQC`](https://github.com/s-andrews/FastQC)
 - [`multiqc`](https://github.com/ewels/MultiQC)
+- [`NCyc`](https://github.com/qichao1984/NCyc)
+
 
 # Acknowledgements
 This pipeline is a fork from the Snakemake workflow

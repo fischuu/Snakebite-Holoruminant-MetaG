@@ -29,6 +29,7 @@ KRAKEN2 = READ_ANNOT / "kraken2/"
 KRONA = READ_ANNOT / "krona/"
 DIAMOND = READ_ANNOT / "diamond/"
 PRE_SYLPH = READ_ANNOT / "sylph/"
+NCYC = READ_ANNOT / "ncyc"
 
 # assemble
 ASSEMBLE = Path("results/assemble/")

@@ -25,6 +25,7 @@ databases:
   eggnog: resources/databases/eggnog/
   eggnog7: resources/databases/eggnog7/eggnog7_20251223
   gtdbtk: resources/databases/gtdbtk/release220
+  ncyc: resources/databases/ncyc/NCyc_100.faa
   hmmer:
     #hyddb: resources/databases/hyddb/HydDB_all_MM2022.hmm
     fe: resources/databases/hyddb/Fe_only-HydDB_MM2022.hmm

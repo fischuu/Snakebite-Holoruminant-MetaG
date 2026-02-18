@@ -76,6 +76,8 @@ read_annotate__kraken2__assign: full_node
 read_annotate__krona__visualize: medium
 read_annotate__metaphlan__condense: small
 read_annotate__metaphlan__run: medium
+read_annotate__ncyc__prepare_input: small
+read_annotate__ncyc__run: medium
 read_annotate__nonpareil__aggregate: small
 read_annotate__nonpareil__run: medium
 read_annotate__phyloflash__condense: small

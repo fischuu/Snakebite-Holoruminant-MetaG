@@ -4,6 +4,7 @@ include: "kraken2.smk"
 include: "krona.smk"
 include: "humann.smk"
 include: "metaphlan.smk"
+include: "ncyc.smk"
 include: "phyloflash.smk"
 include: "nonpareil.smk"
 include: "singlem.smk"
@@ -21,3 +22,8 @@ rule read_annotate:
         rules.read_annotate__phyloflash.input,
         rules.read_annotate__singlem.input,
         rules.read_annotate__sylph.input,
+
+rule read_annotate_extra:
+    """Run the preprocessing steps, included he evaluation ones"""
+    input:
+        rules.read_annotate__ncyc.input,
