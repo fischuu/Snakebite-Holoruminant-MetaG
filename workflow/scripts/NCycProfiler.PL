@@ -128,7 +128,7 @@ close FILE;
 
 my %abundance;
 my %samples;
-my @sfiles=glob("$workdir/*diamond") if $method eq "diamond";
+my @sfiles=glob("$out_folder/*diamond") if $method eq "diamond";
 @sfiles=glob("$workdir/*usearch") if $method eq "usearch";
 @sfiles=glob("$workdir/*blast") if $method eq "blast";
 die "No diamond/usearch/blast files were detected!\n" if $#sfiles==-1;
@@ -158,6 +158,8 @@ while (<FILE>) {
   my @items = split( "\t", $_ );
   $size{ $items[0] } = $items[1];
   push( @sizes, $items[1] );
+  
+  print STDERR "DEBUG: Loaded sample '$items[0]' with size '$items[1]'\n";
 }
 close FILE;
 foreach my $sample(keys %samples){
