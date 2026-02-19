@@ -9,7 +9,6 @@ rule read_annotate__ncyc__prepare_input:
             PRE_BOWTIE2 / "decontaminated_reads" / f"{sample_id}.{library_id}_2.fq.gz"
             for sample_id, library_id in SAMPLE_LIBRARY
         ],
-        folder=PRE_BOWTIE2 / "decontaminated_reads",
     output:
         NCYC / "ncyc_samples.tsv",
     log:
@@ -29,13 +28,13 @@ rule read_annotate__ncyc__prepare_input:
     retries: len(get_escalation_order("read_annotate__ncyc__prepare_input"))
     params:
         folder=config["pipeline_folder"],
-        tmp=config["tmp_storage"],
+        reads=PRE_BOWTIE2 / "decontaminated_reads",
         outdir=NCYC / "results",
     shell:
         """
         echo "=== Running read_annotate__ncyc__prepare_input ===" > {log} 2>&1
 
-        {params.folder}/workflow/scripts/prepare_ncyc_inputs.sh {input.folder} {output} >> {log} 2>&1
+        {params.folder}/workflow/scripts/prepare_ncyc_inputs.sh {params.reads} {output} >> {log} 2>&1
         
         echo "=== Finished read_annotate__ncyc__prepare_input ===" >> {log} 2>&1
         """
