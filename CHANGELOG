@@ -3,6 +3,7 @@
 
 Version 0.4.*: 
 -----------
+63: Added NCyc also to the contig annotate extra module, using the prodigal protein output
 62: Added the tool NCyc to the pipeline (to module read_annotate_extra)
 61: Accidental rerun of rules triggered by an indexing step in contig_annotate fixed (issue #47)
 60: camper in mag annotate crashed in case no nvme drive was given, this is fixed now like in contig case (Issue #52)

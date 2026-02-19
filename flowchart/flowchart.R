@@ -67,6 +67,9 @@ graph <- grViz("
     contig_annotate_hmmer [label = 'HMMER, v3.3.2 \n HydDB 20251126 (2022)']
     contig_annotate_diamond [label = 'Diamond, v.2.1.8 \n HydDB 20251126 (2022)']
     contig_annotate_feature [label = 'FeatureCounts, v2.0.1']
+
+    # Define the contig_annotate_extra nodes
+    contig_annotate_ncyc [label = 'NCycDB \n Jul2019']
     
     # Define quantify nodes
     quantify_bowtie2 [label = 'Bowtie2, v2.5.1']
@@ -151,6 +154,9 @@ graph <- grViz("
     contig_annotate_prodigal -> contig_annotate_diamond
     ass_assembly -> contig_annotate_bowtie
     contig_annotate_bowtie -> contig_annotate_feature
+    
+    # Define the edges for contig annotate extra
+    contig_annotate_prodigal -> contig_annotate_ncyc
     
     # Define edges between nodes and the representative node
     ass_assembler_rep -> ass_megahit
@@ -259,19 +265,33 @@ graph <- grViz("
     }
 
     # Define a subgraph to group contig annotate nodes
-    subgraph cluster_contig_annotate {
-      label = 'Contig annotate'
-      style = dashed
-      color = lightgray
-
-      contig_annotate_prodigal
-      contig_annotate_camper
-      contig_annotate_eggnog
-      contig_annotate_eggnog7
-      contig_annotate_bowtie
-      contig_annotate_feature
-      contig_annotate_hmmer
-      contig_annotate_diamond
+    subgraph cluster_contig_annot_all {
+        label = ''
+        style = dashed
+        color = lightgray
+    
+        subgraph cluster_contig_annotate {
+          label = 'Contig annotate'
+          style = dashed
+          color = lightgray
+    
+          contig_annotate_prodigal
+          contig_annotate_camper
+          contig_annotate_eggnog
+          contig_annotate_eggnog7
+          contig_annotate_bowtie
+          contig_annotate_feature
+          contig_annotate_hmmer
+          contig_annotate_diamond
+        }
+      
+        subgraph cluster_contig_annot_extra {
+          label = 'Contig Annotate Extra'
+          style = dashed
+          color = lightgray
+        
+          contig_annotate_ncyc
+          }
     }
 
     # Define a subgraph to group annotation nodes

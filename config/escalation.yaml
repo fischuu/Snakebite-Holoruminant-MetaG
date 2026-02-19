@@ -43,6 +43,8 @@ contig_annotate__cramToBam: small
 contig_annotate__featurecounts_run: medium
 contig_annotate__prodigal_run: medium
 contig_annotate__cut_prodigal: medium
+contig_annotate__ncyc__prepare_input: small
+contig_annotate__ncyc__run: medium
 
 helpers__fastqc: small
 helpers__samtools__faidx_fa: small

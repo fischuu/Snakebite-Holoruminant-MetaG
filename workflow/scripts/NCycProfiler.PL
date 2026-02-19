@@ -83,7 +83,7 @@ if ( $method eq "diamond" ) {
     #system("diamond blastp -k 1 -e 0.0001 -p 5 -d data/NCyc_100 -q $file -o $out")
     #  if $seqtype eq "prot";
 
-    system("cp $out $out_folder/");
+    system("mv $out $out_folder/");
   }
 }
 elsif ( $method eq "usearch" ) {

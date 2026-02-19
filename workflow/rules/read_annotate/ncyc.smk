@@ -34,7 +34,7 @@ rule read_annotate__ncyc__prepare_input:
         """
         echo "=== Running read_annotate__ncyc__prepare_input ===" > {log} 2>&1
 
-        {params.folder}/workflow/scripts/prepare_ncyc_inputs.sh {params.reads} {output} >> {log} 2>&1
+        {params.folder}/workflow/scripts/prepare_ncyc_inputs.sh {params.reads} {output} fq.gz >> {log} 2>&1
         
         echo "=== Finished read_annotate__ncyc__prepare_input ===" >> {log} 2>&1
         """

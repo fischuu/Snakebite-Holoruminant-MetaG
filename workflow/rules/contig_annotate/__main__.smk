@@ -3,6 +3,7 @@ include: "camper.smk"
 include: "diamond.smk"
 include: "eggnog.smk"
 include: "eggnog7.smk"
+include: "ncyc.smk"
 include: "featurecounts.smk"
 include: "hmmer.smk"
 include: "prodigal.smk"
@@ -22,3 +23,7 @@ rule contig_annotate:
         rules.contig_annotate__diamond.input,
         rules.contig_annotate__hmmer.input,
         rules.contig_annotate__eggnog7.input,        
+
+rule contig_annotate_extra:
+    input:
+        rules.contig_annotate__ncyc.input,
