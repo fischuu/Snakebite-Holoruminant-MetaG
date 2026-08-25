@@ -118,6 +118,8 @@ use them for unpacking the files, as this will significantly increase the speed.
   mv eggnog7_20251223_master_search_table.tsv.gz eggnog7/
   mv eggnog7_20251223_proteins.dmnd eggnog7/
 
+  wget https://a3s.fi/Holoruminant-data/2026.02.18.ncyc.tar.gz
+
 # Unpack all the databases
   tar -xvf 2025.04.04.bakta.tar.gz
   tar -xvf 2025.04.04.camper.tar.gz
@@ -135,6 +137,7 @@ use them for unpacking the files, as this will significantly increase the speed.
   tar -xvf 2025.11.25.phyloflash.tar.gz
   tar -xvf 2025.04.04.singlem.tar.gz
   tar -xvf 2025.04.04.sylph.tar.gz
+  tar -xvf 2026.02.18.ncyc.tar.gz
 
 # Get the reference genomes (relevant for Holoruminant) for host contamination removal
 # Obviously, you can also use your own set of reference genomes here instead
