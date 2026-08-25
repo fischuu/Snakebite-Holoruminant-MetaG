@@ -1,4 +1,3 @@
-include: "__functions__.smk"
 include: "diamond.smk"
 include: "kraken2.smk"
 include: "krona.smk"
@@ -11,7 +10,7 @@ include: "singlem.smk"
 include: "sylph.smk"
 
 rule read_annotate:
-    """Run the preprocessing steps, included he evaluation ones"""
+    """Run the read-based annotation tools"""
     input:
         rules.read_annotate__diamond.input,
         rules.read_annotate__kraken2.input,
@@ -24,6 +23,6 @@ rule read_annotate:
         rules.read_annotate__sylph.input,
 
 rule read_annotate_extra:
-    """Run the preprocessing steps, included he evaluation ones"""
+    """Run the read-based annotation tools"""
     input:
         rules.read_annotate__ncyc.input,

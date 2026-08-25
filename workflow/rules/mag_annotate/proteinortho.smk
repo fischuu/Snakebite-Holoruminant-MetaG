@@ -6,6 +6,8 @@ rule mag_annotate__proteinortho:
         tsv=PROTEINORTHO / "proteinortho.proteinortho.tsv",
     log:
         PROTEINORTHO / "proteinortho.log",
+    benchmark:
+        PROTEINORTHO / "benchmark.tsv",
     container:
         docker["mag_annotate"]
     threads: esc("cpus", "mag_annotate__proteinortho")

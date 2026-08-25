@@ -1,5 +1,5 @@
 mag_annotate__bakta: medium_nvme
-mag_annotate__bakta_mags_run: medium_nvme
+mag_annotate__bakta_mags__run: medium_nvme
 mag_annotate__camper__annotate: medium_nvme
 mag_annotate__checkm2__predict: medium_nvme
 mag_annotate__dram__annotate: large_nvme
@@ -15,7 +15,7 @@ mag_annotate__quast: medium
 
 assemble__bowtie2__build: medium
 assemble__bowtie2__map: medium
-assemble__concoct_run: large
+assemble__concoct__run: large
 assemble__drep__join_genomes: medium_nvme
 assemble__drep__run: medium_nvme
 assemble__drep__separate_bins: small
@@ -36,12 +36,12 @@ contig_annotate__camper__annotate: medium_nvme
 contig_annotate__diamond__assign: medium_nvme
 contig_annotate__diamond__summarise: small
 contig_annotate__eggnog_find_homology: medium_nvme
-contig_annotate__eggnog_orthology: large_nvme
-contig_annotate__eggnog7_run: medium
+contig_annotate__eggnog_orthology_chunk: large_nvme
+contig_annotate__eggnog7__run: medium
 contig_annotate__hmmer__assign: medium_nvme
-contig_annotate__cramToBam: small
-contig_annotate__featurecounts_run: medium
-contig_annotate__prodigal_run: medium
+contig_annotate__cram_to_bam: small
+contig_annotate__featurecounts__run: medium
+contig_annotate__prodigal__run: medium
 contig_annotate__cut_prodigal: medium
 contig_annotate__ncyc__prepare_input: small
 contig_annotate__ncyc__run: medium
@@ -56,7 +56,7 @@ helpers__samtools__index_cram: small
 
 preprocess__bowtie2__build: medium
 preprocess__bowtie2__extract_nonhost: medium
-preprocess__bowtie2__extract_nonhost_run: small
+preprocess__bowtie2__extract_nonhost__run: small
 preprocess__bowtie2__map: medium
 preprocess__fastp__run: medium
 preprocess__samtools__stats_cram: small
@@ -67,13 +67,13 @@ quantify__bowtie2__map: medium
 quantify__coverm__contig_aggregate: small
 quantify__coverm__contig_one: small
 quantify__coverm__genome_aggregate: small
-quantify__coverm__genome_run: small
+quantify__coverm__genome__run: small
 quantify__samtools__stats_cram: small
 
 read_annotate__diamond__assign: medium_nvme
 read_annotate__diamond__summarise: small
 read_annotate__humann__run: medium
-read_annotate__humann_condense: small
+read_annotate__humann__condense: small
 read_annotate__kraken2__assign: full_node
 read_annotate__krona__visualize: medium
 read_annotate__metaphlan__condense: small
@@ -100,11 +100,5 @@ report__quantify: small
 report__read_annotate: small
 report__reads: small
 report__reference: small
-
-report__sample__multiqc: small
-report__step__reads: small
-report__step__preprocess: small
-report__step__assemble: small
-report__step__quantify: small
 
 test_error: small

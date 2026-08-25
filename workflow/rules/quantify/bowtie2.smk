@@ -1,11 +1,13 @@
 rule quantify__bowtie2__build:
-    """Index dereplicader"""
+    """Build a bowtie2 index for the dereplicated genome catalogue"""
     input:
         contigs=DREP / "dereplicated_genomes.fa.gz",
     output:
         mock=touch(QUANT_INDEX / "dereplicated_genomes"),
     log:
         QUANT_INDEX / "dereplicated_genomes.log",
+    benchmark:
+        QUANT_INDEX / "benchmark/dereplicated_genomes.tsv",
     container:
         docker["bowtie2"]
     threads: esc("cpus", "quantify__bowtie2__build")
@@ -19,16 +21,13 @@ rule quantify__bowtie2__build:
     retries: len(get_escalation_order("quantify__bowtie2__build"))
     shell:
         """
-        bowtie2-build \
-            --threads {threads} \
-            {input.contigs} \
-            {output.mock} \
-        2> {log} 1>&2
+        exec 2> {log}
+        bowtie2-build --threads {threads} {input.contigs} {output.mock}
         """
 
 
 rule quantify__bowtie2__map:
-    """Align one sample to the dereplicated genomes"""
+    """Map one sample/library against the dereplicated genome catalogue"""
     input:
         mock=QUANT_INDEX / "dereplicated_genomes",
         forward_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_1.fq.gz",
@@ -39,6 +38,8 @@ rule quantify__bowtie2__map:
         cram=QUANT_BOWTIE2 / "{sample_id}.{library_id}.cram",
     log:
         QUANT_BOWTIE2 / "{sample_id}.{library_id}.log",
+    benchmark:
+        QUANT_BOWTIE2 / "benchmark/{sample_id}.{library_id}.tsv",
     container:
         docker["bowtie2"]
     threads: esc("cpus", "quantify__bowtie2__map")
@@ -56,32 +57,20 @@ rule quantify__bowtie2__map:
         rg_extra=compose_rg_extra,
     shell:
         """
-        find \
-            $(dirname {output.cram}) \
-            -name "$(basename {output.cram}).tmp.*.bam" \
-            -delete \
-        2> {log} 1>&2
+        exec > {log} 2>&1
 
-        ( bowtie2 \
-            -x {input.mock} \
-            -1 {input.forward_} \
-            -2 {input.reverse_} \
-            --threads {threads} \
-            --rg-id '{params.rg_id}' \
-            --rg '{params.rg_extra}' \
-        | samtools sort \
-            -l 9 \
-            -M \
-            -m {params.samtools_mem} \
-            -o {output.cram} \
-            --reference {input.reference} \
-            --threads {threads} \
-        ) 2>> {log} 1>&2
+        # Clear any stale samtools-sort spill files from a killed prior attempt.
+        find "$(dirname {output.cram})" -name "$(basename {output.cram}).tmp.*.bam" -delete
+
+        bowtie2 -x {input.mock} -1 {input.forward_} -2 {input.reverse_} \
+                --threads {threads} --rg-id '{params.rg_id}' --rg '{params.rg_extra}' \
+            | samtools sort --reference {input.reference} -l 9 -M -m {params.samtools_mem} \
+                --threads {threads} -o {output.cram} -
         """
 
 
 rule quantify__bowtie2:
-    """Align all samples to the dereplicated genomes"""
+    """Map every sample to the dereplicated genome catalogue"""
     input:
         [
             QUANT_BOWTIE2 / f"{sample_id}.{library_id}.cram"

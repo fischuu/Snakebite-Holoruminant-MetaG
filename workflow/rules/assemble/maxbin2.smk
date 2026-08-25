@@ -11,6 +11,8 @@ rule assemble__maxbin2__run:
         workdir=directory(MAXBIN2 / "{assembly_id}"),
     log:
         MAXBIN2 / "{assembly_id}.log",
+    benchmark:
+        MAXBIN2 / "benchmark/{assembly_id}.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__maxbin2__run")
@@ -28,40 +30,30 @@ rule assemble__maxbin2__run:
         minLen=params["assemble"]["maxbin"]["min_contig_len"],
     shell:
         """
+        exec > {log} 2>&1
         mkdir --parents {output.workdir}
 
-        ( samtools coverage {input.alignments} \
-          | awk '{{print $1"\t"$5}}' \
-          | grep -v '^#' \
-          ) > {params.coverage} \
-          2> {log}
-
+        echo "== deriving mean per-contig coverage for MaxBin2 =="
+        samtools coverage {input.alignments} \
+            | awk '!/^#/ {{print $1, $5}}' OFS='\t' \
+            > {params.coverage}
 
         run_MaxBin.pl \
             -thread {threads} \
             -contig {input.assembly} \
             -out {output.workdir}/maxbin2 \
             -abund {params.coverage} \
-            -min_contig_length {params.minLen} \
-        2> {log} 1>&2
+            -min_contig_length {params.minLen}
 
-        rename \
-            's/\\.fasta$/.fa/' \
-            {output.workdir}/*.fasta \
-        2>> {log}
-        
+        for fasta in {output.workdir}/*.fasta; do
+            [ -e "$fasta" ] && mv "$fasta" "${{fasta%.fasta}}.fa"
+        done
 
-        fa_files=$(find {output.workdir} -name "*.fa")
-        for fa in $fa_files; do
-            pigz --best --verbose "$fa"
-        done 2>> {log} 1>&2
+        find {output.workdir} -name "*.fa" -exec pigz --best --verbose {{}} +
 
-        rm \
-            --recursive \
-            --force \
+        rm --recursive --force --verbose \
             {output.workdir}/maxbin.{{coverage,log,marker,noclass,summary,tooshort}} \
-            {output.workdir}/maxbin2.marker_of_each_bin.tar.gz \
-        2>> {log} 1>&2
+            {output.workdir}/maxbin2.marker_of_each_bin.tar.gz
         """
 
 

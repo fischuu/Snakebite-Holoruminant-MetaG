@@ -1,10 +1,13 @@
 rule assemble__drep__separate_bins:
+    """Split each assembly's renamed, binned FASTA into one file per bin"""
     input:
         assemblies=[MAGSCOT / f"{assembly_id}.fa.gz" for assembly_id in ASSEMBLIES],
     output:
         out_dir=directory(DREP / "separated_bins"),
     log:
         DREP / "separate_bins.log",
+    benchmark:
+        DREP / "benchmark/separate_bins.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__drep__separate_bins")
@@ -20,11 +23,8 @@ rule assemble__drep__separate_bins:
         folder=config["pipeline_folder"],
     shell:
         """
-        echo "=== Running assemble__drep__separate_bins ===" > {log} 2>&1
-
-        {params.folder}/workflow/scripts/split_bins.sh {output.out_dir} {input.assemblies} >> {log} 2>&1
-        
-        echo "=== Finished assemble__drep__separate_bins ===" >> {log} 2>&1
+        exec > {log} 2>&1
+        {params.folder}/workflow/scripts/split_bins.sh {output.out_dir} {input.assemblies}
         """
 
 
@@ -38,6 +38,8 @@ rule assemble__drep__run:
         data_tables=DREP / "data_tables.tar.gz",
     log:
         DREP / "drep.log",
+    benchmark:
+        DREP / "benchmark/drep_run.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__drep__run")
@@ -59,16 +61,13 @@ rule assemble__drep__run:
         extra=params["assemble"]["drep"]["extra"]
     shell:
         """
-        
-        rm \
-            --recursive \
-            --force \
-            {params.out_dir}/data_tables \
-            {params.out_dir}/data \
-            {params.out_dir}/dereplicated_genomes \
-            {params.out_dir}/figures \
-            {params.out_dir}/log \
-        2> {log}.{resources.attempt} 1>&2
+        exec > {log}.{resources.attempt} 2>&1
+
+        stale=(
+            {params.out_dir}/data_tables {params.out_dir}/data
+            {params.out_dir}/dereplicated_genomes {params.out_dir}/figures {params.out_dir}/log
+        )
+        rm --recursive --force -- "${{stale[@]}}"
 
         dRep dereplicate \
             {params.out_dir} \
@@ -79,25 +78,20 @@ rule assemble__drep__run:
             --S_ani {params.S_ani} \
             -nc {params.nc} \
             {params.extra} \
-            --genomes {input.genomes}/*.fa \
-        2>> {log}.{resources.attempt} 1>&2
+            --genomes {input.genomes}/*.fa
 
-        for folder in data data_tables ; do
+        for section in data data_tables; do
             tar \
                 --create \
                 --directory {params.out_dir} \
-                --file {params.out_dir}/${{folder}}.tar.gz \
+                --file {params.out_dir}/${{section}}.tar.gz \
                 --remove-files \
                 --use-compress-program="pigz --processes {threads}" \
                 --verbose \
-                ${{folder}} \
-            2>> {log} 1>&2
+                ${{section}}
         done
 
-        files=$(find {output.dereplicated_genomes} -type f ! -name "*.gz")
-        for file in $files; do
-            gzip "$file"
-        done
+        find {output.dereplicated_genomes} -type f ! -name "*.gz" -exec gzip {{}} +
 
         mv {log}.{resources.attempt} {log}
         """
@@ -111,6 +105,8 @@ rule assemble__drep__join_genomes:
         DREP / "dereplicated_genomes.fa.gz",
     log:
         DREP / "dereplicated_genomes.log",
+    benchmark:
+        DREP / "benchmark/join_genomes.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__drep__join_genomes")
@@ -124,16 +120,12 @@ rule assemble__drep__join_genomes:
     retries: len(get_escalation_order("assemble__drep__join_genomes"))
     shell:
         """
-        ( zcat \
-            {input}/*.fa.gz \
-        | bgzip \
-            --compress-level 9 \
-            --threads {threads} \
-        > {output} \
-        ) 2> {log}
+        exec 2> {log}
+        zcat {input}/*.fa.gz | bgzip --compress-level 9 --threads {threads} > {output}
         """
 
 
 rule assemble__drep:
+    """Dereplicate all bins across every assembly into one genome catalogue with dRep"""
     input:
         DREP / "dereplicated_genomes.fa.gz",

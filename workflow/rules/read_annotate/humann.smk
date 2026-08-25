@@ -78,8 +78,7 @@ rule read_annotate__humann__condense:
     retries: len(get_escalation_order("read_annotate__humann__condense")),
     shell:
         """
-        cat {input.genefamily_data} > {output}
-        2> {log} 1>&2
+        cat {input.genefamily_data} > {output} 2> {log}
         """
 
 rule read_annotate__humann:

@@ -41,14 +41,11 @@ ASSEMBLE_BOWTIE2 = ASSEMBLE / "bowtie2/"
 CONCOCT = ASSEMBLE / "concoct/"
 METABAT2 = ASSEMBLE / "metabat2/"
 MAXBIN2 = ASSEMBLE / "maxbin2/"
-# VAMB = ASSEMBLE / "vamb/"  # This could be a metabinner
 MAGSCOT = ASSEMBLE / "magscot/"
 PRODIGAL = MAGSCOT / "prodigal/"
 DREP = ASSEMBLE / "drep/"
 
 PROVIDED = ASSEMBLE / config["assembler"]
-
-#PROVIDED = ASSEMBLE / "long_reads"
 
 # quantify
 QUANT = Path("results/quantify/")

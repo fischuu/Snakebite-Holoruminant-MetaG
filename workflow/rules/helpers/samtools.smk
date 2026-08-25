@@ -11,7 +11,7 @@ rule helpers__samtools__index_bam:
         runtime=esc("runtime", "helpers__samtools__index_bam"),
         mem_mb=esc("mem_mb", "helpers__samtools__index_bam"),
         cpus_per_task=esc("cpus", "helpers__samtools__index_bam"),
-        partition=esc("partition", "helpers__samtools__index_bam"),
+        slurm_partition=esc("partition", "helpers__samtools__index_bam"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'helpers__samtools__index_bam')['nvme']}",
         attempt=get_attempt,
     retries: len(get_escalation_order("helpers__samtools__index_bam"))
@@ -39,7 +39,7 @@ rule helpers__samtools__index_cram:
         runtime=esc("runtime", "helpers__samtools__index_cram"),
         mem_mb=esc("mem_mb", "helpers__samtools__index_cram"),
         cpus_per_task=esc("cpus", "helpers__samtools__index_cram"),
-        partition=esc("partition", "helpers__samtools__index_cram"),
+        slurm_partition=esc("partition", "helpers__samtools__index_cram"),
     retries: len(get_escalation_order("helpers__samtools__index_cram"))
     log:
         "{prefix}.cram.crai.log"
@@ -62,7 +62,7 @@ rule helpers__samtools__faidx_fa:
         runtime=esc("runtime", "helpers__samtools__faidx_fa"),
         mem_mb=esc("mem_mb", "helpers__samtools__faidx_fa"),
         cpus_per_task=esc("cpus", "helpers__samtools__faidx_fa"),
-        partition=esc("partition", "helpers__samtools__faidx_fa"),
+        slurm_partition=esc("partition", "helpers__samtools__faidx_fa"),
     retries: len(get_escalation_order("helpers__samtools__faidx_fa"))
     log:
         "{prefix}.fa.fai.log"
@@ -85,7 +85,7 @@ rule helpers__samtools__faidx_fagz:
         runtime=esc("runtime", "helpers__samtools__faidx_fagz"),
         mem_mb=esc("mem_mb", "helpers__samtools__faidx_fagz"),
         cpus_per_task=esc("cpus", "helpers__samtools__faidx_fagz"),
-        partition=esc("partition", "helpers__samtools__faidx_fagz"),
+        slurm_partition=esc("partition", "helpers__samtools__faidx_fagz"),
     retries: len(get_escalation_order("helpers__samtools__faidx_fagz"))
     log:
         "{prefix}.fa.gz.log"
@@ -113,7 +113,7 @@ rule helpers__samtools__idxstats_cram:
         runtime=esc("runtime", "helpers__samtools__idxstats_cram"),
         mem_mb=esc("mem_mb", "helpers__samtools__idxstats_cram"),
         cpus_per_task=esc("cpus", "helpers__samtools__idxstats_cram"),
-        partition=esc("partition", "helpers__samtools__idxstats_cram"),
+        slurm_partition=esc("partition", "helpers__samtools__idxstats_cram"),
     retries: len(get_escalation_order("helpers__samtools__idxstats_cram"))
     shell:
         "samtools idxstats {input.cram} > {output.tsv} 2> {log}"
@@ -135,7 +135,7 @@ rule helpers__samtools__flagstats_cram:
         runtime=esc("runtime", "helpers__samtools__flagstats_cram"),
         mem_mb=esc("mem_mb", "helpers__samtools__flagstats_cram"),
         cpus_per_task=esc("cpus", "helpers__samtools__flagstats_cram"),
-        partition=esc("partition", "helpers__samtools__flagstats_cram"),
+        slurm_partition=esc("partition", "helpers__samtools__flagstats_cram"),
     retries: len(get_escalation_order("helpers__samtools__flagstats_cram"))
     shell:
         "samtools flagstats {input.cram} > {output.txt} 2> {log}"

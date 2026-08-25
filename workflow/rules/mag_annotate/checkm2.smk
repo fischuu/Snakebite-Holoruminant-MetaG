@@ -1,5 +1,5 @@
 rule mag_annotate__checkm2__predict:
-    """Run CheckM2 over the dereplicated mags"""
+    """Assess genome completeness/contamination of the dereplicated MAGs with CheckM2"""
     input:
         mags=DREP / "dereplicated_genomes",
         db=features["databases"]["checkm2"],
@@ -7,6 +7,8 @@ rule mag_annotate__checkm2__predict:
         CHECKM / "quality_report.tsv",
     log:
         CHECKM / "quality_report.log",
+    benchmark:
+        CHECKM / "benchmark.tsv",
     container:
         docker["checkm2"]
     params:
@@ -21,7 +23,8 @@ rule mag_annotate__checkm2__predict:
     retries: len(get_escalation_order("mag_annotate__checkm2__predict"))
     shell:
         """
-        rm -rfv {params.out_dir} 2> {log} 1>&2
+        exec > {log} 2>&1
+        rm --recursive --force --verbose {params.out_dir}
 
         checkm2 predict \
             --threads {threads} \
@@ -29,11 +32,10 @@ rule mag_annotate__checkm2__predict:
             --extension .fa.gz \
             --output-directory {params.out_dir} \
             --database_path {input.db} \
-            --remove_intermediates \
-        2>> {log} 1>&2
+            --remove_intermediates
 
-        mv {params.out_dir}/quality_report.tsv {output} 2>> {log} 1>&2
-        rm --recursive --verbose --force {params.out_dir} 2>> {log} 1>&2
+        mv {params.out_dir}/quality_report.tsv {output}
+        rm --recursive --force --verbose {params.out_dir}
         """
 
 

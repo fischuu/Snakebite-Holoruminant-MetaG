@@ -12,6 +12,8 @@ rule assemble__metabat2__run:
         bins=directory(METABAT2 / "{assembly_id}"),
     log:
         METABAT2 / "{assembly_id}.log",
+    benchmark:
+        METABAT2 / "benchmark/{assembly_id}.tsv",
     container:
         docker["assemble"]
     params:
@@ -32,53 +34,40 @@ rule assemble__metabat2__run:
     retries: len(get_escalation_order("assemble__metabat2__run"))
     shell:
         """
+        exec > {log} 2>&1
+
+        echo "== converting alignments to mapped-only BAM =="
         for aln in {input.alignments}; do
-
-            # Remove extension: .bam or .cram
-            base=$(basename "$aln")
-            base=${{base%.cram}}
-            base=${{base%.bam}}
-
-            bam={params.workdir}/$base.bam
-        
+            sample=$(basename "$aln")
+            sample=${{sample%.cram}}
+            sample=${{sample%.bam}}
             samtools view \
                 --exclude-flags 4 \
                 --fast \
-                --output $bam \
                 --output-fmt BAM \
                 --threads {threads} \
-                $aln
-        
-        done 2> {log} 1>&2
+                --output "{params.workdir}/${{sample}}.bam" \
+                "$aln"
+        done
 
-
+        echo "== summarizing per-contig depth across all libraries =="
         jgi_summarize_bam_contig_depths \
             --outputDepth {params.depth} \
             --pairedContigs {params.paired} \
-            {params.bams} \
-        2>> {log} 1>&2
+            {params.bams}
 
+        echo "== binning with MetaBAT2 =="
         metabat2 \
             --inFile {input.assembly} \
             --abdFile {params.depth} \
             --outFile {params.bins_prefix} \
             --numThreads {threads} \
             --minContig {params.minLen} \
-            --verbose \
-        2> {log} 1>&2
+            --verbose
 
-        rm \
-            --force \
-            --verbose \
-            {params.bams} \
-            {params.depth} \
-            {params.paired} \
-        2>> {log} 1>&2
+        rm --force --verbose {params.bams} {params.depth} {params.paired}
 
-        fa_files=$(find {output.bins} -name "*.fa")
-        for fa in $fa_files; do
-            pigz --best --verbose "$fa"
-        done 2>> {log} 1>&2
+        find {output.bins} -name "*.fa" -exec pigz --best --verbose {{}} +
         """
 
 

@@ -1,4 +1,5 @@
 rule helpers__fastqc:
+    """Generic FastQC rule: report for any {prefix}.fq.gz, reused across modules"""
     input:
         "{prefix}.fq.gz"
     output:
@@ -17,5 +18,7 @@ rule helpers__fastqc:
     retries: len(get_escalation_order("helpers__fastqc"))
     log:
         "{prefix}_fastqc.log"
+    benchmark:
+        "{prefix}_fastqc_benchmark.tsv"
     shell:
-        "fastqc {input} 2> {log} 1>&2"
+        "fastqc {input} > {log} 2>&1"

@@ -1,11 +1,13 @@
 rule reference__hosts__recompress:
-    """Recompress the reference with bgzip"""
+    """Ensure a reference host genome is bgzip-compressed"""
     input:
         fa_gz=lambda wildcards: features["hosts"][wildcards.genome],
     output:
         HOSTS / "{genome}.fa.gz",
     log:
         HOSTS / "{genome}.log",
+    benchmark:
+        HOSTS / "benchmark/{genome}.tsv",
     container:
         docker["reference"]
     threads: esc("cpus", "reference__hosts__recompress")
@@ -19,15 +21,14 @@ rule reference__hosts__recompress:
     retries: len(get_escalation_order("reference__hosts__recompress"))
     shell:
         """
-        echo "$(date) **Starting rule reference__hosts__recompress**" > {log}
-
-        (gzip -dc {input.fa_gz} | bgzip -@ {threads} > {output}) 2> {log}
-        
-        echo "$(date) **Finished rule reference__hosts__recompress**" >> {log}
+        exec > {log} 2>&1
+        echo "[$(date)] recompressing {wildcards.genome} with bgzip"
+        zcat {input.fa_gz} | bgzip --threads {threads} > {output}
+        echo "[$(date)] done"
         """
 
 
 rule reference__hosts:
-    """Run all the steps for reference(s) preparations"""
+    """Aggregate the recompressed genome for every configured host"""
     input:
         [HOSTS / f"{genome}.fa.gz" for genome in HOST_NAMES],

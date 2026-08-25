@@ -1,5 +1,5 @@
 rule mag_annotate__gtdbtk__classify:
-    """Run GTDB-Tk over the dereplicated genomes."""
+    """Taxonomically classify the dereplicated genomes with GTDB-Tk"""
     input:
         fasta_folder=DREP / "dereplicated_genomes",
         database=features["databases"]["gtdbtk"],
@@ -10,6 +10,8 @@ rule mag_annotate__gtdbtk__classify:
         identify=GTDBTK / "identify.tar.gz",
     log:
         GTDBTK / "gtdbtk_classify.log",
+    benchmark:
+        GTDBTK / "benchmark.tsv",
     container:
         docker["gtdbtk"]
     params:
@@ -27,52 +29,40 @@ rule mag_annotate__gtdbtk__classify:
     retries: len(get_escalation_order("mag_annotate__gtdbtk__classify"))
     shell:
         """
-        rm \
-            --recursive \
-            --force \
-            {params.out_dir}/align \
-            {params.out_dir}/classify \
-            {params.out_dir}/identify \
-            {params.out_dir}/gtdbtk_classify.log \
-            {params.out_dir}/gtdbtk.json \
-            {params.out_dir}/gtdbtk.summary.tsv \
-            {params.out_dir}/gtdbtk.warnings.log \
-            {params.ar53} \
-            {params.bac120} \
-        2>> {log}.{resources.attempt} 1>&2
+        exec > {log}.{resources.attempt} 2>&1
+
+        stale=(
+            {params.out_dir}/align {params.out_dir}/classify {params.out_dir}/identify
+            {params.out_dir}/gtdbtk_classify.log {params.out_dir}/gtdbtk.json
+            {params.out_dir}/gtdbtk.summary.tsv {params.out_dir}/gtdbtk.warnings.log
+            {params.ar53} {params.bac120}
+        )
+        rm --recursive --force -- "${{stale[@]}}"
 
         export GTDBTK_DATA_PATH="{input.database}"
-
         gtdbtk classify_wf \
             --genome_dir {input.fasta_folder} \
             --extension fa.gz \
             --out_dir {params.out_dir} \
             --cpus {threads} \
-            --skip_ani_screen \
-        2>> {log}.{resources.attempt} 1>&2
+            --skip_ani_screen
 
-        if [[ -f {params.ar53} ]] ; then
-            ( csvstack \
-                --tabs \
-                {params.bac120} \
-                {params.ar53} \
-            | csvformat \
-                --out-tabs \
-            > {output.summary} \
-            ) 2>> {log}.{resources.attempt}
+        # Archaea (ar53) may or may not be present depending on the genome set;
+        # merge it into the summary only when GTDB-Tk actually produced it.
+        if [[ -f {params.ar53} ]]; then
+            csvstack --tabs {params.bac120} {params.ar53} | csvformat --out-tabs > {output.summary}
         else
-            cp {params.bac120} {output.summary} 2>> {log}.{resources.attempt}
+            cp {params.bac120} {output.summary}
         fi
 
-        for folder in align classify identify ; do
+        for section in align classify identify; do
             tar \
                 --create \
                 --directory {params.out_dir} \
-                --file {params.out_dir}/${{folder}}.tar.gz \
+                --file {params.out_dir}/${{section}}.tar.gz \
                 --use-compress-program="pigz --processes {threads}" \
                 --verbose \
-                ${{folder}} \
-            2>> {log}.{resources.attempt} 1>&2
+                ${{section}}
         done
 
         mv {log}.{resources.attempt} {log}

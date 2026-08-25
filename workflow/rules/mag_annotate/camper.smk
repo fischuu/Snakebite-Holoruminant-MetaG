@@ -8,8 +8,8 @@ rule mag_annotate__camper__annotate:
         distill=CAMPER / "distill.tsv"        
     log:
         CAMPER / "camper.log",
-    conda:
-        "__environment__.yml"
+    benchmark:
+        CAMPER / "benchmark.tsv",
     container:
         docker["camper"]
     params:

@@ -74,6 +74,7 @@ rule read_annotate__diamond__assign:
 
             echo "DB_SIZE: $DB_SIZE, SHM_AVAIL: $SHM_AVAIL, NVME_AVAIL: $NVME_AVAIL" 2>> {log}.{resources.attempt} 1>&2
 
+            NEED_COPY="true"
             if [ "$DB_SIZE" -lt "$SHM_AVAIL" ]; then
                 DB_DST="$DB_SHM"
                 echo "Set DB_DST to $DB_DST (SHM)" 2>> {log}.{resources.attempt} 1>&2
@@ -83,6 +84,7 @@ rule read_annotate__diamond__assign:
             else
                 if [ {resources.attempt} -eq {params.retries} ]; then
                     DB_DST="$DB_SRC"
+                    NEED_COPY="false"
                     echo "Not enough space, use DB_SRC" 2>> {log}.{resources.attempt} 1>&2
                 else
                     echo "DB too large for SHM/NVME, aborting attempt {resources.attempt}" 2>> {log}.{resources.attempt} 1>&2
@@ -90,16 +92,18 @@ rule read_annotate__diamond__assign:
                 fi
             fi
 
-            if [ "$DB_DST"/{params.diamond_path} != "$DB_SRC" ]; then
+            if [ "$NEED_COPY" = "true" ]; then
                 mkdir -p "$DB_DST"
                 cp "$DB_SRC" "$DB_DST" 2>> {log}.{resources.attempt}
                 echo "Database copied to $DB_DST" 2>> {log}.{resources.attempt} 1>&2
-                
+
                 echo "Remove file extension from {params.diamond_path}" 2>> {log}.{resources.attempt} 1>&2
                 DB="{params.diamond_path}"
                 DB_BASE="${{DB%.dmnd}}"
-                
+
                 DB_LOC="$DB_DST/$DB_BASE"
+            else
+                DB_LOC="$DB_SRC"
             fi
         else
             echo "Skipping DB copy - using source directly" 2>> {log}.{resources.attempt} 1>&2
@@ -134,6 +138,8 @@ rule read_annotate__diamond__summarise:
         DIAMOND / "{diamond_db}" / "summary_b.tsv"
     log:
         DIAMOND / "{diamond_db}" / "read_annotate__diamond__summarise.log"
+    benchmark:
+        DIAMOND / "{diamond_db}" / "benchmark_summarise.tsv"
     threads: esc("cpus", "read_annotate__diamond__summarise")
     resources:
         runtime=esc("runtime", "read_annotate__diamond__summarise"),

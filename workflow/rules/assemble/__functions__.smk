@@ -1,120 +1,76 @@
 def get_sample_and_library_from_assembly_id(assembly_id):
-    """Get all the sample and library ids for a given assembly_id"""
-    samples_in_assembly = samples[samples.assembly_id == assembly_id][
-        ["sample_id", "library_id"]
-    ].values.tolist()
-    return samples_in_assembly
+    """(sample_id, library_id) pairs whose reads feed into a given assembly_id"""
+    subset = samples.loc[samples["assembly_id"] == assembly_id, ["sample_id", "library_id"]]
+    return list(subset.itertuples(index=False, name=None))
 
 
-# Megahit
-def _get_reads_from_assembly_id(wildcards, end):
-    """Get the file_end for megahit"""
-    assert end in ["forward", "reverse"]
-    end = 1 if end == "forward" else 2
-    assembly_id = wildcards.assembly_id
-    samples_in_assembly = get_sample_and_library_from_assembly_id(assembly_id)
-    if len(HOST_NAMES) == 0:
+def _reads_for_assembly(wildcards, end):
+    """Per-library read files for one assembly, post host-decontamination if configured"""
+    assert end in (1, 2)
+    pairs = get_sample_and_library_from_assembly_id(wildcards.assembly_id)
+    if HOST_NAMES:
         return [
-            FASTP / f"{sample_id}.{library_id}_{end}.fq.gz"
-            for sample_id, library_id in samples_in_assembly
+            PRE_BOWTIE2 / "decontaminated_reads" / f"{sample_id}.{library_id}_{end}.fq.gz"
+            for sample_id, library_id in pairs
         ]
-    return [
-        PRE_BOWTIE2 / "decontaminated_reads" / f"{sample_id}.{library_id}_{end}.fq.gz"
-        #PRE_BOWTIE2 / f"non{LAST_HOST}" / f"{sample_id}.{library_id}_{end}.fq.gz"
-        for sample_id, library_id in samples_in_assembly
-    ]
+    return [FASTP / f"{sample_id}.{library_id}_{end}.fq.gz" for sample_id, library_id in pairs]
 
 
 def get_forwards_from_assembly_id(wildcards):
-    """Get the forward files for megahit"""
-    return _get_reads_from_assembly_id(wildcards, end="forward")
+    """Forward read files contributing to one assembly"""
+    return _reads_for_assembly(wildcards, end=1)
 
 
 def get_reverses_from_assembly_id(wildcards):
-    """Get the forward files for megahit"""
-    return _get_reads_from_assembly_id(wildcards, end="reverse")
+    """Reverse read files contributing to one assembly"""
+    return _reads_for_assembly(wildcards, end=2)
+
+
+def _join_reads(wildcards, end, sep):
+    return sep.join(str(path) for path in _reads_for_assembly(wildcards, end=end))
 
 
 def aggregate_forwards_for_megahit(wildcards):
-    """Put all the forwards together separated by a comma"""
-    forwards = [
-        str(forward_)
-        for forward_ in _get_reads_from_assembly_id(wildcards, end="forward")
-    ]
-    return ",".join(forwards)
+    """Forward reads, comma-joined as megahit expects for multiple libraries"""
+    return _join_reads(wildcards, end=1, sep=",")
 
 
 def aggregate_reverses_for_megahit(wildcards):
-    """Put all the reverses together separated by a comma"""
-    reverses = [
-        str(reverse_)
-        for reverse_ in _get_reads_from_assembly_id(wildcards, end="reverse")
-    ]
-    return ",".join(reverses)
+    """Reverse reads, comma-joined as megahit expects for multiple libraries"""
+    return _join_reads(wildcards, end=2, sep=",")
 
-# metaspades
+
 def aggregate_forwards_for_metaspades(wildcards):
-    """Put all the forwards together separated by a whitespace"""
-    forwards = [
-        str(forward_)
-        for forward_ in _get_reads_from_assembly_id(wildcards, end="forward")
-    ]
-    return " ".join(forwards)
+    """Forward reads, space-joined as metaspades expects for multiple libraries"""
+    return _join_reads(wildcards, end=1, sep=" ")
 
 
 def aggregate_reverses_for_metaspades(wildcards):
-    """Put all the reverses together separated by a whitespace"""
-    reverses = [
-        str(reverse_)
-        for reverse_ in _get_reads_from_assembly_id(wildcards, end="reverse")
-    ]
-    return " ".join(reverses)
+    """Reverse reads, space-joined as metaspades expects for multiple libraries"""
+    return _join_reads(wildcards, end=2, sep=" ")
 
 
-# # Concoct, metabat2 and maxbin2
-#def get_crams_from_assembly_id(wildcards):
-#    """Given an assembly_id, get all the cram files for that assembly."""
-#    assembly_id = wildcards.assembly_id
-#    samples_in_assembly = get_sample_and_library_from_assembly_id(assembly_id)
-#    cram_files = [
-#        ASSEMBLE_BOWTIE2 / f"{assembly_id}.{sample_id}.{library_id}.cram"
-#        for sample_id, library_id in samples_in_assembly
-#    ]
-#    return cram_files
-
-# Concoct, metabat2 and maxbin2
+# The binners (CONCOCT, MetaBAT2, MaxBin2) work off read alignments to the assembly,
+# not the raw reads themselves.
 def get_alignments_from_assembly_id(wildcards):
-    """Return BAM or CRAM files depending on config."""
-    assembly_id = wildcards.assembly_id
-    samples_in_assembly = get_sample_and_library_from_assembly_id(assembly_id)
-
+    """BAM/CRAM alignment file for every library that makes up one assembly"""
+    pairs = get_sample_and_library_from_assembly_id(wildcards.assembly_id)
     return [
-        ASSEMBLE_BOWTIE2 / f"{assembly_id}.{sample_id}.{library_id}.{ALIGN_EXT}"
-        for sample_id, library_id in samples_in_assembly
+        ASSEMBLE_BOWTIE2 / f"{wildcards.assembly_id}.{sample_id}.{library_id}.{ALIGN_EXT}"
+        for sample_id, library_id in pairs
     ]
 
-
-#def get_crais_from_assembly_id(wildcards):
-#    """Given an assembly_id, get all the cram files for that assembly."""
-#    return [f"{cram}.crai" for cram in get_crams_from_assembly_id(wildcards)]
 
 def get_alignment_indexes_from_assembly_id(wildcards):
-    exts = {
-        "bam": ".bai",
-        "cram": ".crai",
-    }
-    return [f"{f}{exts[ALIGN_EXT]}" for f in get_alignments_from_assembly_id(wildcards)]
+    """Index file (.bai/.crai) matching each alignment file"""
+    index_ext = ".bai" if ALIGN_EXT == "bam" else ".crai"
+    return [f"{aln}{index_ext}" for aln in get_alignments_from_assembly_id(wildcards)]
 
 
 def compose_bams_for_metabat2_run(wildcards):
-    """Given an assemblu_id, get all the bam files that will be generated in metabat2"""
-    assembly_id = wildcards.assembly_id
-    samples_in_assembly = get_sample_and_library_from_assembly_id(assembly_id)
-    bam_files = [
-        METABAT2 / f"{assembly_id}.{sample_id}.{library_id}.bam"
-        for sample_id, library_id in samples_in_assembly
+    """Per-library BAM paths that metabat2's run rule converts alignments into"""
+    pairs = get_sample_and_library_from_assembly_id(wildcards.assembly_id)
+    return [
+        METABAT2 / f"{wildcards.assembly_id}.{sample_id}.{library_id}.bam"
+        for sample_id, library_id in pairs
     ]
-    return bam_files
-
-def samtools_ext():
-    return "cram" if params["assemble"]["samtools"]["out_type"].upper() == "CRAM" else "bam"

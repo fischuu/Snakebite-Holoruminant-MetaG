@@ -22,27 +22,26 @@ rule preprocess__fastp__run:
         adapter_reverse=get_reverse_adapter,
         extra=params["preprocess"]["fastp"]["extra"],
         length_required=params["preprocess"]["fastp"]["length_required"],
-        temp_forward_=lambda w: FASTP / f"{w.sample_id}.{w.library_id}_tmp_1.fq",
-        temp_reverse_=lambda w: FASTP / f"{w.sample_id}.{w.library_id}_tmp_2.fq",
-        temp_unpaired1=lambda w: FASTP / f"{w.sample_id}.{w.library_id}_tmp_u1.fq",
-        temp_unpaired2=lambda w: FASTP / f"{w.sample_id}.{w.library_id}_tmp_u2.fq",
+        work_prefix=lambda w: FASTP / f"{w.sample_id}.{w.library_id}_tmp",
     threads: esc("cpus", "preprocess__fastp__run"),
     resources:
         runtime=esc("runtime", "preprocess__fastp__run"),
         mem_mb=esc("mem_mb", "preprocess__fastp__run"),
         cpus_per_task=esc("cpus", "preprocess__fastp__run"),
-        partition=esc("partition", "preprocess__fastp__run"),
+        slurm_partition=esc("partition", "preprocess__fastp__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'preprocess__fastp__run')['nvme']}",
         attempt=get_attempt,
     retries: len(get_escalation_order("preprocess__fastp__run")),
     shell: """
+        exec > {log}.{resources.attempt} 2>&1
+
         fastp \
             --in1 {input.forward_} \
             --in2 {input.reverse_} \
-            --out1 {params.temp_forward_} \
-            --out2 {params.temp_reverse_} \
-            --unpaired1 {params.temp_unpaired1} \
-            --unpaired2 {params.temp_unpaired2} \
+            --out1 {params.work_prefix}_1.fq \
+            --out2 {params.work_prefix}_2.fq \
+            --unpaired1 {params.work_prefix}_u1.fq \
+            --unpaired2 {params.work_prefix}_u2.fq \
             --html {output.html} \
             --json {output.json} \
             --verbose \
@@ -50,25 +49,21 @@ rule preprocess__fastp__run:
             --adapter_sequence_r2 {params.adapter_reverse} \
             --length_required {params.length_required} \
             --thread {threads} \
-            {params.extra} \
-        2> {log}.{resources.attempt} 1>&2
+            {params.extra}
 
-        bgzip -l 9 -@ {threads} {params.temp_forward_}
-        bgzip -l 9 -@ {threads} {params.temp_reverse_}
-        bgzip -l 9 -@ {threads} {params.temp_unpaired1}
-        bgzip -l 9 -@ {threads} {params.temp_unpaired2}
-
-        mv {params.temp_forward_}.gz {output.forward_}
-        mv {params.temp_reverse_}.gz {output.reverse_}
-        mv {params.temp_unpaired1}.gz {output.unpaired1}
-        mv {params.temp_unpaired2}.gz {output.unpaired2}
-
-        echo "Checking integrity of output files" >> {log}.{resources.attempt}
-        gzip -t {output.forward_} 2>> {log}.{resources.attempt}
-        gzip -t {output.reverse_} 2>> {log}.{resources.attempt}
-        gzip -t {output.unpaired1} 2>> {log}.{resources.attempt}
-        gzip -t {output.unpaired2} 2>> {log}.{resources.attempt}
-        echo "Integrity check completed" >> {log}.{resources.attempt}
+        declare -A dest=(
+            [1]={output.forward_}
+            [2]={output.reverse_}
+            [u1]={output.unpaired1}
+            [u2]={output.unpaired2}
+        )
+        echo "Compressing and validating outputs"
+        for suffix in "${{!dest[@]}}"; do
+            bgzip --compress-level 9 --threads {threads} {params.work_prefix}_${{suffix}}.fq
+            mv {params.work_prefix}_${{suffix}}.fq.gz "${{dest[$suffix]}}"
+            gzip --test "${{dest[$suffix]}}"
+        done
+        echo "All outputs validated"
 
         mv {log}.{resources.attempt} {log}
     """

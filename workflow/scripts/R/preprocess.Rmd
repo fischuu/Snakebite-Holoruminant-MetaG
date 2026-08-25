@@ -1,48 +1,98 @@
 ---
 title: "Snakebite - Holoruminant - MetaG"
 subtitle: "preprocess module - report"
-author: "t.b.a."
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  html_document:
+  pdf_document:
     toc: true
-    toc_depth: 4
-    toc_float:
-      toc_collapsed: true
+    toc_depth: 3
     number_sections: true
-    theme: lumen
-    df_print: paged
-    code_folding: show
+    fig_caption: true
 ---
 
 ```{r setup, include=FALSE}
-library("GenomicTools")
-library("xtable")   # Needed for LaTeX output of the tables
-library("viridis")  # Needed for the colouring of the plots
-library("rjson")    # Needed for multiqc dgsb etail data
-library("DT")
-library("kableExtra")
-library("edgeR")
-library("ICS")
-library("tsne")
-options(scipen=999,
-        stringsAsFactors=FALSE)
-knitr::opts_chunk$set(echo = FALSE,
-                      cache = FALSE,
-                      cache.lazy = FALSE,
-                      dev = c('png', 'pdf'),
-                      fig.align = 'center', fig.height = 5, fig.width = 8.5)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                       fig.align = "center", fig.width = 7, fig.height = 4)
 
-reportColours <- c("#FF8200", "#00B5E2", "#78BE20", "#7F3F98", "#E13C98", "#0033A0", "#54585A")
+if (!exists("project_folder")) {
+  project_folder <- getwd()
+  pipeline_folder <- getwd()
+  features_file <- "config/features.yaml"
+  sample_file <- "config/samples.tsv"
+}
+
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
+samples <- read.delim(file.path(project_folder, sample_file), comment.char = "#")
+features <- yaml::read_yaml(file.path(project_folder, features_file))
+host_names <- names(features$hosts)
 ```
 
-```{r, include=FALSE}
-# Init Step to make sure that the dependencies are loaded
-htmltools::tagList(datatable(cars))
-#htmltools::tagList(ggplotly(ggplot()))
+# Adapter/quality trimming (fastp)
+
+```{r fastp-summary}
+fastp_dir <- file.path(project_folder, "results", "preprocess", "fastp")
+json_files <- file.path(fastp_dir, paste0(samples$sample_id, ".", samples$library_id, "_fastp.json"))
+
+fastp_df <- purrr::map2_dfr(json_files, paste(samples$sample_id, samples$library_id, sep = "."), function(f, lib) {
+  row <- parse_fastp_json(f)
+  if (nrow(row) == 0) return(NULL)
+  dplyr::bind_cols(library = lib, row)
+})
+
+if (nrow(fastp_df) == 0) {
+  cat("_No fastp output found yet._\n")
+} else {
+  preview_table(fastp_df, n = nrow(fastp_df), caption = "fastp: reads before/after filtering, Q30 rate, duplication")
+}
 ```
 
+# Host decontamination
 
-```{r}
-list.files(file.path(working_dir, "results", "preprocess"))
+Each configured host is mapped against sequentially; the percentage below is
+the share of that library's reads still present (i.e. not yet removed as
+host) at each step.
+
+```{r host-decontam-summary}
+if (length(host_names) == 0) {
+  cat("_No hosts configured -- reads pass straight from fastp into read_annotate/assemble._\n")
+} else {
+  bowtie2_dir <- file.path(project_folder, "results", "preprocess", "bowtie2")
+
+  decontam_df <- purrr::map_dfr(host_names, function(host) {
+    purrr::pmap_dfr(samples[, c("sample_id", "library_id")], function(sample_id, library_id) {
+      f <- file.path(bowtie2_dir, host, paste0(sample_id, ".", library_id, ".chr_alignment_counts.tsv"))
+      if (!file.exists(f)) return(NULL)
+      counts <- read.delim(f, header = FALSE, col.names = c("chr", "mapped_reads"))
+      tibble::tibble(
+        host = host,
+        library = paste(sample_id, library_id, sep = "."),
+        mapped_reads = sum(counts$mapped_reads, na.rm = TRUE)
+      )
+    })
+  })
+
+  if (nrow(decontam_df) == 0) {
+    cat("_No host-mapping output found yet._\n")
+  } else {
+    wide <- tidyr::pivot_wider(decontam_df, names_from = host, values_from = mapped_reads)
+    preview_table(wide, n = nrow(wide),
+                  caption = "Reads mapped to each host, per library (host order = decontamination order)")
+  }
+}
+```
+
+# Runtime statistics
+
+```{r preprocess-runtime}
+bench <- discover_benchmarks(project_folder, "preprocess")
+runtime_table(bench, caption = "preprocess module: runtime and peak memory per rule")
+```
+
+```{r preprocess-resource-allocation}
+resource_allocation_table(bench, "preprocess", project_folder,
+                          caption = "preprocess module: allocated vs. actual resource usage (starting tier)")
+```
+
+```{r preprocess-runtime-plot, fig.height=3}
+runtime_plot(bench, title = "preprocess module: total runtime per rule")
 ```

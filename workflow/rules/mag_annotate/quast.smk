@@ -1,11 +1,13 @@
 rule mag_annotate__quast:
-    """Run quast over one the dereplicated mags"""
+    """Assess assembly quality of the dereplicated genome set with QUAST"""
     input:
         DREP / "dereplicated_genomes.fa.gz",
     output:
         directory(QUAST),
     log:
         QUAST / "quast.log",
+    benchmark:
+        QUAST / "benchmark.tsv",
     container:
         docker["mag_annotate"]
     threads: esc("cpus", "mag_annotate__quast")
@@ -19,9 +21,6 @@ rule mag_annotate__quast:
     retries: len(get_escalation_order("mag_annotate__quast"))
     shell:
         """
-        quast \
-            --output-dir {output} \
-            --threads {threads} \
-            {input} \
-        2> {log} 1>&2
+        exec > {log} 2>&1
+        quast --output-dir {output} --threads {threads} {input}
         """

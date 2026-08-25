@@ -1,25 +1,19 @@
 #!/usr/bin/env python
+"""Rewrite FASTA headers using a MAGScoT contig-to-bin mapping table.
 
-from Bio import SeqIO
-import pandas as pd
+Usage: reformat_fasta_magscot.py <input.fasta> <mapping.tsv>
+The mapping table needs "contig" (old header) and "seqname" (new header)
+columns; records whose header is not in the mapping are dropped.
+"""
 import sys
 
-input_fasta = sys.argv[1]
-input_mapping = sys.argv[2]
+import pandas as pd
+from Bio import SeqIO
 
-fasta = {x.id: str(x.seq) for x in SeqIO.parse(input_fasta, format="fasta")}
+input_fasta, input_mapping = sys.argv[1], sys.argv[2]
 
-name_mapping = pd.read_table(input_mapping)
-name_mapping_dict = {
-    seq_id: sequence
-    for seq_id, sequence in name_mapping[["contig", "seqname"]].values.tolist()
-}
+new_name = pd.read_table(input_mapping).set_index("contig")["seqname"].to_dict()
 
-new_fasta = (
-    f">{name_mapping_dict[old_identifier]}\n{sequence}"
-    for old_identifier, sequence in fasta.items()
-    if old_identifier in name_mapping_dict.keys()
-)
-
-for record in new_fasta:
-    sys.stdout.write(record + "\n")
+for record in SeqIO.parse(input_fasta, format="fasta"):
+    if record.id in new_name:
+        sys.stdout.write(f">{new_name[record.id]}\n{record.seq}\n")

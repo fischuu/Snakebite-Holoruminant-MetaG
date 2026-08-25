@@ -1,48 +1,75 @@
 ---
 title: "Snakebite - Holoruminant - MetaG"
 subtitle: "quantify module - report"
-author: "t.b.a."
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  html_document:
+  pdf_document:
     toc: true
-    toc_depth: 4
-    toc_float:
-      toc_collapsed: true
+    toc_depth: 3
     number_sections: true
-    theme: lumen
-    df_print: paged
-    code_folding: show
+    fig_caption: true
 ---
 
 ```{r setup, include=FALSE}
-library("GenomicTools")
-library("xtable")   # Needed for LaTeX output of the tables
-library("viridis")  # Needed for the colouring of the plots
-library("rjson")    # Needed for multiqc dgsb etail data
-library("DT")
-library("kableExtra")
-library("edgeR")
-library("ICS")
-library("tsne")
-options(scipen=999,
-        stringsAsFactors=FALSE)
-knitr::opts_chunk$set(echo = FALSE,
-                      cache = FALSE,
-                      cache.lazy = FALSE,
-                      dev = c('png', 'pdf'),
-                      fig.align = 'center', fig.height = 5, fig.width = 8.5)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                       fig.align = "center", fig.width = 7, fig.height = 4)
 
-reportColours <- c("#FF8200", "#00B5E2", "#78BE20", "#7F3F98", "#E13C98", "#0033A0", "#54585A")
+if (!exists("project_folder")) {
+  project_folder <- getwd()
+  pipeline_folder <- getwd()
+  features_file <- "config/features.yaml"
+  sample_file <- "config/samples.tsv"
+}
+
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
+coverm_dir <- file.path(project_folder, "results", "quantify", "coverm")
 ```
 
-```{r, include=FALSE}
-# Init Step to make sure that the dependencies are loaded
-htmltools::tagList(datatable(cars))
-#htmltools::tagList(ggplotly(ggplot()))
+# Genome-level abundance (CoverM)
+
+```{r coverm-genome-summary, results='asis'}
+genome_files <- Sys.glob(file.path(coverm_dir, "genome.*.tsv"))
+if (length(genome_files) == 0) {
+  cat("_No genome-level CoverM output found yet._\n")
+}
+for (f in genome_files) {
+  method <- sub("^genome\\.(.*)\\.tsv$", "\\1", basename(f))
+  cat(paste0("\n### Method: ", method, "\n\n"))
+  df <- safe_read_tsv(f)
+  if (nrow(df) == 0) next
+  n_genomes <- nrow(df)
+  sample_cols <- setdiff(colnames(df), colnames(df)[1])
+  cat(sprintf("**%d** genomes quantified across **%d** libraries.\n\n", n_genomes, length(sample_cols)))
+  preview_table(df, n = 15, caption = paste("CoverM genome abundance --", method, "(first 15 genomes)"))
+}
 ```
 
+# Contig-level abundance (CoverM)
 
-```{r}
-list.files(file.path(working_dir, "results", "quantify"))
+```{r coverm-contig-summary, results='asis'}
+contig_files <- Sys.glob(file.path(coverm_dir, "contig.*.tsv"))
+if (length(contig_files) == 0) {
+  cat("_No contig-level CoverM output found yet._\n")
+}
+for (f in contig_files) {
+  method <- sub("^contig\\.(.*)\\.tsv$", "\\1", basename(f))
+  cat(paste0("\n### Method: ", method, "\n\n"))
+  preview_table(safe_read_tsv(f), n = 15, caption = paste("CoverM contig abundance --", method, "(first 15 contigs)"))
+}
+```
+
+# Runtime statistics
+
+```{r quantify-runtime}
+bench <- discover_benchmarks(project_folder, "quantify")
+runtime_table(bench, caption = "quantify module: runtime and peak memory per rule")
+```
+
+```{r quantify-resource-allocation}
+resource_allocation_table(bench, "quantify", project_folder,
+                          caption = "quantify module: allocated vs. actual resource usage (starting tier)")
+```
+
+```{r quantify-runtime-plot, fig.height=3}
+runtime_plot(bench, title = "quantify module: total runtime per rule")
 ```

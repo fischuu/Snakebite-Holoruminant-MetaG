@@ -1,8 +1,9 @@
 rule read_annotate__singlem__pipe:
-    """Run singlem over one sample
+    """Profile marker-gene taxonomy for one sample with SingleM
 
-    Note: SingleM asks in the documentation for the raw reads. Here we are
-    passing it the non-host and trimmed ones.
+    SingleM's own docs recommend raw reads, but this pipeline feeds it the
+    decontaminated, quality-trimmed reads instead, consistent with every
+    other read-based annotation tool here.
     """
     input:
         forward_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_1.fq.gz",
@@ -31,11 +32,11 @@ rule read_annotate__singlem__pipe:
         tmp = config["tmp_storage"]
     shell:
         """
-        TMPDIR={params.tmp}
-        
-        echo "Checking disk space for TMPDIR: ${{TMPDIR:-/tmp}}" >> {log}
-        df -h ${{TMPDIR:-/tmp}} >> {log}
-        echo "Disk space check completed." >> {log}
+        export TMPDIR={params.tmp}
+        exec > {log} 2>&1
+
+        echo "TMPDIR disk space (${{TMPDIR:-/tmp}}):"
+        df -h "${{TMPDIR:-/tmp}}"
 
         singlem pipe \
             --forward {input.forward_} \
@@ -45,8 +46,7 @@ rule read_annotate__singlem__pipe:
             --taxonomic-profile {output.condense} \
             --metapackage {input.data} \
             --threads {threads} \
-            --assignment-threads {threads} \
-        2>> {log} 1>&2
+            --assignment-threads {threads}
         """
 
 
@@ -79,11 +79,11 @@ rule read_annotate__singlem__condense:
     retries: len(get_escalation_order("read_annotate__singlem__condense"))
     shell:
         """
+        exec > {log} 2>&1
         singlem condense \
             --input-archive-otu-tables {input.archive_otu_tables} \
             --taxonomic-profile {output.condense} \
-            --metapackage {input.database} \
-        2> {log} 1>&2
+            --metapackage {input.database}
         """
 
 
@@ -115,13 +115,13 @@ rule read_annotate__singlem__microbial_fraction:
     retries: len(get_escalation_order("read_annotate__singlem__microbial_fraction"))
     shell:
         """
+        exec > {log} 2>&1
         singlem microbial_fraction \
             --forward {input.forward_} \
             --reverse {input.reverse_} \
             --input-profile {input.condense} \
             --output-tsv {output.microbial_fraction} \
-            --metapackage {input.data} \
-        2> {log} 1>&2
+            --metapackage {input.data}
         """
 
 
@@ -151,16 +151,12 @@ rule read_annotate__singlem__aggregate_microbial_fraction:
     retries: len(get_escalation_order("read_annotate__singlem__aggregate_microbial_fraction"))
     shell:
         """
-        ( csvstack \
-            --tabs \
-            {input.tsvs} \
-        | csvformat \
-            --out-tabs \
-        > {output.tsv} \
-        ) 2> {log}
+        exec 2> {log}
+        csvstack --tabs {input.tsvs} | csvformat --out-tabs > {output.tsv}
         """
 
 rule read_annotate__singlem:
+    """Aggregate the SingleM taxonomic profile and microbial-fraction results"""
     input:
         rules.read_annotate__singlem__condense.output,
         rules.read_annotate__singlem__aggregate_microbial_fraction.output,

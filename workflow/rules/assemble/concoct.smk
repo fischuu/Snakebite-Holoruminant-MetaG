@@ -1,4 +1,5 @@
-rule assemble__concoct_run:
+rule assemble__concoct__run:
+    """Bin one assembly's contigs with CONCOCT"""
     input:
         assembly=lambda wildcards: (
             MEGAHIT / f"{wildcards.assembly_id}.fa.gz" if config["assembler"] == "megahit" else 
@@ -10,91 +11,74 @@ rule assemble__concoct_run:
         directory(CONCOCT / "{assembly_id}"),
     log:
         CONCOCT / "{assembly_id}.log",
+    benchmark:
+        CONCOCT / "benchmark/{assembly_id}.tsv",
     container:
         docker["concoct"]
-    threads: esc("cpus", "assemble__concoct_run")
+    threads: esc("cpus", "assemble__concoct__run")
     resources:
-        runtime=esc("runtime", "assemble__concoct_run"),
-        mem_mb=esc("mem_mb", "assemble__concoct_run"),
-        cpus_per_task=esc("cpus", "assemble__concoct_run"),
-        slurm_partition=esc("partition", "assemble__concoct_run"),
-        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__concoct_run')['nvme']}",
+        runtime=esc("runtime", "assemble__concoct__run"),
+        mem_mb=esc("mem_mb", "assemble__concoct__run"),
+        cpus_per_task=esc("cpus", "assemble__concoct__run"),
+        slurm_partition=esc("partition", "assemble__concoct__run"),
+        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__concoct__run')['nvme']}",
         attempt=get_attempt,
-    retries: len(get_escalation_order("assemble__concoct_run"))
+    retries: len(get_escalation_order("assemble__concoct__run"))
     params:
         workdir=lambda w: CONCOCT / w.assembly_id,
     shell:
         """
-        mkdir --parents --verbose {params.workdir} 2> {log} 1>&2
+        exec > {log} 2>&1
+        mkdir --parents --verbose {params.workdir}
 
+        echo "== cutting contigs into overlapping chunks =="
         cut_up_fasta.py \
-            <(gzip --decompress --stdout {input.assembly}) \
+            <(zcat {input.assembly}) \
             --chunk_size 10000 \
             --overlap_size 0 \
             --merge_last \
             --bedfile {params.workdir}/cut.bed \
-        > {params.workdir}/cut.fa \
-        2>> {log}
+        > {params.workdir}/cut.fa
 
+        echo "== converting alignments to indexed, mapped-only BAM =="
+        bams=()
         for aln in {input.alignments}; do
-        
-            base=$(basename "$aln" .{ALIGN_EXT})
-            bam={params.workdir}/$base.bam
-        
+            sample=$(basename "$aln" ".{ALIGN_EXT}")
+            bam={params.workdir}/${{sample}}.bam
             samtools view \
                 --exclude-flags 4 \
                 --fast \
-                --output $bam \
                 --output-fmt BAM \
                 --threads {threads} \
-                $aln
-        
-            samtools index $bam
-  
-  done 2>> {log} 1>&2
+                --output "$bam" \
+                "$aln"
+            samtools index "$bam"
+            bams+=("$bam")
+        done
 
-
-        concoct_coverage_table.py \
-            {params.workdir}/cut.bed \
-            {params.workdir}/*.bam \
-        > {params.workdir}/coverage.tsv \
-        2>> {log}
+        echo "== building coverage table and running CONCOCT =="
+        concoct_coverage_table.py {params.workdir}/cut.bed "${{bams[@]}}" > {params.workdir}/coverage.tsv
 
         concoct \
             --threads {threads} \
             --composition_file {params.workdir}/cut.fa \
             --coverage_file {params.workdir}/coverage.tsv \
-            --basename {params.workdir}/run \
-        2>> {log} 1>&2
+            --basename {params.workdir}/run
 
-        merge_cutup_clustering.py \
-            {params.workdir}/run_clustering_gt1000.csv \
-        > {params.workdir}/merge.csv \
-        2>> {log}
+        echo "== merging cut-up clusters back to original contigs =="
+        merge_cutup_clustering.py {params.workdir}/run_clustering_gt1000.csv > {params.workdir}/merge.csv
 
         extract_fasta_bins.py \
-            <(gzip --decompress --stdout {input.assembly}) \
+            <(zcat {input.assembly}) \
             {params.workdir}/merge.csv \
-            --output_path {params.workdir} \
-        2>> {log} 1>&2
+            --output_path {params.workdir}
 
-        rm \
-            --force \
-            --verbose \
-            {params.workdir}/cut.fa \
-            {params.workdir}/cut.bed \
-            {params.workdir}/coverage.tsv \
-            {params.workdir}/*.csv \
-            {params.workdir}/*.bam \
-            {params.workdir}/*.bai \
-            {params.workdir}/*.txt \
-        2>> {log} 1>&2
+        echo "== cleaning up intermediates =="
+        rm --force --verbose \
+            {params.workdir}/cut.fa {params.workdir}/cut.bed {params.workdir}/coverage.tsv \
+            {params.workdir}/*.csv {params.workdir}/*.bam {params.workdir}/*.bai {params.workdir}/*.txt
 
-        pigz \
-            --best \
-            --verbose \
-            {params.workdir}/*.fa \
-        2>> {log} 1>&2
+        pigz --best --verbose {params.workdir}/*.fa
         """
 
 

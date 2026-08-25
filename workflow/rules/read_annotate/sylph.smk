@@ -8,6 +8,8 @@ rule read_annotate__sylph_profile:
         PRE_SYLPH / "{sample_id}.{library_id}.profiling.tsv",
     log:
         PRE_SYLPH / "{sample_id}.{library_id}.profiling_report.log",
+    benchmark:
+        PRE_SYLPH / "benchmark/{sample_id}.{library_id}.tsv",
     container:
         docker["sylph"]
     threads: esc("cpus", "read_annotate__sylph_profile")

@@ -1,5 +1,5 @@
-rule reads__link_run:
-    """Make a link to the original file, with a prettier name than default"""
+rule reads__link__run:
+    """Symlink one sample's raw reads under a normalized {sample}.{library}_{1,2}.fq.gz name"""
     input:
         forward_=get_forward,
         reverse_=get_reverse,
@@ -14,15 +14,19 @@ rule reads__link_run:
         docker["reads"]
     shell:
         """
-        ln --symbolic $(readlink --canonicalize {input.forward_}) {output.forward_} 2>  {log} 1>&2
-        ln --symbolic $(readlink --canonicalize {input.reverse_}) {output.reverse_} 2>> {log} 1>&2
+        exec > {log} 2>&1
+        for pair in "{input.forward_}:{output.forward_}" "{input.reverse_}:{output.reverse_}"; do
+            src=${{pair%%:*}}
+            dst=${{pair#*:}}
+            ln --symbolic "$(readlink --canonicalize "$src")" "$dst"
+        done
         """
 
 rule reads__link:
-    """Link all reads in the samples.tsv"""
+    """Symlink every sample/library's raw reads listed in samples.tsv"""
     input:
         [
             READS / f"{sample}.{library}_{end}.fq.gz"
             for sample, library in SAMPLE_LIBRARY
-            for end in ["1", "2"]
+            for end in (1, 2)
         ],

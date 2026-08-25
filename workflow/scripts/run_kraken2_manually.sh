@@ -1,35 +1,31 @@
 #!/usr/bin/env bash
+# Manually run kraken2 against the mock test database for every fastp-trimmed
+# sample under results/preprocess/fastp/, staging the DB in /dev/shm first.
+# Not called by any Snakemake rule -- a standalone debugging/testing helper.
 
 set -euo pipefail
 
-db_path="resources/kraken2_mock"
-db_name=$(basename $db_path)
-shm_dbname="/dev/shm/$db_name"
-
 fastp_dir="results/preprocess/fastp/"
-kraken2_dir="kraken2"
+out_dir="kraken2"
+db_src="resources/kraken2_mock"
+db_shm="/dev/shm/$(basename "$db_src")"
 
-mapfile -t sample_ids < <(find "$fastp_dir" -name "*_1.fq.gz" -exec basename {} _1.fq.gz \;)
+mkdir --parents "$out_dir"
+rsync --archive --recursive --verbose --times "$db_src" /dev/shm/
+trap 'rm -rf "$db_shm"' EXIT
 
-rsync -Pravt $db_path /dev/shm/
-
-mkdir --parents "$kraken2_dir"
-
-for sample_id in "${sample_ids[@]}" ; do
-
+for r1 in "$fastp_dir"/*_1.fq.gz; do
+    sample_id=$(basename "$r1" _1.fq.gz)
     echo "Processing sample ${sample_id} ..."
 
     kraken2 \
-        --db "$shm_dbname" \
+        --db "$db_shm" \
         --threads 24 \
         --paired \
         --gzip-compressed \
-        --output >(pigz > "$kraken2_dir/$sample_id.kraken2") \
-        --report "$kraken2_dir/$sample_id.kraken2.report" \
+        --output >(pigz > "$out_dir/$sample_id.kraken2") \
+        --report "$out_dir/$sample_id.kraken2.report" \
         "$fastp_dir/${sample_id}_1.fq.gz" \
         "$fastp_dir/${sample_id}_2.fq.gz" \
-    2> "$kraken2_dir/${sample_id}.kraken2.log" 1>&2
-
+        > "$out_dir/${sample_id}.kraken2.log" 2>&1
 done
-
-rm -rf "$shm_dbname"

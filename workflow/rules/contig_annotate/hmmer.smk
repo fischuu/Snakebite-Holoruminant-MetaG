@@ -18,7 +18,7 @@ rule contig_annotate__hmmer__assign:
         runtime=esc("runtime", "contig_annotate__hmmer__assign"),
         mem_mb=esc("mem_mb", "contig_annotate__hmmer__assign"),
         cpus_per_task=esc("cpus", "contig_annotate__hmmer__assign"),
-        partition=esc("partition", "contig_annotate__hmmer__assign"),
+        slurm_partition=esc("partition", "contig_annotate__hmmer__assign"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__hmmer__assign')['nvme']}",
         attempt=lambda wildcards, attempt: attempt,
     retries: len(get_escalation_order("contig_annotate__hmmer__assign")) - 1,

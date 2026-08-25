@@ -1,5 +1,5 @@
 rule mag_annotate__dram__annotate:
-    """Annotate dereplicate genomes with DRAM"""
+    """Annotate the dereplicated genome catalogue with DRAM"""
     input:
         dereplicated_genomes=DREP / "dereplicated_genomes.fa.gz",
         gtdbtk_summary=GTDBTK / "gtdbtk.summary.tsv",
@@ -11,6 +11,8 @@ rule mag_annotate__dram__annotate:
         genes=DRAM / "annotate" / "genes.faa",
     log:
         DRAM / "annotate.log",
+    benchmark:
+        DRAM / "benchmark_annotate.tsv",
     container:
         docker["dram"]
     params:
@@ -30,30 +32,33 @@ rule mag_annotate__dram__annotate:
     retries: len(get_escalation_order("mag_annotate__dram__annotate"))
     shell:
         """
-        rm -rf {params.tmp_dir}
-        
-        echo "Hostname: $(hostname)" 2>> {log} 1>&2
-        echo "Temporary directory: $TMPDIR" 2>> {log} 1>&2
-        df -h 2>> {log} 1>&2
-        
-        DRAM.py annotate \
-                --config_loc {params.config} \
-                --input_fasta {input.dereplicated_genomes} \
-                --output_dir {params.tmp_dir} \
-                --threads {threads} \
-                --gtdb_taxonomy {input.gtdbtk_summary} \
-        2>> {log} 1>&2
-        
-        for f in annotations.tsv trnas.tsv rrnas.tsv; do
-          if [ ! -f "{params.tmp_dir}/$f" ]; then
-            echo "DRAM did not generate $f -> creating empty file" >> {log}
-            touch "{params.tmp_dir}/$f"
-          fi
-        done
+        exec > {log} 2>&1
+        rm --recursive --force {params.tmp_dir}
 
-    """
+        echo "host: $(hostname)"
+        echo "TMPDIR: $TMPDIR"
+        df -h
+
+        DRAM.py annotate \
+            --config_loc {params.config} \
+            --input_fasta {input.dereplicated_genomes} \
+            --output_dir {params.tmp_dir} \
+            --threads {threads} \
+            --gtdb_taxonomy {input.gtdbtk_summary}
+
+        # DRAM can skip producing a table when it finds nothing of that kind
+        # (e.g. no tRNAs); downstream rules still expect the file to exist.
+        for expected in annotations.tsv trnas.tsv rrnas.tsv; do
+            path="{params.tmp_dir}/$expected"
+            if [ ! -f "$path" ]; then
+                echo "DRAM produced no $expected -- creating an empty placeholder"
+                touch "$path"
+            fi
+        done
+        """
 
 rule mag_annotate__fix_dram_annotations_scaffold:
+    """Patch up DRAM's annotation table (see fix_annotations.py) before distillation"""
     input:
         DRAM / "annotate" / "annotations.tsv",
     output:
@@ -66,11 +71,11 @@ rule mag_annotate__fix_dram_annotations_scaffold:
         script_folder=SCRIPT_FOLDER,
     shell:
         """
-        python {params.script_folder}/fix_annotations.py {input} {output} 2>> {log} 1>&2
+        python {params.script_folder}/fix_annotations.py {input} {output} > {log} 2>&1
         """
 
 rule mag_annotate__dram__distill:
-    """Distill DRAM annotations."""
+    """Summarize the annotated genomes into DRAM's genome/metabolism reports"""
     input:
         annotations=DRAM / "annotate" / "annotations.fixed.tsv",
         trnas=DRAM / "annotate" / "trnas.tsv",
@@ -83,6 +88,8 @@ rule mag_annotate__dram__distill:
         product_tsv=DRAM / "product.tsv",
     log:
         DRAM / "distill.log2",
+    benchmark:
+        DRAM / "benchmark_distill.tsv",
     container:
         docker["dram"]
     threads: esc("cpus", "mag_annotate__dram__distill")
@@ -100,22 +107,23 @@ rule mag_annotate__dram__distill:
         outdir=DRAM,
     shell:
         """
-        # This is maybe needed as snakemake creates the folders, but dram relies on creating it itself
-        rm -rf {params.outdir_tmp} 2> {log} 1>&2
-        
+        exec > {log} 2>&1
+        # DRAM insists on creating this directory itself, but Snakemake has
+        # already created the parent tree ahead of time -- clear it first.
+        rm --recursive --force {params.outdir_tmp}
+
         DRAM.py distill \
             --config_loc {params.config} \
             --input_file {input.annotations} \
             --rrna_path {input.rrnas} \
             --trna_path {input.trnas} \
-            --output_dir {params.outdir_tmp} \
-        2>> {log} 1>&2
+            --output_dir {params.outdir_tmp}
 
-        mv {params.outdir_tmp}/* {params.outdir}/ 2>> {log} 1>&2
-        rm -rf {params.outdir_tmp} 2>> {log} 1>&2
+        mv {params.outdir_tmp}/* {params.outdir}/
+        rm --recursive --force {params.outdir_tmp}
         """
 
 rule mag_annotate__dram:
-    """Run DRAM on dereplicated genomes."""
+    """Run DRAM annotation and distillation over the dereplicated genome catalogue"""
     input:
         rules.mag_annotate__dram__distill.output,

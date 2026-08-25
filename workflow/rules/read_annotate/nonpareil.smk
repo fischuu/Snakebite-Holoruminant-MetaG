@@ -1,10 +1,11 @@
 rule read_annotate__nonpareil__run:
-    """Run nonpareil over one sample
+    """Estimate sequence coverage/diversity for one sample with Nonpareil
 
-    Note: Nonpareil only ask for one of the pair-end reads
-    Note2: it has to be fastq. The process substitution trick does not work
-    Note3: in case that nonpareil fails for low coverage samples, it creates
-    empty files
+    Nonpareil only takes one read of the pair, and needs a real (decompressed)
+    FASTQ file on disk -- it doesn't accept a process-substitution pipe. On
+    low-coverage samples it can legitimately fail to converge, in which case
+    it produces empty output files rather than erroring; the `touch()`
+    wrappers below make sure Snakemake still sees the expected outputs.
     """
     input:
         forward_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_1.fq.gz",
@@ -35,20 +36,12 @@ rule read_annotate__nonpareil__run:
     retries: len(get_escalation_order("read_annotate__nonpareil__run"))
     shell:
         """
-        TMPDIR={params.tmp}
-        
-        gunzip -f -c {input.forward_} > {params.reads} 2> {log}
+        export TMPDIR={params.tmp}
+        exec > {log} 2>&1
 
-        nonpareil \
-            -s {params.reads} \
-            -T kmer \
-            -b {params.prefix} \
-            -f fastq \
-            -t {threads} \
-            -X {params.X} \
-        2>> {log} 1>&2
-
-        rm --force {params.reads} 2>> {log} 1>&2
+        zcat {input.forward_} > {params.reads}
+        nonpareil -s {params.reads} -T kmer -b {params.prefix} -f fastq -t {threads} -X {params.X}
+        rm --force {params.reads}
         """
 
 
@@ -81,10 +74,10 @@ rule read_annotate__nonpareil__aggregate:
         script_folder=SCRIPT_FOLDER,
     shell:
         """
+        exec > {log} 2>&1
         Rscript --no-init-file {params.script_folder}/aggregate_nonpareil.R \
             --input-folder {params.input_dir} \
-            --output-file {output} \
-        2> {log} 1>&2
+            --output-file {output}
         """
 
 

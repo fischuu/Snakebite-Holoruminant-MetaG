@@ -1,48 +1,87 @@
 ---
 title: "Snakebite - Holoruminant - MetaG"
 subtitle: "assemble module - report"
-author: "t.b.a."
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  html_document:
+  pdf_document:
     toc: true
-    toc_depth: 4
-    toc_float:
-      toc_collapsed: true
+    toc_depth: 3
     number_sections: true
-    theme: lumen
-    df_print: paged
-    code_folding: show
+    fig_caption: true
 ---
 
 ```{r setup, include=FALSE}
-library("GenomicTools")
-library("xtable")   # Needed for LaTeX output of the tables
-library("viridis")  # Needed for the colouring of the plots
-library("rjson")    # Needed for multiqc dgsb etail data
-library("DT")
-library("kableExtra")
-library("edgeR")
-library("ICS")
-library("tsne")
-options(scipen=999,
-        stringsAsFactors=FALSE)
-knitr::opts_chunk$set(echo = FALSE,
-                      cache = FALSE,
-                      cache.lazy = FALSE,
-                      dev = c('png', 'pdf'),
-                      fig.align = 'center', fig.height = 5, fig.width = 8.5)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                       fig.align = "center", fig.width = 7, fig.height = 4)
 
-reportColours <- c("#FF8200", "#00B5E2", "#78BE20", "#7F3F98", "#E13C98", "#0033A0", "#54585A")
+if (!exists("project_folder")) {
+  project_folder <- getwd()
+  pipeline_folder <- getwd()
+  features_file <- "config/features.yaml"
+  sample_file <- "config/samples.tsv"
+}
+
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
+samples <- read.delim(file.path(project_folder, sample_file), comment.char = "#")
+assembly_ids <- unique(unlist(strsplit(samples$assembly_ids, ",\\s*")))
+assemble_dir <- file.path(project_folder, "results", "assemble")
+
+count_bins <- function(dir) {
+  if (!dir.exists(dir)) return(NA_integer_)
+  length(Sys.glob(file.path(dir, "*.fa.gz")))
+}
 ```
 
-```{r, include=FALSE}
-# Init Step to make sure that the dependencies are loaded
-htmltools::tagList(datatable(cars))
-#htmltools::tagList(ggplotly(ggplot()))
+# Assembly and binning summary
+
+One row per assembly: number of bins produced by each binner, and the number
+of refined bins MAGScoT kept after combining them.
+
+```{r binning-summary}
+binning_df <- purrr::map_dfr(assembly_ids, function(a) {
+  magscot_refined <- file.path(assemble_dir, "magscot", a, "magscot.refined.contig_to_bin.out")
+  n_refined <- if (file.exists(magscot_refined) && file.size(magscot_refined) > 0) {
+    length(unique(read.delim(magscot_refined, header = FALSE)[[1]]))
+  } else {
+    0L
+  }
+  tibble::tibble(
+    assembly_id = a,
+    concoct_bins = count_bins(file.path(assemble_dir, "concoct", a)),
+    maxbin2_bins = count_bins(file.path(assemble_dir, "maxbin2", a)),
+    metabat2_bins = count_bins(file.path(assemble_dir, "metabat2", a)),
+    magscot_refined_bins = n_refined
+  )
+})
+preview_table(binning_df, n = nrow(binning_df), caption = "Bins per assembly, by binner")
 ```
 
+# Dereplication (dRep)
 
-```{r}
-list.files(file.path(working_dir, "results", "assemble"))
+```{r drep-summary, results='asis'}
+sep_dir <- file.path(assemble_dir, "drep", "separated_bins")
+derep_dir <- file.path(assemble_dir, "drep", "dereplicated_genomes")
+n_before <- if (dir.exists(sep_dir)) length(Sys.glob(file.path(sep_dir, "*.fa"))) else NA
+n_after <- if (dir.exists(derep_dir)) length(Sys.glob(file.path(derep_dir, "*"))) else NA
+
+cat(sprintf(
+  "**%s** bins went into dRep across all assemblies; **%s** representative genomes remained after dereplication.\n\n",
+  ifelse(is.na(n_before), "?", n_before), ifelse(is.na(n_after), "?", n_after)
+))
+```
+
+# Runtime statistics
+
+```{r assemble-runtime}
+bench <- discover_benchmarks(project_folder, "assemble")
+runtime_table(bench, caption = "assemble module: runtime and peak memory per rule")
+```
+
+```{r assemble-resource-allocation}
+resource_allocation_table(bench, "assemble", project_folder,
+                          caption = "assemble module: allocated vs. actual resource usage (starting tier)")
+```
+
+```{r assemble-runtime-plot, fig.height=6}
+runtime_plot(bench, title = "assemble module: total runtime per rule")
 ```

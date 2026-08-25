@@ -67,9 +67,7 @@ rule read_annotate__metaphlan__condense:
     retries: len(get_escalation_order("read_annotate__metaphlan__condense"))
     shell:
         """
-         merge_metaphlan_tables.py {input.profiled_data} > {output}
-        #cat {input.profiled_data} > {output}
-        #2> {log} 1>&2
+        merge_metaphlan_tables.py {input.profiled_data} > {output} 2> {log}
         """
 
 rule read_annotate__metaphlan:

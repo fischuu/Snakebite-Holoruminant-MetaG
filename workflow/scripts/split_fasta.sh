@@ -19,7 +19,7 @@ sanitize_filename() {
     filename="${filename#>}"
     # Replace spaces and special characters with underscores
     filename=$(echo "$filename" | tr -c '[:alnum:]_' '_')
-    # Truncate the filename to the first 10 characters
+    # Truncate the filename to the first 50 characters
     filename=${filename:0:50}
     echo "$filename"
 }

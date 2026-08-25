@@ -1,8 +1,8 @@
 rule reads__fastqc:
-    """Get all fastqc reports of the raw reads"""
+    """Aggregate FastQC reports for every raw forward/reverse read file"""
     input:
         [
-            READS / f"{sample}.{library}_{end}_fastqc.zip"
-            for sample, library in SAMPLE_LIBRARY
-            for end in ["1", "2"]
+            READS / f"{sample_id}.{library_id}_{end}_fastqc.zip"
+            for sample_id, library_id in SAMPLE_LIBRARY
+            for end in (1, 2)
         ],

@@ -10,6 +10,8 @@ rule assemble__metaspades__run:
         concatenated_reverses=temp(METASPADES / "{assembly_id}_R2_concat.fastq.gz"),
     log:
         log=METASPADES / "{assembly_id}.log",
+    benchmark:
+        METASPADES / "benchmark/{assembly_id}.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__metaspades__run")

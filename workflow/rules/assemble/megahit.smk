@@ -1,8 +1,9 @@
 rule assemble__megahit__run:
-    """Run megahit over one sample, merging all libraries in the process
+    """Assemble one assembly_id's pooled libraries with MEGAHIT and rename its contigs
 
-    Note: the initial rm -rf is to delete the folder that snakemake creates.
-    megahit refuses to overwrite an existing folder
+    megahit's --force flag is used since the output directory it writes to
+    already exists (Snakemake creates it ahead of time for the log/benchmark
+    paths), and megahit otherwise refuses to write into an existing folder.
     """
     input:
         forwards=get_forwards_from_assembly_id,
@@ -12,6 +13,8 @@ rule assemble__megahit__run:
         tarball=MEGAHIT / "{assembly_id}.tar.gz",
     log:
         log=MEGAHIT / "{assembly_id}.log",
+    benchmark:
+        MEGAHIT / "benchmark/{assembly_id}.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__megahit__run")
@@ -36,6 +39,9 @@ rule assemble__megahit__run:
         assembly_id=lambda w: w.assembly_id,
     shell:
         """
+        exec > {log}.{resources.attempt} 2>&1
+
+        echo "== assembling {params.assembly_id} =="
         megahit \
             --num-cpu-threads {threads} \
             --min-count {params.mincount} \
@@ -45,24 +51,20 @@ rule assemble__megahit__run:
             --min-contig-len {params.min_contig_len} \
             --verbose \
             --force \
-            --out-dir {params.out_dir} \
             --continue \
+            --out-dir {params.out_dir} \
             {params.additional} \
             -1 {params.forwards} \
-            -2 {params.reverses} \
-        2> {log}.{resources.attempt} 1>&2
+            -2 {params.reverses}
 
-        ( seqtk seq \
-            {params.out_dir}/final.contigs.fa \
-        | cut -f 1 -d " " \
-        | paste - - \
-        | awk \
-            '{{printf(">{params.assembly_id}:bin_NA@contig_%08d\\n%s\\n", NR, $2)}}' \
-        | bgzip \
-            -l9 \
-            -@ {threads} \
-        > {output.fasta} \
-        ) 2>> {log}.{resources.attempt}
+        echo "== renaming contigs to {params.assembly_id}:bin_NA@contig_######## =="
+        seqtk seq {params.out_dir}/final.contigs.fa \
+            | cut -d ' ' -f 1 \
+            | paste - - \
+            | awk -v assembly="{params.assembly_id}" \
+                '{{ printf(">%s:bin_NA@contig_%08d\\n%s\\n", assembly, NR, $2) }}' \
+            | bgzip --compress-level 9 --threads {threads} \
+            > {output.fasta}
 
         tar \
             --create \
@@ -70,8 +72,7 @@ rule assemble__megahit__run:
             --remove-files \
             --use-compress-program="pigz --best --processes {threads}" \
             --verbose \
-            {params.out_dir} \
-        2>> {log}.{resources.attempt} 1>&2
+            {params.out_dir}
 
         mv {log}.{resources.attempt} {log}
         """

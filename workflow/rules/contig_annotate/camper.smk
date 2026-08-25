@@ -7,6 +7,8 @@ rule contig_annotate__camper__annotate:
         distillate = CONTIG_CAMPER / "{assembly_id}" / "distillate.tsv",
     log:
         CONTIG_CAMPER / "{assembly_id}.log",
+    benchmark:
+        CONTIG_CAMPER / "benchmark/{assembly_id}.tsv",
     container:
         docker["camper"]
     params:

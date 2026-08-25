@@ -9,7 +9,7 @@ include: "reads.smk"
 include: "reference.smk"
 
 rule report:
-    """Report by step and by assembly"""
+    """Generate the report for every module"""
     input:
         rules.report__assemble.output,
         rules.report__contig_annotate.output,

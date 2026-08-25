@@ -12,6 +12,8 @@ rule contig_annotate__eggnog_find_homology:
         file=CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.seed_orthologs"
     log:
         CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.log"
+    benchmark:
+        CONTIG_EGGNOG / "{assembly_id}/Chunks/benchmark_homology.{i}.tsv"
     params:
         folder = lambda wildcards: CONTIG_EGGNOG / f"{wildcards.assembly_id}/Chunks/",
         tmp=config["nvme_storage"],
@@ -22,7 +24,7 @@ rule contig_annotate__eggnog_find_homology:
         runtime=esc("runtime", "contig_annotate__eggnog_find_homology"),
         mem_mb=esc("mem_mb", "contig_annotate__eggnog_find_homology"),
         cpus_per_task=esc("cpus", "contig_annotate__eggnog_find_homology"),
-        partition=esc("partition", "contig_annotate__eggnog_find_homology"),
+        slurm_partition=esc("partition", "contig_annotate__eggnog_find_homology"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__eggnog_find_homology')['nvme']}",
         attempt=get_attempt,
     retries: len(get_escalation_order("contig_annotate__eggnog_find_homology"))
@@ -53,12 +55,14 @@ rule contig_annotate__eggnog_orthology_chunk:
         done = CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.annotations.done"
     log:
         CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.annotations.log"
+    benchmark:
+        CONTIG_EGGNOG / "{assembly_id}/Chunks/benchmark_orthology.{i}.tsv"
     threads: esc("cpus", "contig_annotate__eggnog_orthology_chunk")
     resources:
         runtime=esc("runtime", "contig_annotate__eggnog_orthology_chunk"),
         mem_mb=esc("mem_mb", "contig_annotate__eggnog_orthology_chunk"),
         cpus_per_task=esc("cpus", "contig_annotate__eggnog_orthology_chunk"),
-        partition=esc("partition", "contig_annotate__eggnog_orthology_chunk"),
+        slurm_partition=esc("partition", "contig_annotate__eggnog_orthology_chunk"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__eggnog_orthology_chunk')['nvme']}",
         attempt=get_attempt,
     retries: len(get_escalation_order("contig_annotate__eggnog_orthology_chunk"))    
@@ -134,21 +138,25 @@ rule contig_annotate__eggnog_orthology_chunk:
                    --override \
                    --cpu {threads} >> {log} 2>&1
 
-        # === Decrement counter and cleanup if last job ===
-        (
-            flock -x 200
-            COUNT=$(cat "$COUNTER_FILE")
-            COUNT=$((COUNT - 1))
-            if [ $COUNT -le 0 ]; then
-                echo 0 > "$COUNTER_FILE"
-                echo "No more jobs using DB, cleaning $DATA_DIR" >> {log}
-                rm -rf "$DATA_DIR"
-                rm -f "$DONE_FILE"
-            else
-                echo $COUNT > "$COUNTER_FILE"
-                echo "Remaining jobs using DB: $COUNT" >> {log}
-            fi
-        ) 200>"$COUNTER_FILE.lock"
+        # === Decrement counter and cleanup if last job (only when a shared
+        # staged copy was actually made -- nothing to reference-count or
+        # clean up when running straight from the original database) ===
+        if [ {params.copy_dbs} = "True" ]; then
+            (
+                flock -x 200
+                COUNT=$(cat "$COUNTER_FILE")
+                COUNT=$((COUNT - 1))
+                if [ $COUNT -le 0 ]; then
+                    echo 0 > "$COUNTER_FILE"
+                    echo "No more jobs using DB, cleaning $DATA_DIR" >> {log}
+                    rm -rf "$DATA_DIR"
+                    rm -f "$DONE_FILE"
+                else
+                    echo $COUNT > "$COUNTER_FILE"
+                    echo "Remaining jobs using DB: $COUNT" >> {log}
+                fi
+            ) 200>"$COUNTER_FILE.lock"
+        fi
 
         touch {output.done}
     """
@@ -161,6 +169,8 @@ rule contig_annotate__eggnog_merge_annotations:
         CONTIG_EGGNOG / "{assembly_id}/eggnog_output.emapper.annotations"
     log:
         CONTIG_EGGNOG / "{assembly_id}/eggnog_output.emapper.annotations.log"
+    benchmark:
+        CONTIG_EGGNOG / "{assembly_id}/benchmark_merge_annotations.tsv"
     shell:"""
        cat {input} > {output} 2> {log}
     """

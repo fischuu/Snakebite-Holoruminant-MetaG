@@ -1,4 +1,4 @@
-rule contig_annotate__eggnog7_run:
+rule contig_annotate__eggnog7__run:
     """
     Run the eggnog annotator for version 7
     """
@@ -13,15 +13,17 @@ rule contig_annotate__eggnog7_run:
         folder=config["pipeline_folder"],
     log:
         CONTIG_EGGNOG7 / "logs/{assembly_id}_eggnog.log"
-    threads: esc("cpus", "contig_annotate__eggnog7_run")
+    benchmark:
+        CONTIG_EGGNOG7 / "benchmark/{assembly_id}.tsv"
+    threads: esc("cpus", "contig_annotate__eggnog7__run")
     resources:
-        runtime=esc("runtime", "contig_annotate__eggnog7_run"),
-        mem_mb=esc("mem_mb", "contig_annotate__eggnog7_run"),
-        cpus_per_task=esc("cpus", "contig_annotate__eggnog7_run"),
-        slurm_partition=esc("partition", "contig_annotate__eggnog7_run"),
-        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__eggnog7_run')['nvme']}",
+        runtime=esc("runtime", "contig_annotate__eggnog7__run"),
+        mem_mb=esc("mem_mb", "contig_annotate__eggnog7__run"),
+        cpus_per_task=esc("cpus", "contig_annotate__eggnog7__run"),
+        slurm_partition=esc("partition", "contig_annotate__eggnog7__run"),
+        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__eggnog7__run')['nvme']}",
         attempt=get_attempt,
-    retries: len(get_escalation_order("contig_annotate__eggnog7_run"))
+    retries: len(get_escalation_order("contig_annotate__eggnog7__run"))
     container:
         docker["eggnog"]
     shell:"""

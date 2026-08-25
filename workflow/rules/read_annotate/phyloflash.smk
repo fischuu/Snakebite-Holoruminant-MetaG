@@ -42,7 +42,7 @@ rule read_annotate__phyloflash__run:
 rule read_annotate__phyloflash__condense:
     """Aggregate all the PhyloFlash results into a single table"""
     input:
-        genefamily_data=[
+        phyloflash_logs=[
             PHYLOFLASH / f"{sample_id}_{library_id}.phyloFlash.log"
             for sample_id, library_id in SAMPLE_LIBRARY
         ]
@@ -67,8 +67,7 @@ rule read_annotate__phyloflash__condense:
     retries: len(get_escalation_order("read_annotate__phyloflash__condense"))
     shell:
         """
-        cat {input.genefamily_data} > {output}
-        2> {log} 1>&2
+        cat {input.phyloflash_logs} > {output} 2> {log}
         """
 
 rule read_annotate__phyloflash:

@@ -10,6 +10,6 @@ include: "metaspades.smk"
 
 
 rule assemble:
-    """Run the assemble module"""
+    """Assemble, bin (CONCOCT/MaxBin2/MetaBAT2), combine bins with MAGScoT and dereplicate with dRep"""
     input:
         rules.assemble__drep.input,
