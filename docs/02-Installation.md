@@ -107,6 +107,7 @@ use them for unpacking the files, as this will significantly increase the speed.
   wget https://a3s.fi/Holoruminant-data/2025.04.04.kraken2.tar.gz
   wget https://a3s.fi/Holoruminant-data/2025.04.04.krona.tar.gz
   wget https://a3s.fi/Holoruminant-data/2025.04.04.metaphlan4.tar.gz
+  wget https://a3s.fi/Holoruminant-data/2026.02.18.ncyc.tar.gz
   wget https://a3s.fi/Holoruminant-data/2025.11.25.phyloflash.tar.gz
   wget https://a3s.fi/Holoruminant-data/2025.04.04.phylophlan.tar.gz
   wget https://a3s.fi/Holoruminant-data/2025.04.04.singlem.tar.gz
@@ -131,6 +132,7 @@ use them for unpacking the files, as this will significantly increase the speed.
   tar -xvf 2025.04.04.kraken2.tar.gz
   tar -xvf 2025.04.04.krona.tar.gz
   tar -xvf 2025.04.04.metaphlan4.tar.gz
+  tar -xvf 2026.02.18.ncyc.tar.gz
   tar -xvf 2025.04.04.phylophlan.tar.gz
   tar -xvf 2025.11.25.phyloflash.tar.gz
   tar -xvf 2025.04.04.singlem.tar.gz
