@@ -15,11 +15,8 @@ rule reads__link__run:
     shell:
         """
         exec > {log} 2>&1
-        for pair in "{input.forward_}:{output.forward_}" "{input.reverse_}:{output.reverse_}"; do
-            src=${{pair%%:*}}
-            dst=${{pair#*:}}
-            ln --symbolic "$(readlink --canonicalize "$src")" "$dst"
-        done
+        ln --symbolic "$(readlink --canonicalize {input.forward_})" {output.forward_}
+        ln --symbolic "$(readlink --canonicalize {input.reverse_})" {output.reverse_}
         """
 
 rule reads__link:
