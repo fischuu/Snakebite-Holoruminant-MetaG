@@ -37,7 +37,8 @@ rule read_annotate__diamond__assign:
     shell:
         r"""
         set +u
-        
+        trap 'mv "{log}.{resources.attempt}" "{log}" 2>/dev/null || true' EXIT
+
         echo "Starting Diamond rule attempt {resources.attempt}" > {log}.{resources.attempt} 1>&2
         mkdir --parents {params.out_folder} 2>> {log}.{resources.attempt} 1>&2
 

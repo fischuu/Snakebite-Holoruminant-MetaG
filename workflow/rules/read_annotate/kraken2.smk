@@ -54,6 +54,7 @@ rule read_annotate__kraken2__assign:
         docker["preprocess"],
     shell: """
         exec > {log}.{resources.attempt} 2>&1
+        trap 'mv "{log}.{resources.attempt}" "{log}" 2>/dev/null || true' EXIT
         set +u
         echo "[attempt {resources.attempt}] starting kraken2 assign for {wildcards.kraken_db}"
         mkdir --parents {params.out_folder}

@@ -24,7 +24,8 @@ rule read_annotate__sylph_profile:
     retries: len(get_escalation_order("read_annotate__sylph_profile"))
     shell:
         """
-        
+        trap 'mv "{log}.{resources.attempt}" "{log}" 2>/dev/null || true' EXIT
+
         echo "Starting Sylph rule attempt {resources.attempt}" > {log}.{resources.attempt}
         
         # Below this line is a dev part for testing the resubmission and escalation 
