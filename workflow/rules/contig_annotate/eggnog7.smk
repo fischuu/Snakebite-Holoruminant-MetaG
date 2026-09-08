@@ -34,7 +34,9 @@ rule contig_annotate__eggnog7__run:
       -s {params.sample} \
       -o {params.out}/{params.sample} \
       -p {threads} 2> {log} 1>&2
-    """    
+
+      debug "assembly_id={params.sample} threads={threads} db={params.db} output={output}" 2>> {log}
+    """
     
 rule contig_annotate__eggnog7:
     """Run eggnog on all assemblies"""

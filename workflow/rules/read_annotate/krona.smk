@@ -25,7 +25,8 @@ rule read_annotate__krona__visualize:
         krona_db = features["databases"]["krona"],
     shell:
         """
-         ktImportTaxonomy -q 2 -t 3 {input} -o {output} --tax {params.krona_db} 2> {log} 1>&2
+        debug "input={input} output={output} krona_db={params.krona_db}" 2> {log}
+        ktImportTaxonomy -q 2 -t 3 {input} -o {output} --tax {params.krona_db} 2>> {log} 1>&2
         """
 
 rule read_annotate__krona:

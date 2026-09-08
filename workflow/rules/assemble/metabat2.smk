@@ -37,6 +37,7 @@ rule assemble__metabat2__run:
         exec > {log} 2>&1
 
         echo "== converting alignments to mapped-only BAM =="
+        debug "assembly_id={wildcards.assembly_id} threads={threads} minLen={params.minLen} alignments_count=$(echo {input.alignments} | wc -w)"
         for aln in {input.alignments}; do
             sample=$(basename "$aln")
             sample=${{sample%.cram}}
@@ -51,12 +52,14 @@ rule assemble__metabat2__run:
         done
 
         echo "== summarizing per-contig depth across all libraries =="
+        debug "depth={params.depth} paired={params.paired}"
         jgi_summarize_bam_contig_depths \
             --outputDepth {params.depth} \
             --pairedContigs {params.paired} \
             {params.bams}
 
         echo "== binning with MetaBAT2 =="
+        debug "assembly={input.assembly} bins_prefix={params.bins_prefix}"
         metabat2 \
             --inFile {input.assembly} \
             --abdFile {params.depth} \

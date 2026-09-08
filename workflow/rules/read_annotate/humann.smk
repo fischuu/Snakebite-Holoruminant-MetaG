@@ -32,9 +32,11 @@ rule read_annotate__humann__run:
         echo "In case this rule crashes for larger datasets, you need to ensure a proper size of TMPDIR!"
     
         echo "$(date) **Starting rule read_annotate__humann__run, attempt {resources.attempt}**" > {log}
+        debug "threads={threads} out_folder={params.out_folder} additional_options={params.additional_options}" 2>> {log}
 
         cat {input.forward_} {input.reverse_} > {output.cat}
-        
+        debug "concatenated read size: $(du -h {output.cat} 2>/dev/null | cut -f1)" 2>> {log}
+
         humann --input {output.cat} --output {params.out_folder} \
                --threads {threads} \
                --protein-database {input.prot_dbs} \

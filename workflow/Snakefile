@@ -6,7 +6,11 @@ import pandas as pd
 import yaml
 import os
 
-DEBUG = True
+# Debug verbosity, controlled by the run script via `export PIPELINE_DEBUG=1`
+# (defaults to off). Gates both the Snakefile-parse-time debug() calls below
+# and the bash debug() function injected into every rule's shell block, see
+# shell.prefix() further down.
+DEBUG = os.environ.get("PIPELINE_DEBUG", "0") == "1"
 
 import re
 
@@ -148,6 +152,20 @@ with open("config/escalation.yaml") as f:
     raw = yaml.safe_load(f)
 
 ESCALATION_CONFIG = {k: [x.strip() for x in v.split(",")] for k, v in raw.items()}
+
+# Make a `debug` shell function available inside every rule's shell block,
+# so individual .smk files don't each have to redefine it. Gated on the same
+# PIPELINE_DEBUG env var as the Python-side debug() above; the run script
+# exports it, and it propagates through SLURM and into the Singularity
+# container (both inherit the submitting shell's environment by default).
+# Braces are doubled ({{ }}) because Snakemake's shell formatting would
+# otherwise try to interpret single braces as {wildcards}/{params}-style
+# substitutions.
+shell.prefix(
+    'debug() {{ '
+    'if [ "${{PIPELINE_DEBUG:-0}}" = "1" ]; then echo "[DEBUG] $*" >&2; fi; '
+    '}}; '
+)
 
 # Import subworkflows
 debug("Including subworkflows...")

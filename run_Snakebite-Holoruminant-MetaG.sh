@@ -12,6 +12,16 @@ configFile="${projectFolder}/config/config.yaml"
 ################################################################################
 Profile=$projectFolder/config/profiles/Puhti
 
+# Debug verbosity for the pipeline's own [DEBUG] messages (Snakefile-parse-time
+# and per-rule shell scripts). Off by default; turn on per-run without editing
+# this file, e.g.:
+#   PIPELINE_DEBUG=1 bash run_Snakebite-Holoruminant-MetaG.sh read_annotate__kraken2
+# Relies on sbatch/Apptainer inheriting the submitting shell's environment
+# (the default here, since neither the SLURM profile nor --singularity-args
+# below set --export=NONE / --cleanenv).
+################################################################################
+export PIPELINE_DEBUG="${PIPELINE_DEBUG:-0}"
+
 # Make Snakemake available. Here is an example, how it would be loaded with the
 # module system, but other systems might have it available per standard installation.
 # In that case you can comment out the follwing line
@@ -66,6 +76,7 @@ fi
 
 echo "config file      : ${configFile}"
 echo "Project folder   : ${projectFolder}"
+echo "Debug level      : ${PIPELINE_DEBUG}"
 
 
 # Run the pipeline (singularity/apptainer)

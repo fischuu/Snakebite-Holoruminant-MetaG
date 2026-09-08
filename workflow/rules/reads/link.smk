@@ -15,6 +15,7 @@ rule reads__link__run:
     shell:
         """
         exec > {log} 2>&1
+        debug "sample={wildcards.sample} library={wildcards.library} forward={input.forward_} reverse={input.reverse_}"
         ln --symbolic "$(readlink --canonicalize {input.forward_})" {output.forward_}
         ln --symbolic "$(readlink --canonicalize {input.reverse_})" {output.reverse_}
         """

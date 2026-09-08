@@ -24,6 +24,7 @@ rule mag_annotate__checkm2__predict:
     shell:
         """
         exec > {log} 2>&1
+        debug "threads={threads} mags={input.mags} db={input.db} out_dir={params.out_dir}"
         rm --recursive --force --verbose {params.out_dir}
 
         checkm2 predict \

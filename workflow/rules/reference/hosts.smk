@@ -23,6 +23,7 @@ rule reference__hosts__recompress:
         """
         exec > {log} 2>&1
         echo "[$(date)] recompressing {wildcards.genome} with bgzip"
+        debug "threads={threads} input={input.fa_gz} output={output}"
         zcat {input.fa_gz} | bgzip --threads {threads} > {output}
         echo "[$(date)] done"
         """

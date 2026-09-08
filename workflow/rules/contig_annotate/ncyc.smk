@@ -26,11 +26,13 @@ rule contig_annotate__ncyc__prepare_input:
     shell:
         """
         echo "=== Running contig_annotate__ncyc__prepare_input ===" > {log} 2>&1
+        debug "input_dir={params.input_dir} output={output}" 2>> {log}
 
         mkdir -p {params.input_dir}
-        
+
         # Link prodigal fasta files into CONTIG_NCYC/input
         for fasta in {input}; do
+            debug "linking $fasta into {params.input_dir}" 2>> {log}
             ln -sf $(realpath $fasta) {params.input_dir}/$(basename $fasta)
         done
 
@@ -72,6 +74,7 @@ rule contig_annotate__ncyc__run:
         # Extract the database folder (we assume that all files are in the same ncyc folder)
         db_faa={params.faa}
         db_folder=$(dirname "$db_faa")
+        debug "threads={threads} input_dir={params.input_dir} db_faa=$db_faa db_folder=$db_folder outdir={params.outdir}" 2>> {log}
 
         perl {params.folder}/workflow/scripts/NCycProfiler.PL \
                             -d {params.input_dir} \

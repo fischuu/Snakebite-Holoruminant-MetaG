@@ -34,6 +34,7 @@ rule preprocess__fastp__run:
     retries: len(get_escalation_order("preprocess__fastp__run")),
     shell: """
         exec > {log}.{resources.attempt} 2>&1
+        debug "sample={wildcards.sample_id} library={wildcards.library_id} threads={threads} length_required={params.length_required} adapter_forward={params.adapter_forward} adapter_reverse={params.adapter_reverse}"
 
         fastp \
             --in1 {input.forward_} \
@@ -59,6 +60,7 @@ rule preprocess__fastp__run:
         )
         echo "Compressing and validating outputs"
         for suffix in "${{!dest[@]}}"; do
+            debug "compressing suffix=$suffix -> ${{dest[$suffix]}}"
             bgzip --compress-level 9 --threads {threads} {params.work_prefix}_${{suffix}}.fq
             mv {params.work_prefix}_${{suffix}}.fq.gz "${{dest[$suffix]}}"
             gzip --test "${{dest[$suffix]}}"

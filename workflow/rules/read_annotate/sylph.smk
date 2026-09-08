@@ -25,7 +25,8 @@ rule read_annotate__sylph_profile:
     shell:
         """
         echo "Starting Sylph rule attempt {resources.attempt}" > {log}
-        
+        debug "threads={threads} forwards={input.forwards} reverses={input.reverses} db={input.db}" 2>> {log}
+
         # Below this line is a dev part for testing the resubmission and escalation 
         # if [ {resources.attempt} -le 2 ]; then
         #    echo "Failing intentionally on attempt {resources.attempt}" >> {log}

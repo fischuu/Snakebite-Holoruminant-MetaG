@@ -34,6 +34,7 @@ rule read_annotate__singlem__pipe:
         """
         export TMPDIR={params.tmp}
         exec > {log} 2>&1
+        debug "threads={threads} forward={input.forward_} reverse={input.reverse_} metapackage={input.data}"
 
         echo "TMPDIR disk space (${{TMPDIR:-/tmp}}):"
         df -h "${{TMPDIR:-/tmp}}"
@@ -80,6 +81,7 @@ rule read_annotate__singlem__condense:
     shell:
         """
         exec > {log} 2>&1
+        debug "input_dir={params.input_dir} archive_otu_tables_count=$(echo {input.archive_otu_tables} | wc -w)"
         singlem condense \
             --input-archive-otu-tables {input.archive_otu_tables} \
             --taxonomic-profile {output.condense} \
@@ -116,6 +118,7 @@ rule read_annotate__singlem__microbial_fraction:
     shell:
         """
         exec > {log} 2>&1
+        debug "forward={input.forward_} reverse={input.reverse_} input_profile={input.condense}"
         singlem microbial_fraction \
             --forward {input.forward_} \
             --reverse {input.reverse_} \
@@ -152,6 +155,7 @@ rule read_annotate__singlem__aggregate_microbial_fraction:
     shell:
         """
         exec 2> {log}
+        debug "tsv_count=$(echo {input.tsvs} | wc -w) output={output.tsv}"
         csvstack --tabs {input.tsvs} | csvformat --out-tabs > {output.tsv}
         """
 

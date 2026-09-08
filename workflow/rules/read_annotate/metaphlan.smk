@@ -28,6 +28,7 @@ rule read_annotate__metaphlan__run:
     shell:
         """
         TMPDIR={params.tmp}
+        debug "threads={threads} bowtie2db={input.data} bt2_out={output.bt2_out}" 2>> {log}
 
         metaphlan {input.forward_},{input.reverse_} \
                   --bowtie2out {output.bt2_out} \
@@ -67,7 +68,8 @@ rule read_annotate__metaphlan__condense:
     retries: len(get_escalation_order("read_annotate__metaphlan__condense"))
     shell:
         """
-        merge_metaphlan_tables.py {input.profiled_data} > {output} 2> {log}
+        debug "merging $(echo {input.profiled_data} | wc -w) profiled tables from {params.input_dir}" 2> {log}
+        merge_metaphlan_tables.py {input.profiled_data} > {output} 2>> {log}
         """
 
 rule read_annotate__metaphlan:

@@ -40,6 +40,7 @@ rule assemble__megahit__run:
     shell:
         """
         exec > {log}.{resources.attempt} 2>&1
+        debug "assembly_id={params.assembly_id} threads={threads} mincount={params.mincount} kmin={params.kmin} kmax={params.kmax} kstep={params.kstep} min_contig_len={params.min_contig_len}"
 
         echo "== assembling {params.assembly_id} =="
         megahit \
@@ -58,6 +59,7 @@ rule assemble__megahit__run:
             -2 {params.reverses}
 
         echo "== renaming contigs to {params.assembly_id}:bin_NA@contig_######## =="
+        debug "renaming contigs from {params.out_dir}/final.contigs.fa to {output.fasta}"
         seqtk seq {params.out_dir}/final.contigs.fa \
             | cut -d ' ' -f 1 \
             | paste - - \

@@ -31,6 +31,7 @@ rule mag_annotate__phylophlan:
         # If the SGB database location ever changes, update it here.
         """
             echo Running Phylophlan on $(hostname) 2>> {log} 1>&2
+            debug "input={input} threads={threads} result={params.result}" 2>> {log}
 
             mkdir -p {output.folder}
 

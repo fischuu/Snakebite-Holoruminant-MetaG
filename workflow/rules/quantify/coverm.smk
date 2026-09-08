@@ -31,6 +31,7 @@ rule quantify__coverm__genome__run:
     shell:
         """
         exec 2> {log}
+        debug "sample_id={wildcards.sample_id} library_id={wildcards.library_id} method={params.method} separator={params.separator} min_covered_fraction={params.min_covered_fraction}"
         samtools view --exclude-flags 4 --reference {input.reference} --fast {input.cram} \
             | coverm genome \
                 --bam-files /dev/stdin \
@@ -68,6 +69,7 @@ rule quantify__coverm__genome_aggregate:
     shell:
         """
         exec > {log} 2>&1
+        debug "method={wildcards.method} input_dir={params.input_dir} output={output}"
         Rscript --vanilla {params.script_folder}/aggregate_coverm.R \
             --input-folder {params.input_dir} \
             --output-file {output}
@@ -113,6 +115,7 @@ rule quantify__coverm__contig_one:
     shell:
         """
         exec 2> {log}
+        debug "sample_id={wildcards.sample_id} library_id={wildcards.library_id} method={params.method}"
         samtools view --exclude-flags 4 --reference {input.reference} --fast {input.cram} \
             | coverm contig --bam-files /dev/stdin --methods {params.method} --proper-pairs-only \
             > {output.tsv}
@@ -146,6 +149,7 @@ rule quantify__coverm__contig_aggregate:
     shell:
         """
         exec > {log} 2>&1
+        debug "method={wildcards.method} input_dir={params.input_dir} output={output}"
         Rscript --vanilla {params.script_folder}/aggregate_coverm.R \
             --input-folder {params.input_dir} \
             --output-file {output}

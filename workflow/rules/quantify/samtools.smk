@@ -23,7 +23,12 @@ rule quantify__samtools__stats_cram:
         attempt=get_attempt,
     retries: len(get_escalation_order("quantify__samtools__stats_cram"))
     shell:
-        "samtools stats --reference {input.reference} {input.cram} > {output.txt} 2> {log}"
+        """
+        samtools stats --reference {input.reference} {input.cram} > {output.txt} 2> {log}
+
+        # The command above truncates {log} via "2>", so this has to be logged after it.
+        debug "sample_id={wildcards.sample_id} library_id={wildcards.library_id} reference={input.reference} output={output.txt}" 2>> {log}
+        """
 
 
 rule quantify__samtools:

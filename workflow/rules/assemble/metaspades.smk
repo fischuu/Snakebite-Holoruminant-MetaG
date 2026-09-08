@@ -49,6 +49,10 @@ rule assemble__metaspades__run:
             -o {params.out_dir} \
         2> {log}.{resources.attempt} 1>&2
 
+        # metaspades.py's own redirect above (over)writes {log}.{resources.attempt} from
+        # scratch, so any debug call needs to append (2>>) rather than truncate.
+        debug "assembly_id={params.assembly_id} threads={threads} kmer_size={params.kmer_size} mem_mb={resources.mem_mb} out_dir={params.out_dir}" 2>> {log}.{resources.attempt}
+
         ( seqtk seq \
             {params.out_dir}/contigs.fasta \
         | cut -f 1 -d " " \
@@ -60,6 +64,8 @@ rule assemble__metaspades__run:
             -@ {threads} \
         > {output.fasta} \
         ) 2>> {log}.{resources.attempt}
+
+        debug "renamed contigs written to {output.fasta}" 2>> {log}.{resources.attempt}
 
         tar \
             --create \

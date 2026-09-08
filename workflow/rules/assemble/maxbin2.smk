@@ -31,12 +31,14 @@ rule assemble__maxbin2__run:
     shell:
         """
         exec > {log} 2>&1
+        debug "assembly_id={wildcards.assembly_id} threads={threads} minLen={params.minLen} workdir={output.workdir}"
         mkdir --parents {output.workdir}
 
         echo "== deriving mean per-contig coverage for MaxBin2 =="
         samtools coverage {input.alignments} \
             | awk '!/^#/ {{print $1, $5}}' OFS='\t' \
             > {params.coverage}
+        debug "coverage_table={params.coverage}"
 
         run_MaxBin.pl \
             -thread {threads} \

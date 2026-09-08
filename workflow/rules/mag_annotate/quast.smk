@@ -22,5 +22,6 @@ rule mag_annotate__quast:
     shell:
         """
         exec > {log} 2>&1
+        debug "threads={threads} input={input} output={output}"
         quast --output-dir {output} --threads {threads} {input}
         """

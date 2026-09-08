@@ -36,6 +36,10 @@ rule mag_annotate__bakta:
               {params.options} \
               {input.contigs} \
               > {log} 2>&1
+
+        # bakta's own invocation truncates {log}, so this diagnostic line has to
+        # come after it rather than before, or it would be wiped out.
+        debug "db={params.db} out_dir={params.out_dir} threads={threads} contigs={input.contigs}" 2>> {log}
         """
 
 rule mag_annotate__bakta_mags__run:
@@ -76,6 +80,8 @@ rule mag_annotate__bakta_mags__run:
               {params.options} \
               {input.contigs} \
               > {log} 2>&1
+
+        debug "assembly_id={wildcards.assembly_id} db={params.db} out_dir={params.out_dir} threads={threads}" 2>> {log}
         """
 
 rule mag_annotate__bakta_mags:

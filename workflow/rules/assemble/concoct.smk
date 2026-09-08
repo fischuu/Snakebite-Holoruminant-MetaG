@@ -29,6 +29,7 @@ rule assemble__concoct__run:
     shell:
         """
         exec > {log} 2>&1
+        debug "assembly_id={wildcards.assembly_id} threads={threads} assembly={input.assembly} workdir={params.workdir}"
         mkdir --parents --verbose {params.workdir}
 
         echo "== cutting contigs into overlapping chunks =="
@@ -45,6 +46,7 @@ rule assemble__concoct__run:
         for aln in {input.alignments}; do
             sample=$(basename "$aln" ".{ALIGN_EXT}")
             bam={params.workdir}/${{sample}}.bam
+            debug "converting alignment for $sample: $aln -> $bam"
             samtools view \
                 --exclude-flags 4 \
                 --fast \
@@ -57,6 +59,7 @@ rule assemble__concoct__run:
         done
 
         echo "== building coverage table and running CONCOCT =="
+        debug "bam_count=${{#bams[@]}} coverage_table={params.workdir}/coverage.tsv"
         concoct_coverage_table.py {params.workdir}/cut.bed "${{bams[@]}}" > {params.workdir}/coverage.tsv
 
         concoct \

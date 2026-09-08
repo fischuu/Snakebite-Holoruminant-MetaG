@@ -39,6 +39,7 @@ rule read_annotate__diamond__assign:
         set +u
 
         echo "Starting Diamond rule attempt {resources.attempt}" > {log} 1>&2
+        debug "threads={threads}, out_folder={params.out_folder}, run_in_shm={params.run_in_shm}, copy_dbs={params.copy_dbs}" 2>> {log}
         mkdir --parents {params.out_folder} 2>> {log} 1>&2
 
         # Set the bash variables, based on the snakemake input
@@ -65,6 +66,7 @@ rule read_annotate__diamond__assign:
         set -u
 
         echo "DB_SRC: $DB_SRC, COPY_DBS: {params.copy_dbs}" 2>> {log} 1>&2
+        debug "SHM=$SHM NVME=$NVME DB_SHM=$DB_SHM DB_NVME=$DB_NVME" 2>> {log}
 
         if [ {params.copy_dbs} = "True" ]; then
         
@@ -74,6 +76,9 @@ rule read_annotate__diamond__assign:
 
             echo "DB_SIZE: $DB_SIZE, SHM_AVAIL: $SHM_AVAIL, NVME_AVAIL: $NVME_AVAIL" 2>> {log} 1>&2
 
+            # Staging tier chosen by comparing the DB file size against available
+            # space, biggest/fastest tier first; falls through to running in place
+            # from DB_SRC only on the final escalation attempt (see `retries` above).
             NEED_COPY="true"
             if [ "$DB_SIZE" -lt "$SHM_AVAIL" ]; then
                 DB_DST="$DB_SHM"
@@ -111,6 +116,7 @@ rule read_annotate__diamond__assign:
         fi
 
         echo "Running Diamond using DB_LOC=$DB_LOC" 2>> {log} 1>&2
+        debug "forwards={input.forwards} out_R1={output.out_R1} out_R2={output.out_R2}" 2>> {log}
 
         diamond blastx -d "$DB_LOC" -q {input.forwards} -o {output.out_R1} -p {threads} --max-target-seqs {params.max_target_seqs} 2>> {log}
         diamond blastx -d "$DB_LOC" -q {input.reverses} -o {output.out_R2} -p {threads} --max-target-seqs {params.max_target_seqs} 2>> {log}

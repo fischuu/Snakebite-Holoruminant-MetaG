@@ -26,6 +26,7 @@ rule assemble__bowtie2__build__run:
     shell:
         """
         exec > {log}.{resources.attempt} 2>&1
+        debug "assembly_id={wildcards.assembly_id} threads={threads} contigs={input.contigs}"
         bowtie2-build --threads {threads} {input.contigs} {output.mock}
         mv {log}.{resources.attempt} {log}
         """
@@ -81,11 +82,13 @@ rule assemble__bowtie2__map:
         """
         exec > {log}.{resources.attempt} 2>&1
         echo "[{wildcards.assembly_id}] mapping {wildcards.sample_id}.{wildcards.library_id}"
+        debug "threads={threads} reference={input.reference} rg_id={params.rg_id} align_ext=.{ALIGN_EXT}"
 
         bowtie2 -x {input.mock} -1 {input.forward_} -2 {input.reverse_} \
                 --threads {threads} --rg-id '{params.rg_id}' --rg '{params.rg_extra}' \
             | samtools view --bam --output {output.tmp_bam} -
 
+        debug "sorting {output.tmp_bam} -> {output.file} (outtype={params.samtools_outtype}, mem={params.samtools_mem})"
         samtools sort \
             -l 9 \
             -m {params.samtools_mem} \

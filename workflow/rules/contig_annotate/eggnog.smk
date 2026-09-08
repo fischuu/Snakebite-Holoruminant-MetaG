@@ -33,12 +33,15 @@ rule contig_annotate__eggnog_find_homology:
     shell:""" 
         DATA_DIR="{params.tmp}"
 
+        # If no nvme_storage tmp dir is configured, run emapper straight against
+        # the shared eggnog DB location instead of staging a local copy.
         if [ -z "$DATA_DIR" ]; then
             DATA_DIR="{params.fa}"
         else
             cp {params.fa}/eggnog* {params.tmp} &> {log};
         fi;
 
+        debug "assembly_id={wildcards.assembly_id} chunk={wildcards.i} threads={threads} DATA_DIR=$DATA_DIR" 2>> {log}
 
          emapper.py -m diamond --data_dir $DATA_DIR --override --no_annot --no_file_comments --cpu {threads} -i {input.files} --output_dir {params.folder} -o {params.out}  2>> {log} 1>&2;
     """
@@ -77,7 +80,8 @@ rule contig_annotate__eggnog_orthology_chunk:
         shm=config["shm_storage"],
         nvme=config["nvme_storage"],
     shell: """
-     
+      debug "assembly_id={wildcards.assembly_id} chunk={wildcards.i} threads={threads} copy_dbs={params.copy_dbs} run_in_shm={params.run_in_shm}" 2>> {log}
+
       # check if dbs should be copied, otherwise use the original location
         if [ {params.copy_dbs} = "True" ]; then
         
@@ -107,6 +111,7 @@ rule contig_annotate__eggnog_orthology_chunk:
                 COUNT=$((COUNT + 1))
                 echo $COUNT > "$COUNTER_FILE"
                 echo "Incremented counter: $COUNT jobs using DB" >> {log}
+                debug "reference count now $COUNT for $DATA_DIR" 2>> {log}
             ) 200>"$COUNTER_FILE.lock"
     
             # === Copy DB if not already done ===
@@ -130,6 +135,7 @@ rule contig_annotate__eggnog_orthology_chunk:
 
         # === Run emapper ===
         mkdir -p {params.outdir}
+        debug "seed={input.seed} DATA_DIR=$DATA_DIR outdir={params.outdir} threads={threads}" 2>> {log}
         emapper.py --data_dir $DATA_DIR \
                    --annotate_hits_table {input.seed} \
                    --no_file_comments \

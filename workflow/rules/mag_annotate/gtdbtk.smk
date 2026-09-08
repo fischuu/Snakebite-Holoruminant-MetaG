@@ -30,6 +30,7 @@ rule mag_annotate__gtdbtk__classify:
     shell:
         """
         exec > {log}.{resources.attempt} 2>&1
+        debug "attempt={resources.attempt} threads={threads} out_dir={params.out_dir} database={input.database}"
 
         stale=(
             {params.out_dir}/align {params.out_dir}/classify {params.out_dir}/identify
@@ -50,12 +51,15 @@ rule mag_annotate__gtdbtk__classify:
         # Archaea (ar53) may or may not be present depending on the genome set;
         # merge it into the summary only when GTDB-Tk actually produced it.
         if [[ -f {params.ar53} ]]; then
+            debug "ar53 summary present, merging bac120+ar53 into {output.summary}"
             csvstack --tabs {params.bac120} {params.ar53} | csvformat --out-tabs > {output.summary}
         else
+            debug "no ar53 summary produced, using bac120 only for {output.summary}"
             cp {params.bac120} {output.summary}
         fi
 
         for section in align classify identify; do
+            debug "archiving section=$section to {params.out_dir}/${{section}}.tar.gz"
             tar \
                 --create \
                 --directory {params.out_dir} \

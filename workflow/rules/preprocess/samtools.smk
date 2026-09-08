@@ -23,7 +23,10 @@ rule preprocess__samtools__stats_cram:
         attempt=get_attempt,
     retries: len(get_escalation_order("preprocess__samtools__stats_cram"))
     shell:
-        "samtools stats --reference {input.reference} {input.cram} > {output.txt} 2> {log}"
+        """
+        samtools stats --reference {input.reference} {input.cram} > {output.txt} 2> {log}
+        debug "genome={wildcards.genome} sample={wildcards.sample_id} library={wildcards.library_id} cram={input.cram} output={output.txt}" 2>> {log}
+        """
 
 
 rule preprocess__samtools:

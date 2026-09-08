@@ -26,6 +26,7 @@ rule assemble__magscot__prodigal:
     shell:
         """
         exec 2> {log}.{resources.attempt}
+        debug "assembly_id={wildcards.assembly_id} threads={threads} assembly={input.assembly} proteins={output.proteins}"
         zcat {input.assembly} \
             | parallel --jobs {threads} --block 1M --recstart '>' --pipe --keep-order \
                 prodigal -p meta -a /dev/stdout -d /dev/null -o /dev/null \
@@ -60,6 +61,7 @@ rule assemble__magscot__hmmsearch_pfam:
         """
         exec > {log} 2>&1
         echo "[{wildcards.assembly_id}] hmmsearch vs Pfam"
+        debug "threads={threads} hmm={input.hmm} proteins={input.proteins} tblout={output.tblout}"
         hmmsearch \
             -o /dev/null \
             --tblout >(pigz --best --processes {threads} > {output.tblout}) \
@@ -95,6 +97,7 @@ rule assemble__magscot__hmmsearch_tigr:
         """
         exec > {log} 2>&1
         echo "[{wildcards.assembly_id}] hmmsearch vs TIGRFAM"
+        debug "threads={threads} hmm={input.hmm} proteins={input.proteins} tblout={output.tblout}"
         hmmsearch \
             -o /dev/null \
             --tblout >(pigz --best --processes {threads} > {output.tblout}) \
@@ -133,6 +136,7 @@ rule assemble__magscot__join_hmms:
     shell:
         """
         exec > {log} 2>&1
+        debug "tigr_tblout={input.tigr_tblout} pfam_tblout={input.pfam_tblout} merged={output.merged}"
         (zgrep -v '^#' {input.tigr_tblout} || true) | awk '{{print $1"\t"$3"\t"$5}}' >  {output.merged}
         (zgrep -v '^#' {input.pfam_tblout} || true) | awk '{{print $1"\t"$4"\t"$5}}' >> {output.merged}
         """
@@ -167,10 +171,12 @@ rule assemble__magscot__merge_contig_to_bin:
     shell:
         """
         exec > {log} 2>&1
+        debug "assembly_id={wildcards.assembly_id} output={output}"
         : > {output}
         for entry in "concoct:{input.concoct}" "maxbin2:{input.maxbin2}" "metabat2:{input.metabat2}"; do
             method=${{entry%%:*}}
             binner_dir=${{entry#*:}}
+            debug "merging bins from method=$method dir=$binner_dir"
             for fa in $(find "$binner_dir" -name "*.fa.gz" -type f); do
                 bin_id=$(basename "$fa" .fa)
                 zgrep '^>' "$fa" | tr -d '>' \
@@ -226,6 +232,7 @@ rule assemble__magscot__run:
             --threshold {params.th} \
             > {log} 2>&1 || echo "MAGScoT exited non-zero (likely no bins produced); continuing" >> {log}
 
+        debug "assembly_id={wildcards.assembly_id} threshold={params.th} contigs_to_bin={input.contigs_to_bin}" 2>> {log}
         touch {output.ar53} {output.bac120} {output.refined_contig_to_bin} {output.refined_out} {output.scores}
         echo "exit: $?" >> {log}
         """
@@ -265,6 +272,7 @@ rule assemble__magscot__reformat:
             echo "MAGScoT produced no bins for this assembly; writing an empty output" > {log}
             touch {output.clean}
         fi
+        debug "assembly_id={wildcards.assembly_id} refined_contig_to_bin={input.refined_contig_to_bin} clean={output.clean}" 2>> {log}
         """
 
 
@@ -309,6 +317,7 @@ rule assemble__magscot__rename:
             touch {params.empty_fasta}
             gzip {params.empty_fasta}
         fi
+        debug "assembly_id={wildcards.assembly_id} clean={input.clean} fasta={output.fasta}" 2>> {log}
         """
 
 

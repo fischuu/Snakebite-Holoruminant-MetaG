@@ -33,6 +33,7 @@ rule mag_annotate__dram__annotate:
     shell:
         """
         exec > {log} 2>&1
+        debug "config={params.config} dram_db={input.dram_db} tmp_dir={params.tmp_dir} threads={threads} min_contig_size={params.min_contig_size}"
         rm --recursive --force {params.tmp_dir}
 
         echo "host: $(hostname)"
@@ -50,6 +51,7 @@ rule mag_annotate__dram__annotate:
         # (e.g. no tRNAs); downstream rules still expect the file to exist.
         for expected in annotations.tsv trnas.tsv rrnas.tsv; do
             path="{params.tmp_dir}/$expected"
+            debug "checking expected DRAM output: $path"
             if [ ! -f "$path" ]; then
                 echo "DRAM produced no $expected -- creating an empty placeholder"
                 touch "$path"
@@ -72,6 +74,9 @@ rule mag_annotate__fix_dram_annotations_scaffold:
     shell:
         """
         python {params.script_folder}/fix_annotations.py {input} {output} > {log} 2>&1
+
+        # The script call above truncates {log}, so this has to be logged after it.
+        debug "input={input} output={output}" 2>> {log}
         """
 
 rule mag_annotate__dram__distill:
@@ -108,6 +113,7 @@ rule mag_annotate__dram__distill:
     shell:
         """
         exec > {log} 2>&1
+        debug "config={params.config} outdir_tmp={params.outdir_tmp} outdir={params.outdir} threads={threads}"
         # DRAM insists on creating this directory itself, but Snakemake has
         # already created the parent tree ahead of time -- clear it first.
         rm --recursive --force {params.outdir_tmp}

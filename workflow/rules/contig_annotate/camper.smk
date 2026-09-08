@@ -32,11 +32,14 @@ rule contig_annotate__camper__annotate:
 
         if [[ -n {params.nvme} ]]; then
             tmp_db_dir={params.nvme}/{params.sample}
+            debug "nvme storage configured; staging CAMPER DB to $tmp_db_dir" 2>> {log}
         else
             tmp_db_dir={params.out_dir}/camper_db_tmp
+            debug "no nvme storage configured; staging CAMPER DB under out_dir at $tmp_db_dir" 2>> {log}
         fi
 
         mkdir -p $tmp_db_dir
+        debug "assembly_id={params.sample} threads={threads} camper_db={params.camper_db}" 2>> {log}
 
         # Copy CAMPER DB locally to tmpdir_camper to avoid collisions
         cp {params.camper_db}/CAMPER.hmm $tmp_db_dir/CAMPER.hmm 2>> {log} 1>&2
@@ -50,7 +53,8 @@ rule contig_annotate__camper__annotate:
         # This is a strange camper requiredment, when it runs in snakemake and folders might be created...
         mkdir -p $tmpdir 2>> {log} 1>&2
         rm -rf $tmpdir 2>> {log} 1>&2
-        
+
+        debug "running camper_annotate: input={input} out=$tmpdir threads={threads}" 2>> {log}
         camper_annotate -i {input} \
                         -o $tmpdir \
                         --threads {threads} \
@@ -60,6 +64,7 @@ rule contig_annotate__camper__annotate:
                         --camper_hmm_cutoffs_loc $tmp_db_dir/CAMPER_hmm_scores.tsv \
         2>> {log} 1>&2
 
+        debug "running camper_distill: annotations=$tmpdir/annotations.tsv distillate={output.distillate}" 2>> {log}
         camper_distill  -a $tmpdir/annotations.tsv \
                         -o {output.distillate} \
 	                      --camper_distillate $tmp_db_dir/CAMPER_distillate.tsv \

@@ -29,6 +29,7 @@ rule contig_annotate__prodigal__run:
     retries: len(get_escalation_order("contig_annotate__prodigal__run"))
     shell:"""
          exec 2> {log}
+         debug "assembly_id={wildcards.assembly_id} threads={threads} assembly_input={input.assembly} out_fa={output.fa} out_gtf={output.gtf}"
          prodigal -i <(gunzip -c {input.assembly}) \
                   -o {output.gtf} \
                   -a {output.fa} \
@@ -66,8 +67,9 @@ checkpoint contig_annotate__cut_prodigal:
         docker["mag_annotate"]
     shell:"""
        mkdir -p {output}
+       debug "assembly_id={wildcards.assembly_id} threads={threads} split={params.split} input={input}" 2>> {log}
        {params.folder}/workflow/scripts/cutProdigal.sh {params.split} {params.out} {input} 2>> {log} 1>&2
-    """    
+    """
     
 rule contig_annotate__prodigal:
     """Run prodigal on all assemblies"""

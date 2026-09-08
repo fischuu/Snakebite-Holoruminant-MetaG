@@ -23,6 +23,7 @@ rule preprocess__bowtie2__build:
     shell:
         """
         exec > {log}.{resources.attempt} 2>&1
+        debug "genome={wildcards.genome} threads={threads} reference={input.reference}"
         bowtie2-build --threads {threads} {input.reference} {output.mock}
         mv {log}.{resources.attempt} {log}
         """
@@ -61,11 +62,13 @@ rule preprocess__bowtie2__map:
     shell:
         """
         exec > {log}.{resources.attempt} 2>&1
+        debug "sample={wildcards.sample_id} library={wildcards.library_id} genome={wildcards.genome} threads={threads} samtools_mem={params.samtools_mem}"
 
         # samtools sort can leave "*.tmp.NNNN.bam" spill files behind from a
         # killed previous attempt; clear them before this attempt starts.
         find "$(dirname {output.cram})" -name "$(basename {output.cram}).tmp.*.bam" -delete
 
+        debug "forward={input.forward_} reverse={input.reverse_} output_cram={output.cram}"
         bowtie2 -x {input.mock} -1 {input.forward_} -2 {input.reverse_} \
                 --threads {threads} --rg-id '{params.rg_id}' --rg '{params.rg_extra}' \
             | samtools sort --reference {input.reference} -l 9 -M -m {params.samtools_mem} \
@@ -107,6 +110,7 @@ rule preprocess__bowtie2__extract_nonhost__run:
     shell:
         """
         exec 2> {log}
+        debug "sample={wildcards.sample_id} library={wildcards.library_id} genome={wildcards.genome} threads={threads} cram={input.cram} sort_tmpdir={params.sort_tmpdir}"
         mkdir --parents {params.sort_tmpdir}
 
         samtools view --uncompressed -f 12 --reference {input.reference} {input.cram} \

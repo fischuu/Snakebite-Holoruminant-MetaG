@@ -38,6 +38,7 @@ rule read_annotate__nonpareil__run:
         """
         export TMPDIR={params.tmp}
         exec > {log} 2>&1
+        debug "threads={threads} X={params.X} reads={params.reads} prefix={params.prefix}"
 
         zcat {input.forward_} > {params.reads}
         nonpareil -s {params.reads} -T kmer -b {params.prefix} -f fastq -t {threads} -X {params.X}
@@ -75,6 +76,7 @@ rule read_annotate__nonpareil__aggregate:
     shell:
         """
         exec > {log} 2>&1
+        debug "input_dir={params.input_dir} output={output}"
         Rscript --no-init-file {params.script_folder}/aggregate_nonpareil.R \
             --input-folder {params.input_dir} \
             --output-file {output}

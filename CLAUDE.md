@@ -48,6 +48,15 @@ for most modules but the reporting module is still under development and may not
 Formatting: `snakefmt` (config in `.github/linters/.snakefmt.toml`, which sets `skip_string_normalization
 = true` for the underlying black formatter) is what CI lints with.
 
+### Debug messages
+
+`PIPELINE_DEBUG=1` (unset/`0` by default), exported by the run script, turns on `[DEBUG]` messages both
+while the Snakefile parses config (Python-side `debug()` in `workflow/Snakefile`) and inside every rule's
+shell script (bash `debug()` function injected via `shell.prefix()` in `workflow/Snakefile`, so individual
+`.smk` files just call `debug "..."` without redefining it). Regular `echo` messages in rules stay
+always-on; `debug` calls are the extra, opt-in diagnostic detail. Relies on the submitting shell's
+environment propagating through SLURM and into the Singularity container, which is the default here.
+
 ## Architecture
 
 ### Config-file driven, not code-driven

@@ -24,6 +24,7 @@ rule assemble__drep__separate_bins:
     shell:
         """
         exec > {log} 2>&1
+        debug "out_dir={output.out_dir} assemblies_count=$(echo {input.assemblies} | wc -w)"
         {params.folder}/workflow/scripts/split_bins.sh {output.out_dir} {input.assemblies}
         """
 
@@ -62,6 +63,7 @@ rule assemble__drep__run:
     shell:
         """
         exec > {log}.{resources.attempt} 2>&1
+        debug "threads={threads} completeness={params.completeness} contamination={params.contamination} P_ani={params.P_ani} S_ani={params.S_ani} nc={params.nc}"
 
         stale=(
             {params.out_dir}/data_tables {params.out_dir}/data
@@ -81,6 +83,7 @@ rule assemble__drep__run:
             --genomes {input.genomes}/*.fa
 
         for section in data data_tables; do
+            debug "archiving section=$section into {params.out_dir}/${{section}}.tar.gz"
             tar \
                 --create \
                 --directory {params.out_dir} \
@@ -121,6 +124,7 @@ rule assemble__drep__join_genomes:
     shell:
         """
         exec 2> {log}
+        debug "genomes_dir={input} threads={threads} output={output}"
         zcat {input}/*.fa.gz | bgzip --compress-level 9 --threads {threads} > {output}
         """
 

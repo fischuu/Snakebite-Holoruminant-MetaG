@@ -33,19 +33,21 @@ rule mag_annotate__dram_mag__annotate:
     shell:
         """
         rm -rf {params.tmp_dir}
-        
+
         echo "Hostname: $(hostname)" 2>> {log} 1>&2
         echo "Temporary directory: $TMPDIR" 2>> {log} 1>&2
         df -h 2>> {log} 1>&2
-        
+
+        debug "assembly_id={wildcards.assembly_id} config={params.config} dram_db={input.dram_db} tmp_dir={params.tmp_dir} threads={threads}" 2>> {log}
         DRAM.py annotate \
                 --config_loc {params.config} \
                 --input_fasta {input.contigs} \
                 --output_dir {params.tmp_dir} \
                 --threads {threads} \
         2>> {log} 1>&2
-        
+
         for f in annotations.tsv trnas.tsv rrnas.tsv; do
+          debug "checking expected DRAM output: {params.tmp_dir}/$f" 2>> {log}
           if [ ! -f "{params.tmp_dir}/$f" ]; then
             echo "DRAM did not generate $f -> creating empty file" >> {log}
             touch "{params.tmp_dir}/$f"
@@ -67,6 +69,7 @@ rule mag_annotate__fix_dram_mag_annotations_scaffold:
         script_folder=SCRIPT_FOLDER,
     shell:
         """
+        debug "input={input} output={output}" 2>> {log}
         python {params.script_folder}/fix_annotations.py {input} {output} 2>> {log} 1>&2
         """
         
@@ -106,7 +109,7 @@ rule mag_annotate__dram_mag__distill:
         """
         # This is maybe needed as snakemake creates the folders, but dram relies on creating it itself
         rm -rf {params.outdir_tmp} 2> {log} 1>&2
-        
+
         DRAM.py distill \
             --config_loc {params.config} \
             --input_file {input.annotation} \
@@ -114,6 +117,11 @@ rule mag_annotate__dram_mag__distill:
             --trna_path {input.trnas} \
             --output_dir {params.outdir_tmp} \
         2> {log} 1>&2
+
+        # Both commands above use "2>" (truncate), so a debug call placed any
+        # earlier in this script would just get overwritten -- this is the
+        # first point where appending to {log} actually sticks.
+        debug "assembly_id={wildcards.assembly_id} config={params.config} outdir_tmp={params.outdir_tmp} outdir={params.outdir} threads={threads}" 2>> {log}
 
         mv {params.outdir_tmp}/* {params.outdir}/ 2>> {log} 1>&2
         rm -rf {params.outdir_tmp}/ 2>> {log} 1>&2

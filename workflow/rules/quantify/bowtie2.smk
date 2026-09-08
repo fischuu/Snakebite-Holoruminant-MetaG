@@ -22,6 +22,7 @@ rule quantify__bowtie2__build:
     shell:
         """
         exec 2> {log}
+        debug "threads={threads} contigs={input.contigs} mock={output.mock}"
         bowtie2-build --threads {threads} {input.contigs} {output.mock}
         """
 
@@ -58,6 +59,7 @@ rule quantify__bowtie2__map:
     shell:
         """
         exec > {log} 2>&1
+        debug "sample_id={wildcards.sample_id} library_id={wildcards.library_id} threads={threads} rg_id={params.rg_id} samtools_mem={params.samtools_mem} cram={output.cram}"
 
         # Clear any stale samtools-sort spill files from a killed prior attempt.
         find "$(dirname {output.cram})" -name "$(basename {output.cram}).tmp.*.bam" -delete

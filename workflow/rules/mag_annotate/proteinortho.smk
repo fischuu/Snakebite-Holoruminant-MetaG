@@ -23,13 +23,14 @@ rule mag_annotate__proteinortho:
         outdir=PROTEINORTHO
     shell:
         """
-        
+        debug "threads={threads} outdir={params.outdir} faa_count=$(echo {input.faa} | wc -w)" 2>> {log}
+
         mkdir -p {params.outdir}
-        
+
         proteinortho {input.faa} \
             -cpus={threads} \
             -project=proteinortho \
             2>> {log} 1>&2
-        
-        mv proteinortho.* {params.outdir} 
+
+        mv proteinortho.* {params.outdir}
         """

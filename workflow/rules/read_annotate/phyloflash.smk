@@ -28,6 +28,7 @@ rule read_annotate__phyloflash__run:
         outdir=PHYLOFLASH
     shell:
         """
+        debug "threads={threads} lib={params.lib} dbhome={input.phyloflash_dbs} outdir={params.outdir}" 2>> {log}
         phyloFlash.pl -dbhome {input.phyloflash_dbs} \
                       -lib {params.lib} -CPUs {threads} \
                       -read1 {input.forward_} \

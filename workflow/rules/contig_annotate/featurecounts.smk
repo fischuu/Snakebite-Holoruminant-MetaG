@@ -22,6 +22,7 @@ if params["assemble"]["samtools"]["out_type"].upper() == "CRAM":
         shell:
             """
             exec > {log} 2>&1
+            debug "assembly_id={wildcards.assembly_id} sample={wildcards.sample_id} library={wildcards.library_id} threads={threads} input={input} output={output}"
             echo "[{wildcards.assembly_id}] converting {wildcards.sample_id}.{wildcards.library_id} CRAM to BAM"
             samtools view -b -o {output} {input}
             echo "done"
@@ -58,6 +59,8 @@ rule contig_annotate__featurecounts__run:
                       -t CDS \
                       -g ID \
                       {input.bam} 2> {log}
+
+        debug "assembly_id={wildcards.assembly_id} sample={wildcards.sample_id} library={wildcards.library_id} threads={threads} bam={input.bam} gtf={input.gtf} output={output.file}" 2>> {log}
     """
     
     

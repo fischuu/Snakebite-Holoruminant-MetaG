@@ -27,8 +27,10 @@ rule mag_annotate__eggnog:
     shell:
         """
         exec 2>> {log}
+        debug "db={params.db} tmp_dir={params.tmp_dir} out_dir={params.out_dir} threads={threads} contigs={input.contigs}"
         mkdir --parents {params.tmp_dir}
         cp -r {params.db}/* {params.tmp_dir}
+        debug "eggnog db copied to $(du -sh {params.tmp_dir} 2>/dev/null | cut -f1) at {params.tmp_dir}"
 
         emapper.py -m diamond \
                    --data_dir {params.tmp_dir} \

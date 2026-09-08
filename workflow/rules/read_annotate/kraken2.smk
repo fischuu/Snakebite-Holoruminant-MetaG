@@ -56,6 +56,7 @@ rule read_annotate__kraken2__assign:
         exec > {log} 2>&1
         set +u
         echo "[attempt {resources.attempt}] starting kraken2 assign for {wildcards.kraken_db}"
+        debug "threads={threads}, out_folder={params.out_folder}, run_in_shm={params.run_in_shm}, copy_dbs={params.copy_dbs}"
         mkdir --parents {params.out_folder}
 
         db_src="{input.database}"
@@ -70,6 +71,7 @@ rule read_annotate__kraken2__assign:
             db_shm=""
         fi
         : "${{db_src:=}}" "${{shm_dir:=}}" "${{nvme_dir:=}}" "${{db_shm:=}}" "${{db_nvme:=}}"
+        debug "db_src=$db_src shm_dir=$shm_dir nvme_dir=$nvme_dir db_shm=$db_shm db_nvme=$db_nvme"
 
         avail_bytes() ( timeout 100s df --output=avail -B1 "$1" 2>/dev/null | tail -1 || echo 0 )
 
@@ -80,10 +82,15 @@ rule read_annotate__kraken2__assign:
             nvme_avail=$(avail_bytes "$nvme_dir")
             echo "db_size=$db_size shm_avail=$shm_avail nvme_avail=$nvme_avail"
 
+            # Staging tier chosen by comparing the (uncompressed) DB size against
+            # available space, biggest/fastest tier first; falls through to running
+            # in place from db_src only on the final escalation attempt.
             if [ "$db_size" -lt "$shm_avail" ]; then
                 db_dst="$db_shm"
+                debug "chose /dev/shm as staging tier"
             elif [ "$db_size" -lt "$nvme_avail" ]; then
                 db_dst="$db_nvme"
+                debug "chose NVMe as staging tier"
             elif [ {resources.attempt} -eq {params.max_attempt} ]; then
                 echo "no staging space available; running directly from $db_src on the final attempt"
                 db_dst="$db_src"
@@ -96,6 +103,7 @@ rule read_annotate__kraken2__assign:
                 echo "staging database to $db_dst"
                 mkdir -p "$db_dst"
                 rsync --archive --recursive --times "$db_src"/*.k2d "$db_dst"
+                debug "database staged, $(du -sh "$db_dst" 2>/dev/null | cut -f1) at $db_dst"
             fi
         else
             echo "copy_dbs disabled; using database in place at $db_src"
@@ -110,6 +118,7 @@ rule read_annotate__kraken2__assign:
             sample_log={params.out_folder}/${{sample_id}}.log
 
             echo "classifying $sample_id"
+            debug "forward=$forward reverse=$reverse out_gz=$out_gz report=$report"
             kraken2 \
                 --db "$db_dst" \
                 --threads {threads} \
