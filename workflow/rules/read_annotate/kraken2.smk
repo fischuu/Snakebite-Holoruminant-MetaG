@@ -53,8 +53,7 @@ rule read_annotate__kraken2__assign:
     container:
         docker["preprocess"],
     shell: """
-        exec > {log}.{resources.attempt} 2>&1
-        trap 'mv "{log}.{resources.attempt}" "{log}" 2>/dev/null || true' EXIT
+        exec > {log} 2>&1
         set +u
         echo "[attempt {resources.attempt}] starting kraken2 assign for {wildcards.kraken_db}"
         mkdir --parents {params.out_folder}
@@ -126,8 +125,6 @@ rule read_annotate__kraken2__assign:
         if [ "{params.run_in_shm}" = "True" ] && [ "$db_dst" = "$db_shm" ]; then
             rm --recursive --force --verbose "$db_dst"
         fi
-
-        mv {log}.{resources.attempt} {log}
     """
 
 

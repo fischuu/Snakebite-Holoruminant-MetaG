@@ -29,11 +29,9 @@ rule read_annotate__humann__run:
         attempt=get_attempt,
     retries: len(get_escalation_order("read_annotate__humann__run")),
     shell: """
-        trap 'mv "{log}.{resources.attempt}" "{log}" 2>/dev/null || true' EXIT
-
         echo "In case this rule crashes for larger datasets, you need to ensure a proper size of TMPDIR!"
     
-        echo "$(date) **Starting rule read_annotate__humann__run, attempt {resources.attempt}**" > {log}.{resources.attempt}
+        echo "$(date) **Starting rule read_annotate__humann__run, attempt {resources.attempt}**" > {log}
 
         cat {input.forward_} {input.reverse_} > {output.cat}
         
@@ -44,11 +42,9 @@ rule read_annotate__humann__run:
                --output-basename {params.out_name} \
                --taxonomic-profile {input.mp_out} \
                {params.additional_options} \
-        2>> {log}.{resources.attempt} 1>&2
+        2>> {log} 1>&2
 
-        echo "$(date) **Finished rule read_annotate__humann__run, attempt {resources.attempt}**" >> {log}.{resources.attempt}
-
-        mv {log}.{resources.attempt} {log}
+        echo "$(date) **Finished rule read_annotate__humann__run, attempt {resources.attempt}**" >> {log}
     """
 
 rule read_annotate__humann__condense:
