@@ -23,8 +23,6 @@ rule assemble__magscot__prodigal:
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__magscot__prodigal')['nvme']}",
         attempt=get_attempt,
     retries: len(get_escalation_order("assemble__magscot__prodigal"))
-    params:
-        tmp=config["tmp_storage"],
     shell:
         """
         exec 2> {log}.{resources.attempt}
@@ -32,19 +30,29 @@ rule assemble__magscot__prodigal:
 
         # The Singularity/Apptainer container's /tmp is bind-mounted to the
         # project's own tmp/ folder (see --singularity-args in the run script),
-        # but SLURM's inherited $TMPDIR still points at a per-job path that only
-        # exists on the *real* host /tmp (e.g. /tmp/<user>/<jobid>), not inside
-        # the bind-mounted one. GNU parallel trusts $TMPDIR for its .par control
+        # but SLURM's inherited $TMPDIR (and, on this cluster, $TMP/config
+        # tmp_storage too -- they resolve to the same value) still points at a
+        # per-job path that only exists on the *real* host /tmp, not inside the
+        # bind-mounted one. GNU parallel trusts $TMPDIR for its .par control
         # files and fails with "Parent directory ... does not exist" otherwise.
-        # Reset it to the pipeline's own configured tmp storage, same as
-        # metaphlan/nonpareil/singlem do, rather than a hardcoded path.
-        export TMPDIR={params.tmp}
-        debug "TMPDIR reset to $TMPDIR (from config tmp_storage)"
+        # Neither inherited variable is usable here, so create our own
+        # dedicated, guaranteed-to-exist subdirectory under the container's
+        # (valid, bind-mounted) /tmp instead. Made unique per assembly/attempt
+        # since /tmp is one shared host directory across all concurrently
+        # running jobs (this pipeline allows up to 150 in parallel).
+        # NOTE: if the job is killed before cleanup at the end, this directory
+        # is left behind under /tmp, same caveat as the kraken2 shm staging.
+        tmp_dir="/tmp/magscot_prodigal.{wildcards.assembly_id}.{resources.attempt}.$$"
+        mkdir -p "$tmp_dir"
+        export TMPDIR="$tmp_dir"
+        debug "TMPDIR reset to $TMPDIR (dedicated container-local subdir)"
 
         zcat {input.assembly} \
             | parallel --jobs {threads} --block 1M --recstart '>' --pipe --keep-order \
                 prodigal -p meta -a /dev/stdout -d /dev/null -o /dev/null \
             > {output.proteins}
+
+        rm --recursive --force "$tmp_dir"
         mv {log}.{resources.attempt} {log}
         """
 
