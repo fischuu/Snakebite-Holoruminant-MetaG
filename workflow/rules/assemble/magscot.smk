@@ -23,10 +23,24 @@ rule assemble__magscot__prodigal:
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__magscot__prodigal')['nvme']}",
         attempt=get_attempt,
     retries: len(get_escalation_order("assemble__magscot__prodigal"))
+    params:
+        tmp=config["tmp_storage"],
     shell:
         """
         exec 2> {log}.{resources.attempt}
         debug "assembly_id={wildcards.assembly_id} threads={threads} assembly={input.assembly} proteins={output.proteins}"
+
+        # The Singularity/Apptainer container's /tmp is bind-mounted to the
+        # project's own tmp/ folder (see --singularity-args in the run script),
+        # but SLURM's inherited $TMPDIR still points at a per-job path that only
+        # exists on the *real* host /tmp (e.g. /tmp/<user>/<jobid>), not inside
+        # the bind-mounted one. GNU parallel trusts $TMPDIR for its .par control
+        # files and fails with "Parent directory ... does not exist" otherwise.
+        # Reset it to the pipeline's own configured tmp storage, same as
+        # metaphlan/nonpareil/singlem do, rather than a hardcoded path.
+        export TMPDIR={params.tmp}
+        debug "TMPDIR reset to $TMPDIR (from config tmp_storage)"
+
         zcat {input.assembly} \
             | parallel --jobs {threads} --block 1M --recstart '>' --pipe --keep-order \
                 prodigal -p meta -a /dev/stdout -d /dev/null -o /dev/null \
