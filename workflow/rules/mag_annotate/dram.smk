@@ -36,6 +36,14 @@ rule mag_annotate__dram__annotate:
         debug "config={params.config} dram_db={input.dram_db} tmp_dir={params.tmp_dir} threads={threads} min_contig_size={params.min_contig_size}"
         rm --recursive --force {params.tmp_dir}
 
+        # See mag_annotate__dram_mag__annotate: DRAM spawns tRNAscan-SE
+        # internally, which independently reads $TMPDIR for its own scratch
+        # files -- point it at a guaranteed-to-exist subdirectory instead of
+        # the inherited (container-invisible) SLURM per-job path.
+        sys_tmp_dir="/tmp/dram.$$"
+        mkdir -p "$sys_tmp_dir"
+        export TMPDIR="$sys_tmp_dir"
+
         echo "host: $(hostname)"
         echo "TMPDIR: $TMPDIR"
         df -h
@@ -57,6 +65,8 @@ rule mag_annotate__dram__annotate:
                 touch "$path"
             fi
         done
+
+        rm --recursive --force "$sys_tmp_dir"
         """
 
 rule mag_annotate__fix_dram_annotations_scaffold:

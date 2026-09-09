@@ -34,6 +34,19 @@ rule mag_annotate__dram_mag__annotate:
         """
         rm -rf {params.tmp_dir}
 
+        # DRAM spawns tRNAscan-SE internally, which does its own $TMPDIR
+        # lookup for scratch files -- on this cluster the inherited value is
+        # a SLURM per-job path that only exists on the real host /tmp, not
+        # inside the container's bind-mounted one (same root cause as the
+        # magscot/parallel and bakta/tRNAscan-SE fixes). Point it at our own
+        # guaranteed-to-exist subdirectory instead; without this, DRAM.py
+        # annotate crashes on tRNAscan-SE and this rule's own fallback below
+        # silently swallows that by touching empty output files, which then
+        # only surfaces as a confusing pandas EmptyDataError in distill.
+        sys_tmp_dir="/tmp/dram_mag.{wildcards.assembly_id}.$$"
+        mkdir -p "$sys_tmp_dir"
+        export TMPDIR="$sys_tmp_dir"
+
         echo "Hostname: $(hostname)" 2>> {log} 1>&2
         echo "Temporary directory: $TMPDIR" 2>> {log} 1>&2
         df -h 2>> {log} 1>&2
@@ -54,6 +67,7 @@ rule mag_annotate__dram_mag__annotate:
           fi
         done
 
+        rm --recursive --force "$sys_tmp_dir"
     """
     
 rule mag_annotate__fix_dram_mag_annotations_scaffold:

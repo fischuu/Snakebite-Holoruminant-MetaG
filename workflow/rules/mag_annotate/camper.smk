@@ -47,6 +47,15 @@ rule mag_annotate__camper__annotate:
         mkdir -p $tmpdir
         rm -rf $tmpdir
 
+        # camper_annotate wraps HMMER/diamond searches internally, which may
+        # independently read $TMPDIR for their own scratch files -- point it
+        # at a guaranteed-to-exist subdirectory instead of the inherited
+        # (container-invisible) SLURM per-job path, same root cause as the
+        # magscot/bakta/DRAM tRNAscan-SE fixes.
+        sys_tmp_dir="/tmp/camper.$$"
+        mkdir -p "$sys_tmp_dir"
+        export TMPDIR="$sys_tmp_dir"
+
         debug "running camper_annotate: genes={input.genes} tmpdir=$tmpdir tmp_db_dir=$tmp_db_dir" 2>> {log}
         camper_annotate -i {input.genes} \
                         -o $tmpdir \
@@ -65,6 +74,8 @@ rule mag_annotate__camper__annotate:
 
 	      # Move all tmp files one level up
         mv "$tmpdir"/* {params.camper_dir}/
+
+        rm --recursive --force "$sys_tmp_dir"
         """
 
 rule mag_annotate__camper:
