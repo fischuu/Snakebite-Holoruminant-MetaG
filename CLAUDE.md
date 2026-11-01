@@ -82,6 +82,11 @@ Everything a user needs to change lives in `config/`, loaded once at the top of 
 
 `workflow/Snakefile` parses `samples.tsv` into `SAMPLES`, `SAMPLE_LIBRARY`, `ASSEMBLY_SAMPLE_LIBRARY`, and
 `ASSEMBLIES` globals used throughout the rule files, and builds `HOST_NAMES` from `features["hosts"]`.
+`validate_samples()` runs first, on the raw sheet, and rejects duplicate `(sample_id, library_id)` pairs
+or a FASTQ path repeated anywhere across `forward_filename`/`reverse_filename`: every per-library output
+is keyed on that pair, so a duplicate would silently process only the first row's reads. It must stay
+*before* the `assembly_ids` explode, after which `samples` legitimately holds one copy of each pair per
+assembly; the per-library row lookups (`_reads_sample_row`, `_sample_row`) de-duplicate those copies.
 
 ### Module layout under `workflow/rules/`
 

@@ -131,7 +131,10 @@ The file has this structure
 where we can give the 
 
 * `sample_id` , unique sample identified
-* `library_id`, library identifier for repeated libraries
+* `library_id`, library identifier for repeated libraries. Each (`sample_id`, `library_id`) pair must be
+  unique (e.g. `L001`, `L002` for several lanes of one sample, not the Illumina S-number shared by all
+  lanes), and each FASTQ file may appear only once across `forward_filename`/`reverse_filename`; the
+  pipeline refuses to start otherwise
 * `forward_filename`, relative path to the forward read file of that sample
 * `reverse_filename`, relative path to the reverse read file of that sample
 * `forward_adapter`, adapter sequence from the forward read

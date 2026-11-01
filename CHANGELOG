@@ -1,8 +1,18 @@
 # CHANGELOG
 ##############
 
-Version 0.4.*: 
+Version 0.4.*:
 -----------
+64: Bugfix: samples.tsv is now validated at startup (on the raw sheet, before the assembly_ids
+    explode). A sheet with duplicate (sample_id, library_id) pairs, e.g. several lanes of a
+    sample all given lib1 (what createSampleSheet.sh writes) or the Illumina S-number as
+    library_id, was silently accepted: only the first row's reads were ever linked and
+    processed, the other lanes were dropped, and each assembly's read list repeated that one
+    library once per row. Such sheets, and sheets listing the same FASTQ on more than one row
+    (in forward_filename or reverse_filename), now fail with an error listing the offending
+    rows. The per-library samples.tsv lookups (reads, fastp adapters) also fail loudly now
+    instead of silently taking the first match. Results from such a sheet need to be
+    regenerated from scratch.
 63: Added NCyc also to the contig annotate extra module, using the prodigal protein output
 62: Added the tool NCyc to the pipeline (to module read_annotate_extra)
 61: Accidental rerun of rules triggered by an indexing step in contig_annotate fixed (issue #47)

@@ -1,9 +1,18 @@
 # fastp
 def _sample_row(wildcards):
     """Look up the samples.tsv row matching a sample/library wildcard pair"""
-    matches = samples.query(
-        "sample_id == @wildcards.sample_id and library_id == @wildcards.library_id"
+    # samples is exploded by assembly_id, so a library in several assemblies has one
+    # otherwise identical row per assembly
+    matches = (
+        samples.query("sample_id == @wildcards.sample_id and library_id == @wildcards.library_id")
+        .drop(columns="assembly_id")
+        .drop_duplicates()
     )
+    if len(matches) != 1:
+        raise ValueError(
+            f"Expected exactly one samples.tsv row for sample_id={wildcards.sample_id!r}, "
+            f"library_id={wildcards.library_id!r}; found {len(matches)}"
+        )
     return matches.iloc[0]
 
 
