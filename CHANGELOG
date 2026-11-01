@@ -3,6 +3,14 @@
 
 Version 0.4.*:
 -----------
+66: Added the module eukaryote, which labels every assembly's contigs as eukaryotic or
+    prokaryotic with three tools: Tiara, 4CAC (metaSPAdes assemblies only, it needs the
+    assembly graph) and REMAG, and bins the eukaryotic contigs with REMAG. Each tool writes one
+    table per assembly with the pipeline's contig ids (results/eukaryote/<tool>/<assembly>.tsv).
+    The module is not part of 'all'; run it with the target 'eukaryote' (or eukaryote__tiara,
+    eukaryote__4cac, eukaryote__remag). Settings are under 'eukaryote' in params.yaml; the
+    minimum contig lengths default to 1000 bp so that fragmented (e.g. soil) assemblies can be
+    classified at all.
 65: Bugfix: contig_annotate__diamond__summarise now requires one DIAMOND .out per assembly
     (ASSEMBLIES), like contig_annotate__diamond does. It iterated over the sample_ids in
     SAMPLE_LIBRARY instead, so it only matched when every sample was its own assembly. With

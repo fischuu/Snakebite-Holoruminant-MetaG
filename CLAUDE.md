@@ -33,7 +33,8 @@ each deployment (e.g. a specific HPC project folder) has its own copy with its o
 the one in this repo checkout is what actually runs in production.
 
 Modules (top-level rules in `rule all`): `reads`, `reference`, `preprocess`, `read_annotate`, `assemble`,
-`mag_annotate`, `contig_annotate`, `quantify`. Each module can be run as a whole or as a single tool
+`mag_annotate`, `contig_annotate`, `quantify`. The `eukaryote` module exists but is deliberately left out
+of `rule all` (opt-in, see "Eukaryote module" below). Each module can be run as a whole or as a single tool
 within it using `<module>__<tool>` naming, e.g.:
 
 ```bash
@@ -99,7 +100,7 @@ Each module is a directory with:
   actually run (see `container:` in each rule and `config/.docker.yml`).
 
 `workflow/Snakefile` includes modules in pipeline order: `helpers` → `reads` → `reference` → `preprocess`
-→ `read_annotate` → `assemble` → `quantify` → `mag_annotate` → `contig_annotate` → `report`, plus
+→ `read_annotate` → `assemble` → `quantify` → `mag_annotate` → `contig_annotate` → `eukaryote` → `report`, plus
 `devel/throw_error.smk` (a synthetic `test_error` rule for exercising the escalation/retry machinery).
 
 `workflow/rules/folders.smk` centralizes every output-path constant (`FASTP`, `KRAKEN2`, `MAGSCOT`, etc.,
@@ -148,6 +149,28 @@ user-provided assembly source: the pipeline expects gzipped FASTAs at
 `{assembly_name}:bin_NA@contig_00000000`-style convention produced by the embedded assemblers (a
 non-conforming naming scheme has caused unexpected behavior). Use
 `workflow/scripts/rename_provided_assemblies.py` to reheader externally-produced assemblies.
+
+### Eukaryote module
+
+`eukaryote` labels each assembly's contigs as eukaryotic/prokaryotic with Tiara, 4CAC and REMAG (one
+`results/eukaryote/<tool>/<assembly_id>.tsv` per tool, keyed on the pipeline's contig ids) and bins the
+eukaryotic contigs with REMAG. MAGScoT scores bins with bacterial/archaeal markers only (threshold 0.5),
+so eukaryotic bins from the `assemble` binners don't survive it; REMAG's bins are the eukaryotic route.
+Non-obvious parts:
+- 4CAC needs the metaSPAdes assembly graph, so it only runs for `assembler: metaspades`
+  (`FOURCAC_SUPPORTED`). `eukaryote__4cac__extract_graph` pulls `contigs.fasta`/`contigs.paths`/the GFA out
+  of the metaSPAdes tarball and hands them to 4CAC *as* `scaffolds.fasta`/`scaffolds.paths` (same format),
+  so 4CAC classifies the contigs the pipeline uses. `workflow/scripts/fourcac_to_contig_ids.py` maps the
+  `NODE_*` names back by repeating the metaspades rule's renaming (record order in `contigs.fasta`) — if
+  that renaming ever changes, change the script with it.
+- REMAG names its files after the input (`<assembly_id>.fa_*`). `eukaryote__remag__filter` clears and
+  fills `results/eukaryote/remag/<assembly_id>/`; `eukaryote__remag__bin` resumes in that same folder
+  (REMAG reuses its filtered FASTA there, and refuses if `--min-contig-length` differs, hence one shared
+  `min_contig_length` param). REMAG silently keeps all contigs if its classifier fails to load; the filter
+  rule turns that log line into a failure. Binning is skipped (empty outputs) when the eukaryotic contigs
+  total less than `min_bin_size`.
+- Containers: Tiara and REMAG are pinned biocontainers; 4CAC has no package, `docker["4cac"]` is a
+  third-party image with the repo at `/pkg/4CAC` (`params["eukaryote"]["4cac"]["install_dir"]`).
 
 ### Version string
 

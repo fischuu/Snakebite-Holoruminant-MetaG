@@ -80,6 +80,12 @@ CONTIG_EGGNOG7 = CONTIG / "eggnog7"
 CONTIG_SYLPH = CONTIG / "sylph"
 CONTIG_FEATURECOUNTS = CONTIG / "featurecounts"
 
+# eukaryote
+EUK = Path("results/eukaryote/")
+EUK_TIARA = EUK / "tiara/"
+EUK_4CAC = EUK / "4cac/"
+EUK_REMAG = EUK / "remag/"
+
 
 # reports
 REPORT = Path("reports/")

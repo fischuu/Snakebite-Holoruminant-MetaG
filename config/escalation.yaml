@@ -46,6 +46,12 @@ contig_annotate__cut_prodigal: medium
 contig_annotate__ncyc__prepare_input: small
 contig_annotate__ncyc__run: medium
 
+eukaryote__4cac__extract_graph: small, medium
+eukaryote__4cac__run: medium, large, highmem
+eukaryote__remag__bin: large, longrun, highmem_longrun
+eukaryote__remag__filter: medium, large, longrun
+eukaryote__tiara__run: medium, large
+
 helpers__fastqc: small
 helpers__samtools__faidx_fa: small
 helpers__samtools__faidx_fagz: small

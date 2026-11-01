@@ -85,3 +85,17 @@ contig_annotate:
       nife: 34.5
       fe: 54.4
       fallback: 10.0   # fallback value for unknown databases
+
+eukaryote:
+  tiara:
+    min_len: 1000  # Tiara default: 3000; 1000 is its documented lower limit and keeps short-contig (e.g. soil) assemblies classifiable
+    prob_cutoff: [0.65, 0.65]  # first and second stage, Tiara default
+  4cac:  # only runs on metaSPAdes assemblies (needs the assembly graph)
+    install_dir: "/pkg/4CAC"  # where classify_xgb.py and classify_4CAC.py are inside the 4cac container
+    phage: 0.95  # 4CAC default
+    plasmid: 0.95  # 4CAC default
+  remag:
+    min_contig_length: 1000  # REMAG picks 1000 or 4096 from the median contig length; fixed so the filter and bin steps match
+    min_bin_size: 500000  # REMAG default
+    hyenadna_batch_size: 1024  # REMAG default; raise on a GPU
+    extra: ""  # further options for the binning run, e.g. "--epochs 50"
