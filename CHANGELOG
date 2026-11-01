@@ -3,6 +3,15 @@
 
 Version 0.4.*:
 -----------
+65: Bugfix: contig_annotate__diamond__summarise now requires one DIAMOND .out per assembly
+    (ASSEMBLIES), like contig_annotate__diamond does. It iterated over the sample_ids in
+    SAMPLE_LIBRARY instead, so it only matched when every sample was its own assembly. With
+    co-assemblies, the co-assembly's .out was never built for the summary. A sample in more
+    than one assembly was listed several times. A sample that is not an assembly of its own
+    (e.g. all samples in one pooled assembly) scheduled a metaspades assembly named after that
+    sample, with no reads assigned to it. The R summary reads every *.out in the folder, so a
+    summary is only affected if it ran before all per-assembly .out files existed. Rerun it
+    in that case.
 64: Bugfix: samples.tsv is now validated at startup (on the raw sheet, before the assembly_ids
     explode). A sheet with duplicate (sample_id, library_id) pairs, e.g. several lanes of a
     sample all given lib1 (what createSampleSheet.sh writes) or the Illumina S-number as

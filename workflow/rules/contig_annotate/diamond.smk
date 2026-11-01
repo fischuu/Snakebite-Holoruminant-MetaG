@@ -130,7 +130,7 @@ rule contig_annotate__diamond__summarise:
     input:
         lambda w: [
             CONTIG_DIAMOND / w.diamond_db / f"{assembly_id}.out"
-            for assembly_id, library_id in SAMPLE_LIBRARY
+            for assembly_id in ASSEMBLIES
         ]
     output:
         CONTIG_DIAMOND / "{diamond_db}" / "summary_a.tsv",
