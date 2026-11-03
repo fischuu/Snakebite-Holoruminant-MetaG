@@ -1,8 +1,28 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="utf-8" />
-<style>body{background-color:white;}</style>
+<title>Snakebite-Holoruminant-MetaG</title>
+<style type="text/css">@layer htmltools {
+.html-fill-container {
+display: flex;
+flex-direction: column;
+
+min-height: 0;
+min-width: 0;
+}
+.html-fill-container > .html-fill-item {
+
+flex: 1 1 auto;
+min-height: 0;
+min-width: 0;
+}
+.html-fill-container > :not(.html-fill-item) {
+
+flex: 0 0 auto;
+}
+}
+</style>
 <script>(function() {
   // If window.HTMLWidgets is already defined, then use it; otherwise create a
   // new object. This allows preceding code to set options that affect the
@@ -292,20 +312,18 @@
       document.body.style.height = "100%";
       document.documentElement.style.width = "100%";
       document.documentElement.style.height = "100%";
-      if (cel) {
-        cel.style.position = "absolute";
-        var pad = unpackPadding(sizing.padding);
-        cel.style.top = pad.top + "px";
-        cel.style.right = pad.right + "px";
-        cel.style.bottom = pad.bottom + "px";
-        cel.style.left = pad.left + "px";
-        el.style.width = "100%";
-        el.style.height = "100%";
-      }
+      cel.style.position = "absolute";
+      var pad = unpackPadding(sizing.padding);
+      cel.style.top = pad.top + "px";
+      cel.style.right = pad.right + "px";
+      cel.style.bottom = pad.bottom + "px";
+      cel.style.left = pad.left + "px";
+      el.style.width = "100%";
+      el.style.height = "100%";
 
       return {
-        getWidth: function() { return cel.offsetWidth; },
-        getHeight: function() { return cel.offsetHeight; }
+        getWidth: function() { return cel.getBoundingClientRect().width; },
+        getHeight: function() { return cel.getBoundingClientRect().height; }
       };
 
     } else {
@@ -313,8 +331,8 @@
       el.style.height = px(sizing.height);
 
       return {
-        getWidth: function() { return el.offsetWidth; },
-        getHeight: function() { return el.offsetHeight; }
+        getWidth: function() { return cel.getBoundingClientRect().width; },
+        getHeight: function() { return cel.getBoundingClientRect().height; }
       };
     }
   }
@@ -538,8 +556,8 @@
 
           elementData(el, "initialized", true);
           if (bindingDef.initialize) {
-            var result = bindingDef.initialize(el, el.offsetWidth,
-              el.offsetHeight);
+            var rect = el.getBoundingClientRect();
+            var result = bindingDef.initialize(el, rect.width, rect.height);
             elementData(el, "init_result", result);
           }
         }
@@ -581,29 +599,30 @@
       forEach(matches, function(el) {
         var sizeObj = initSizing(el, binding);
 
+        var getSize = function(el) {
+          if (sizeObj) {
+            return {w: sizeObj.getWidth(), h: sizeObj.getHeight()}
+          } else {
+            var rect = el.getBoundingClientRect();
+            return {w: rect.width, h: rect.height}
+          }
+        };
+
         if (hasClass(el, "html-widget-static-bound"))
           return;
         el.className = el.className + " html-widget-static-bound";
 
         var initResult;
         if (binding.initialize) {
-          initResult = binding.initialize(el,
-            sizeObj ? sizeObj.getWidth() : el.offsetWidth,
-            sizeObj ? sizeObj.getHeight() : el.offsetHeight
-          );
+          var size = getSize(el);
+          initResult = binding.initialize(el, size.w, size.h);
           elementData(el, "init_result", initResult);
         }
 
         if (binding.resize) {
-          var lastSize = {
-            w: sizeObj ? sizeObj.getWidth() : el.offsetWidth,
-            h: sizeObj ? sizeObj.getHeight() : el.offsetHeight
-          };
+          var lastSize = getSize(el);
           var resizeHandler = function(e) {
-            var size = {
-              w: sizeObj ? sizeObj.getWidth() : el.offsetWidth,
-              h: sizeObj ? sizeObj.getHeight() : el.offsetHeight
-            };
+            var size = getSize(el);
             if (size.w === 0 && size.h === 0)
               return;
             if (size.w === lastSize.w && size.h === lastSize.h)
@@ -905,7 +924,6 @@
     return result;
   }
 })();
-
 </script>
 <script>/*
 Viz.js 1.8.2 (Graphviz 2.40.1, Expat 2.2.5, Emscripten 1.37.33)
@@ -1221,11 +1239,11 @@ color: #333333;
 </script>
 
 </head>
-<body>
+<body style="background-color: white;">
 <div id="htmlwidget_container">
-  <div id="htmlwidget-71ca1d0ba08f17dcf4cd" style="width:960px;height:500px;" class="grViz html-widget"></div>
+  <div class="grViz html-widget html-fill-item" id="htmlwidget-4b1f9e198a99222bfb8f" style="width:960px;height:500px;"></div>
 </div>
-<script type="application/json" data-for="htmlwidget-71ca1d0ba08f17dcf4cd">{"x":{"diagram":"\n  digraph snakemake_pipeline {\n    graph [layout = dot, rankdir = LR]\n\n    node [shape = box, style = filled, fillcolor = lightblue]\n    edge [arrowhead = vee]\n\n    # Define new reads nodes\n    input_reads [label = \"Input Reads\", shape = folder]\n    link [label = \"Link \n Assign names\"]\n    fastqc [label = \"FastQC, v0.12.1 \n Raw reads QC\"]\n\n    # Define preprocessing nodes\n    pre_bowtie2 [label = \"Bowtie2, v2.5.1 \n Decontamination\"]\n    pre_fastp [label = \"Fastp, v0.23.4 \n QC trimming\"]\n    pre_fastqc [label = \"FastQC, v0.12.1\"]\n    pre_kraken2 [label = \"Kraken2, v2.1.3 \n RefSeqV205_Complete \n Standard_20240112\"]\n    pre_humann [label = \"HumanN3, v3.9 \n Chocophlan v201901_v31 \n Uniref uniref90_201901b_full\"]\n    pre_metaphlan [label = \"MetaPhlAn, v4.1.1 \n mpa_vJun23_CHOCOPhlAnSGB_202307\"]\n    pre_phyloflash [label = \"PhyloFlash, v3.4.2 \n SILVA_SSU.noLSU 138.1\"]\n    pre_nonpareil [label = \"Nonpareil, v.3.4.1\"]\n    pre_singlem [label = \"SingleM, v0.18.0 \n S4.3.0.GTDB_r220.metapackage_20240523\"]\n    pre_diamond [label = \"Diamond, v.2.1.8 \n Cazy 07142024\"]\n\n    # Define assembly nodes\n    ass_bowtie2 [label = \"Bowtie2, v2.5.1\"]\n    ass_concoct [label = \"Concoct, v1.1.0\"]\n    ass_drep [label = \"DRep, v3.4.3\"]\n    ass_magscot [label = \"MAGScot, v???\"]\n    ass_maxbin2 [label = \"MaxBin2, v2.2.7\"]\n    ass_megahit [label = \"MEGAHIT, v1.2.9\"]\n    ass_metabat2 [label = \"MetaBAT2, v2.15\"]\n    ass_metaspades [label = \"MetaSPAdes, v4.0.0\"]\n\n    # Define annotation nodes\n    annotate_bakta [label = \"Bakta, v1.9.3\"]\n    annotate_quast [label = \"QUAST, v5.2.0\"]\n    annotate_gtdbtk [label = \"GTDB-Tk, v2.4.0 \n Release 220\"]\n    annotate_dram [label = \"DRAM, v1.5.0 \n 20240524\", fillcolor = \"red\"]\n    annotate_eggnog [label = \"EggNOG, v2.1.12 \n emapperdb-5.0.2\"]\n    annotate_checkm2 [label = \"CheckM2, v1.0.2 \n uniref100.KO.1.dmnd\"]\n    annotate_proteinortho [label = \"Proteinortho, v6.3.1\", fillcolor = \"red\"]\n    annotate_phylophlan [label = \"PhyloPhlan, v3.1.1\", fillcolor = \"red\"]\n\n    # Define the contig annotate nodes\n    contig_annotate_prodigal [label = \"Prodigal, v2.6.3\"]\n    contig_annotate_eggnog [label = \"Eggnog, v2.1.12 \n emapperdb-5.0.2\"]\n    contig_annotate_bowtie [label = \"Bowtie, v2.5.1\"]\n    contig_annotate_feature [label = \"FeatureCounts, v2.0.1\"]\n\n#    dram_dbs [label = \"DRAM DBs \n\n#    kegg: null \n\n#    kofam_hmm: 20240524/kofam_profiles.hmm \n\n#    kofam_ko_list: 20240524/kofam_ko_list.tsv \n\n#    uniref: 20240524/uniref90.20240524.mmsdb \n\n#    pfam: 20240524/pfam.mmspro \n\n#    dbcan: 20240524/dbCAN-HMMdb-V11.txt \n\n#    viral: 20240524/refseq_viral.20240524.mmsdb \n\n#    peptidase: 20240524/peptidases.20240524.mmsdb \n\n#    vogdb: 20240524/vog_latest_hmms.txt \n\n#    camper_hmm: null \n\n#    camper_fa_db: null \n\n#    camper_hmm_cutoffs: null \n\n#    camper_fa_db_cutoffs: null\n#    \", shape = folder]\n    \n    # Define quantify nodes\n    quantify_bowtie2 [label = \"Bowtie2, v2.5.1\"]\n    quantify_coverm [label = \"CoverM, v0.6.1\"]\n    quantify_samtools [label = \"Samtools, v1.18\"]\n    \n\n    # Define a representative node for the user input boxes\n    pre_host [label = \"Host genomes\", style=dotted, color=gray]\n    ass_assembler_rep [label = \"Select Assembler\", style=dotted, color=gray]\n    ass_assembly [label = \"Metagenome Assembly\", style=dotted, color=gray]\n\n\n    # Define edges for input reads\n    input_reads -> link\n    input_reads -> fastqc\n    link -> pre_fastp\n    \n\n    # Define edges for preprocessing\n    pre_fastp -> pre_host\n    pre_host -> pre_bowtie2\n    pre_fastp -> pre_fastqc\n    pre_bowtie2 -> pre_fastqc\n    pre_fastp -> pre_kraken2\n    pre_bowtie2 -> pre_humann\n    pre_bowtie2 -> pre_metaphlan\n    pre_bowtie2 -> pre_phyloflash\n    pre_bowtie2 -> pre_nonpareil\n    pre_bowtie2 -> pre_singlem\n    pre_bowtie2 -> ass_assembler_rep\n    pre_bowtie2 -> pre_diamond\n    \n    # Define edges for assembly\n    ass_assembly -> ass_bowtie2\n    ass_assembly -> ass_concoct\n    ass_bowtie2 -> ass_concoct\n    ass_concoct -> ass_magscot\n    ass_metabat2 -> ass_magscot\n    ass_maxbin2 -> ass_magscot\n    ass_magscot -> ass_drep\n    ass_assembly -> ass_magscot\n    ass_assembly -> ass_maxbin2\n    ass_bowtie2 -> ass_maxbin2\n    ass_megahit -> ass_assembly\n    ass_metaspades -> ass_assembly\n    ass_assembly -> ass_metabat2\n    ass_bowtie2 -> ass_metabat2\n\n    # Define edges for quantify\n    ass_drep -> quantify_bowtie2\n    ass_drep -> quantify_coverm\n    quantify_bowtie2 -> quantify_coverm\n    ass_drep -> quantify_samtools\n    quantify_bowtie2 -> quantify_samtools\n    \n    # Define the edges for annotate\n    ass_drep -> annotate_bakta\n    ass_drep -> annotate_checkm2\n    annotate_gtdbtk -> annotate_dram\n    ass_drep -> annotate_dram\n    ass_drep -> annotate_eggnog\n    ass_drep -> annotate_gtdbtk\n    ass_drep -> annotate_phylophlan\n    annotate_bakta -> annotate_proteinortho\n    ass_drep -> annotate_quast\n#    dram_dbs -> annotate_dram\n\n    # Define the edges for contig annotate\n    ass_assembly -> contig_annotate_prodigal\n    contig_annotate_prodigal -> contig_annotate_eggnog\n    contig_annotate_prodigal -> contig_annotate_bowtie\n    ass_assembly -> contig_annotate_bowtie\n    contig_annotate_bowtie -> contig_annotate_feature\n    \n    # Define edges between nodes and the representative node\n    ass_assembler_rep -> ass_megahit\n    ass_assembler_rep -> ass_metaspades\n\n    # Define a subgraph to group preprocessing nodes\n    subgraph cluster_preprocess {\n      label = \"Preprocess, v0.5\"\n      style = dashed\n      color = lightgray\n\n      pre_bowtie2\n      pre_fastp\n      pre_fastqc\n      pre_kraken2\n      pre_humann\n      pre_metaphlan\n      pre_phyloflash\n      pre_nonpareil\n      pre_singlem\n      pre_host\n      pre_diamond\n    }\n\n    # Define a subgraph to group assembly nodes\n    subgraph cluster_assemble {\n      label = \"Assemble, v0.3\"\n      style = dashed\n      color = lightgray\n\n      ass_bowtie2\n      ass_concoct\n      ass_drep\n      ass_magscot\n      ass_maxbin2\n      ass_assembly\n      ass_metabat2\n\n      # Define a subgraph to group assembler nodes\n      subgraph cluster_assembler {\n        label = \"Assembler\"\n        style = dashed\n        color = lightgray\n\n        ass_megahit\n        ass_metaspades\n      }\n      \n       # Define a subgraph to group binner nodes\n      subgraph cluster_binner {\n        label = \"Binner\"\n        style = dashed\n        color = lightgray\n\n        ass_concoct\n        ass_metabat2\n        ass_maxbin2\n      }\n    }\n\n# Define a subgraph to group quantify nodes\n    subgraph cluster_quantify {\n      label = \"Quantify, v\"\n      style = dashed\n      color = lightgray\n\n      quantify_bowtie2\n      quantify_coverm\n      quantify_samtools\n    }\n\n    # Define a subgraph to group reads nodes\n    subgraph cluster_reads {\n      label = \"Reads\"\n      style = dashed\n      color = lightgray\n\n      link\n      fastqc\n    }\n\n    # Define a subgraph to group contig annotate nodes\n    subgraph cluster_contig_annotate {\n      label = \"Contig annotate\"\n      style = dashed\n      color = lightgray\n\n      contig_annotate_prodigal\n      contig_annotate_eggnog\n      contig_annotate_bowtie\n      contig_annotate_feature\n    }\n\n    # Define a subgraph to group annotation nodes\n    subgraph cluster_annotate {\n      label = \"Annotate\"\n      style = dashed\n      color = lightgray\n\n      annotate_bakta\n      annotate_quast\n      annotate_gtdbtk\n      annotate_dram\n      annotate_eggnog\n      annotate_checkm2\n      annotate_proteinortho\n      annotate_phylophlan\n    }\n  }\n","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
-<script type="application/htmlwidget-sizing" data-for="htmlwidget-71ca1d0ba08f17dcf4cd">{"viewer":{"width":450,"height":350,"padding":15,"fill":true},"browser":{"width":960,"height":500,"padding":40,"fill":false}}</script>
+<script type="application/json" data-for="htmlwidget-4b1f9e198a99222bfb8f">{"x":{"diagram":"\n  digraph snakemake_pipeline {\n    graph [layout = dot, rankdir = LR]\n\n    node [shape = box, style = filled, fillcolor = lightblue]\n    edge [arrowhead = vee]\n\n    # Define new reads nodes\n    input_reads [label = \"Input Reads\", shape = folder]\n    link [label = \"Link \n Assign names\"]\n    fastqc [label = \"FastQC, v0.12.1 \n Raw reads QC\"]\n\n    # Define preprocessing nodes\n    pre_bowtie2 [label = \"Bowtie2, v2.5.1 \n Decontamination\"]\n    pre_fastp [label = \"Fastp, v0.23.4 \n QC trimming\"]\n    pre_fastqc [label = \"FastQC, v0.12.1\"]\n\n    # Define the read_annotate\n    read_annot_kraken2 [label = \"Kraken2, v2.1.3 \n RefSeqV205_Complete \n Standard_20240112\"]\n    read_annot_humann [label = \"HumanN3, v3.9 \n Chocophlan v201901_v31 \n Uniref uniref90_201901b_full\"]\n    read_annot_metaphlan [label = \"MetaPhlAn, v4.1.1 \n mpa_vJun23_CHOCOPhlAnSGB_202307\"]\n    read_annot_phyloflash [label = \"PhyloFlash, v3.4.2 \n SILVA_SSU.noLSU 138.2\"]\n    read_annot_nonpareil [label = \"Nonpareil, v.3.4.1\"]\n    read_annot_singlem [label = \"SingleM, v0.18.0 \n S4.3.0.GTDB_r220.metapackage_20240523\"]\n    read_annot_sylph [label = \"Sylph, v0.7.0 \n gtdb-r220-c200-dbv1\"]\n    read_annot_diamond [label = \"Diamond, v.2.1.8 \n Cazy 07142024\"]\n    read_annot_krona [label = \"Krona, v.x.x.x\"]\n    \n    # Define the read_annotate_extra nodes\n    read_annot_ncyc [label = \"NCycDB \n Jul2019\"]\n\n    # Define assembly nodes\n    ass_bowtie2 [label = \"Bowtie2, v2.5.1\"]\n    ass_concoct [label = \"Concoct, v1.1.0\"]\n    ass_drep [label = \"DRep, v3.4.3\"]\n    ass_magscot [label = \"MAGScot, v???\"]\n    ass_maxbin2 [label = \"MaxBin2, v2.2.7\"]\n    ass_megahit [label = \"MEGAHIT, v1.2.9\"]\n    ass_metabat2 [label = \"MetaBAT2, v2.15\"]\n    ass_metaspades [label = \"MetaSPAdes, v4.0.0\"]\n    ass_provided [label = \"Self-provided\"]\n\n    # Define annotation nodes\n    annotate_bakta [label = \"Bakta, v1.9.3\"]\n    annotate_baktamag [label = \"Bakta, v1.9.3 \n bakta_mag\"]\n    annotate_camper [label = \"Camper, v1.0.0\"]\n    annotate_quast [label = \"QUAST, v5.2.0\"]\n    annotate_gtdbtk [label = \"GTDB-Tk, v2.4.0 \n Release 220\"]\n    annotate_dram [label = \"DRAM, v1.5.0 \n 20240524\"]\n    annotate_drammag [label = \"DRAM, v1.5.0 \n 20240524 \n dram_mag\"]\n    annotate_eggnog [label = \"EggNOG, v2.1.12 \n emapperdb-5.0.2\"]\n    annotate_checkm2 [label = \"CheckM2, v1.0.2 \n uniref100.KO.1.dmnd\"]\n    annotate_proteinortho [label = \"Proteinortho, v6.3.1\"]\n    annotate_phylophlan [label = \"PhyloPhlan, v3.1.1\"]\n\n    # Define the contig annotate nodes\n    contig_annotate_prodigal [label = \"Prodigal, v2.6.3\"]\n    contig_annotate_eggnog [label = \"Eggnog, v2.1.12 \n emapperdb-5.0.2\"]\n    contig_annotate_eggnog7 [label = \"Eggnog7, v20251223 \n eggnog7-annotator, v0.1\"]\n    contig_annotate_bowtie [label = \"Bowtie, v2.5.1\"]\n    contig_annotate_camper [label = \"Camper, v1.0.0\"]\n    contig_annotate_hmmer [label = \"HMMER, v3.3.2 \n HydDB 20251126 (2022)\"]\n    contig_annotate_diamond [label = \"Diamond, v.2.1.8 \n HydDB 20251126 (2022)\"]\n    contig_annotate_feature [label = \"FeatureCounts, v2.0.1\"]\n\n    # Define the contig_annotate_extra nodes\n    contig_annotate_ncyc [label = \"NCycDB \n Jul2019\"]\n    \n    # Define quantify nodes\n    quantify_bowtie2 [label = \"Bowtie2, v2.5.1\"]\n    quantify_coverm [label = \"CoverM, v0.6.1\"]\n    quantify_samtools [label = \"Samtools, v1.18\"]\n\n    # Define the eukaryote nodes (the opt-in path, in green)\n    euk_tiara [label = \"Tiara, v1.0.3 \n Contig labels\", fillcolor = palegreen]\n    euk_4cac [label = \"4CAC, image 1.0 \n Contig labels \n metaSPAdes only\", fillcolor = palegreen]\n    euk_remag_filter [label = \"REMAG, v0.5.1 \n Contig labels\", fillcolor = palegreen]\n    euk_remag_bin [label = \"REMAG, v0.5.1 \n Eukaryotic bins\", fillcolor = palegreen]\n\n    # Define a representative node for the user input boxes\n    pre_host [label = \"Host genomes\", style=dotted, color=gray]\n    ass_assembler_rep [label = \"Select Assembler\", style=dotted, color=gray]\n    ass_assembly [label = \"Metagenome Assembly\", style=dotted, color=gray]\n\n\n    # Define edges for input reads\n    input_reads -> link\n    input_reads -> fastqc\n    link -> pre_fastp\n    \n\n    # Define edges for preprocessing\n    pre_fastp -> pre_host\n    pre_host -> pre_bowtie2\n    pre_fastp -> pre_fastqc\n    pre_bowtie2 -> pre_fastqc\n    pre_fastp -> read_annot_kraken2\n    pre_bowtie2 -> read_annot_humann\n    pre_bowtie2 -> read_annot_metaphlan\n    pre_bowtie2 -> read_annot_phyloflash\n    pre_bowtie2 -> read_annot_nonpareil\n    pre_bowtie2 -> read_annot_singlem\n    pre_bowtie2 -> ass_assembler_rep\n    pre_bowtie2 -> read_annot_diamond\n    pre_bowtie2 -> read_annot_sylph\n    pre_bowtie2 -> read_annot_ncyc\n    read_annot_kraken2 -> read_annot_krona\n    \n    # Define edges for assembly\n    ass_assembly -> ass_bowtie2\n    ass_assembly -> ass_concoct\n    ass_bowtie2 -> ass_concoct\n    ass_concoct -> ass_magscot\n    ass_metabat2 -> ass_magscot\n    ass_maxbin2 -> ass_magscot\n    ass_magscot -> ass_drep\n    ass_assembly -> ass_magscot\n    ass_assembly -> ass_maxbin2\n    ass_bowtie2 -> ass_maxbin2\n    ass_megahit -> ass_assembly\n    ass_metaspades -> ass_assembly\n    ass_assembly -> ass_metabat2\n    ass_bowtie2 -> ass_metabat2\n\n    # Define edges for quantify\n    ass_drep -> quantify_bowtie2\n    ass_drep -> quantify_coverm\n    quantify_bowtie2 -> quantify_coverm\n    ass_drep -> quantify_samtools\n    quantify_bowtie2 -> quantify_samtools\n    \n    # Define the edges for annotate\n    ass_drep -> annotate_bakta\n    ass_magscot -> annotate_baktamag\n    ass_magscot -> annotate_drammag\n    ass_drep -> annotate_checkm2\n    annotate_gtdbtk -> annotate_dram\n    ass_drep -> annotate_dram\n    ass_drep -> annotate_eggnog\n    ass_drep -> annotate_gtdbtk\n    ass_drep -> annotate_phylophlan\n    annotate_bakta -> annotate_proteinortho\n    ass_drep -> annotate_quast\n#    dram_dbs -> annotate_dram\n    ass_drep -> annotate_camper\n\n    # Define the edges for contig annotate\n    ass_assembly -> contig_annotate_prodigal\n    contig_annotate_prodigal -> contig_annotate_eggnog\n    contig_annotate_prodigal -> contig_annotate_eggnog7\n    contig_annotate_prodigal -> contig_annotate_bowtie\n    contig_annotate_prodigal -> contig_annotate_camper\n    contig_annotate_prodigal -> contig_annotate_hmmer\n    contig_annotate_prodigal -> contig_annotate_diamond\n    ass_assembly -> contig_annotate_bowtie\n    contig_annotate_bowtie -> contig_annotate_feature\n    \n    # Define the edges for contig annotate extra\n    contig_annotate_prodigal -> contig_annotate_ncyc\n\n    # Define the edges for eukaryote\n    ass_assembly -> euk_tiara [color = forestgreen, penwidth = 2]\n    ass_metaspades -> euk_4cac [color = forestgreen, penwidth = 2]\n    ass_assembly -> euk_remag_filter [color = forestgreen, penwidth = 2]\n    euk_remag_filter -> euk_remag_bin [color = forestgreen, penwidth = 2]\n    ass_bowtie2 -> euk_remag_bin [color = forestgreen, penwidth = 2]\n\n    # Define edges between nodes and the representative node\n    ass_assembler_rep -> ass_megahit\n    ass_assembler_rep -> ass_metaspades\n\n    # Define a subgraph to group preprocessing nodes\n    subgraph cluster_preprocess {\n      label = \"Preprocess\"\n      style = dashed\n      color = lightgray\n\n      pre_bowtie2\n      pre_fastp\n      pre_fastqc\n      pre_host\n    }\n\n    # Define a subgraph to group preprocessing nodes\n    # Define a subgraph to group assembler nodes\n      subgraph cluster_read_annot_all {\n        label = \"\"\n        style = dashed\n        color = lightgray\n        \n        subgraph cluster_read_annot {\n          label = \"Read Annotate\"\n          style = dashed\n          color = lightgray\n    \n          read_annot_kraken2\n          read_annot_krona\n          read_annot_humann\n          read_annot_metaphlan\n          read_annot_phyloflash\n          read_annot_nonpareil\n          read_annot_singlem\n          read_annot_diamond\n          read_annot_sylph\n        }\n        \n          subgraph cluster_read_annot_extra {\n          label = \"Read Annotate Extra\"\n          style = dashed\n          color = lightgray\n        \n          read_annot_ncyc\n          }\n      }\n\n    # Define a subgraph to group assembly nodes\n    subgraph cluster_assemble {\n      label = \"Assemble\"\n      style = dashed\n      color = lightgray\n\n      ass_bowtie2\n      ass_concoct\n      ass_drep\n      ass_magscot\n      ass_maxbin2\n      ass_assembly\n      ass_metabat2\n\n      # Define a subgraph to group assembler nodes\n      subgraph cluster_assembler {\n        label = \"Assembler\"\n        style = dashed\n        color = lightgray\n\n        ass_megahit\n        ass_metaspades\n        ass_provided\n      }\n      \n       # Define a subgraph to group binner nodes\n      subgraph cluster_binner {\n        label = \"Binner\"\n        style = dashed\n        color = lightgray\n\n        ass_concoct\n        ass_metabat2\n        ass_maxbin2\n      }\n    }\n\n# Define a subgraph to group quantify nodes\n    subgraph cluster_quantify {\n      label = \"Quantify\"\n      style = dashed\n      color = lightgray\n\n      quantify_bowtie2\n      quantify_coverm\n      quantify_samtools\n    }\n\n    # Define a subgraph to group reads nodes\n    subgraph cluster_reads {\n      label = \"Reads\"\n      style = dashed\n      color = lightgray\n\n      link\n      fastqc\n    }\n\n    # Define a subgraph to group contig annotate nodes\n    subgraph cluster_contig_annot_all {\n        label = \"\"\n        style = dashed\n        color = lightgray\n    \n        subgraph cluster_contig_annotate {\n          label = \"Contig annotate\"\n          style = dashed\n          color = lightgray\n    \n          contig_annotate_prodigal\n          contig_annotate_camper\n          contig_annotate_eggnog\n          contig_annotate_eggnog7\n          contig_annotate_bowtie\n          contig_annotate_feature\n          contig_annotate_hmmer\n          contig_annotate_diamond\n        }\n      \n        subgraph cluster_contig_annot_extra {\n          label = \"Contig Annotate Extra\"\n          style = dashed\n          color = lightgray\n        \n          contig_annotate_ncyc\n          }\n    }\n\n    # Define a subgraph to group eukaryote nodes\n    subgraph cluster_eukaryote {\n      label = \"Eukaryote (opt-in)\"\n      labelloc = b\n      fontcolor = forestgreen\n      style = dashed\n      color = forestgreen\n      penwidth = 2\n\n      euk_tiara\n      euk_4cac\n      euk_remag_filter\n      euk_remag_bin\n    }\n\n    # Define a subgraph to group annotation nodes\n    subgraph cluster_annotate {\n      label = \"MAG Annotate\"\n      style = dashed\n      color = lightgray\n\n      annotate_bakta\n      annotate_baktamag\n      annotate_camper\n      annotate_quast\n      annotate_gtdbtk\n      annotate_dram\n      annotate_drammag\n      annotate_eggnog\n      annotate_checkm2\n      annotate_proteinortho\n      annotate_phylophlan\n    }\n  }\n","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+<script type="application/htmlwidget-sizing" data-for="htmlwidget-4b1f9e198a99222bfb8f">{"viewer":{"width":450,"height":350,"padding":15,"fill":true},"browser":{"width":960,"height":500,"padding":40,"fill":false}}</script>
 </body>
 </html>

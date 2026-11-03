@@ -76,11 +76,11 @@ graph <- grViz("
     quantify_coverm [label = 'CoverM, v0.6.1']
     quantify_samtools [label = 'Samtools, v1.18']
 
-    # Define the eukaryote nodes
-    euk_tiara [label = 'Tiara, v1.0.3 \n Contig labels']
-    euk_4cac [label = '4CAC, image 1.0 \n Contig labels \n metaSPAdes only']
-    euk_remag_filter [label = 'REMAG, v0.5.1 \n Contig labels']
-    euk_remag_bin [label = 'REMAG, v0.5.1 \n Eukaryotic bins']
+    # Define the eukaryote nodes (the opt-in path, in green)
+    euk_tiara [label = 'Tiara, v1.0.3 \n Contig labels', fillcolor = palegreen]
+    euk_4cac [label = '4CAC, image 1.0 \n Contig labels \n metaSPAdes only', fillcolor = palegreen]
+    euk_remag_filter [label = 'REMAG, v0.5.1 \n Contig labels', fillcolor = palegreen]
+    euk_remag_bin [label = 'REMAG, v0.5.1 \n Eukaryotic bins', fillcolor = palegreen]
 
     # Define a representative node for the user input boxes
     pre_host [label = 'Host genomes', style=dotted, color=gray]
@@ -164,11 +164,11 @@ graph <- grViz("
     contig_annotate_prodigal -> contig_annotate_ncyc
 
     # Define the edges for eukaryote
-    ass_assembly -> euk_tiara
-    ass_metaspades -> euk_4cac
-    ass_assembly -> euk_remag_filter
-    euk_remag_filter -> euk_remag_bin
-    ass_bowtie2 -> euk_remag_bin
+    ass_assembly -> euk_tiara [color = forestgreen, penwidth = 2]
+    ass_metaspades -> euk_4cac [color = forestgreen, penwidth = 2]
+    ass_assembly -> euk_remag_filter [color = forestgreen, penwidth = 2]
+    euk_remag_filter -> euk_remag_bin [color = forestgreen, penwidth = 2]
+    ass_bowtie2 -> euk_remag_bin [color = forestgreen, penwidth = 2]
 
     # Define edges between nodes and the representative node
     ass_assembler_rep -> ass_megahit
@@ -310,8 +310,10 @@ graph <- grViz("
     subgraph cluster_eukaryote {
       label = 'Eukaryote (opt-in)'
       labelloc = b
+      fontcolor = forestgreen
       style = dashed
-      color = lightgray
+      color = forestgreen
+      penwidth = 2
 
       euk_tiara
       euk_4cac
@@ -354,4 +356,8 @@ svg_code <- export_svg(graph)
 # Save as an HTML file
 html_code <- paste0('<html><body>', svg_code, '</body></html>')
 write(html_code, file = "pipeline_diagram.html")
+
+# Save the interactive version
+htmlwidgets::saveWidget(graph, file.path(getwd(), "flowchart/flowchart.html"), title = "Snakebite-Holoruminant-MetaG")
+unlink("flowchart/flowchart_files", recursive = TRUE)  # the HTML file does not need this helper folder
 
