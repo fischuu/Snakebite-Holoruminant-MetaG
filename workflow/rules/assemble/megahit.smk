@@ -1,18 +1,17 @@
 rule assemble__megahit__run:
-    """Assemble one assembly_id's pooled libraries with MEGAHIT and rename its contigs
+    """Assemble the libraries of one assembly_id with MEGAHIT and give the contigs pipeline ids
 
-    megahit's --force flag is used since the output directory it writes to
-    already exists (Snakemake creates it ahead of time for the log/benchmark
-    paths), and megahit otherwise refuses to write into an existing folder.
+    --force because Snakemake has already created the output folder, which MEGAHIT otherwise
+    refuses to write into.
     """
     input:
-        forwards=get_forwards_from_assembly_id,
-        reverses=get_reverses_from_assembly_id,
+        forwards=assembly_reads(1),
+        reverses=assembly_reads(2),
     output:
-        fasta=MEGAHIT / "{assembly_id}.fa.gz",
-        tarball=MEGAHIT / "{assembly_id}.tar.gz",
+        contigs=MEGAHIT / "{assembly_id}.fa.gz",
+        workdir_archive=MEGAHIT / "{assembly_id}.tar.gz",
     log:
-        log=MEGAHIT / "{assembly_id}.log",
+        MEGAHIT / "{assembly_id}.log",
     benchmark:
         MEGAHIT / "benchmark/{assembly_id}.tsv",
     container:
@@ -24,63 +23,36 @@ rule assemble__megahit__run:
         cpus_per_task=esc("cpus", "assemble__megahit__run"),
         slurm_partition=esc("partition", "assemble__megahit__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__megahit__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "assemble__megahit__run"),
     retries: len(get_escalation_order("assemble__megahit__run"))
     params:
-        out_dir=lambda w: MEGAHIT / w.assembly_id,
-        mincount=params["assemble"]["megahit"]["mincount"],
-        kmin=params["assemble"]["megahit"]["kmin"],
-        kmax=params["assemble"]["megahit"]["kmax"],
-        kstep=params["assemble"]["megahit"]["kstep"],
-        additional=params["assemble"]["megahit"]["additional_options"],
-        min_contig_len=params["assemble"]["megahit"]["min_contig_len"],
-        forwards=aggregate_forwards_for_megahit,
-        reverses=aggregate_reverses_for_megahit,
-        assembly_id=lambda w: w.assembly_id,
+        workdir=lambda w: MEGAHIT / w.assembly_id,
+        forwards=assembly_reads(1, separator=","),
+        reverses=assembly_reads(2, separator=","),
+        settings=params["assemble"]["megahit"],
+        script_folder=SCRIPT_FOLDER,
     shell:
         """
-        exec > {log}.{resources.attempt} 2>&1
-        debug "assembly_id={params.assembly_id} threads={threads} mincount={params.mincount} kmin={params.kmin} kmax={params.kmax} kstep={params.kstep} min_contig_len={params.min_contig_len}"
+        try_log={log}.try{resources.attempt}
+        exec > "$try_log" 2>&1
+        debug "assembly_id={wildcards.assembly_id} threads={threads} settings={params.settings}"
 
-        echo "== assembling {params.assembly_id} =="
-        megahit \
-            --num-cpu-threads {threads} \
-            --min-count {params.mincount} \
-            --k-min {params.kmin} \
-            --k-max {params.kmax} \
-            --k-step {params.kstep} \
-            --min-contig-len {params.min_contig_len} \
-            --verbose \
-            --force \
-            --continue \
-            --out-dir {params.out_dir} \
-            {params.additional} \
-            -1 {params.forwards} \
-            -2 {params.reverses}
+        megahit -1 {params.forwards} -2 {params.reverses} -o {params.workdir} -t {threads} \
+            --min-count {params.settings[mincount]} \
+            --k-min {params.settings[kmin]} --k-max {params.settings[kmax]} --k-step {params.settings[kstep]} \
+            --min-contig-len {params.settings[min_contig_len]} \
+            --force --continue --verbose {params.settings[additional_options]}
 
-        echo "== renaming contigs to {params.assembly_id}:bin_NA@contig_######## =="
-        debug "renaming contigs from {params.out_dir}/final.contigs.fa to {output.fasta}"
-        seqtk seq {params.out_dir}/final.contigs.fa \
-            | cut -d ' ' -f 1 \
-            | paste - - \
-            | awk -v assembly="{params.assembly_id}" \
-                '{{ printf(">%s:bin_NA@contig_%08d\\n%s\\n", assembly, NR, $2) }}' \
-            | bgzip --compress-level 9 --threads {threads} \
-            > {output.fasta}
+        python {params.script_folder}/contig_ids.py {wildcards.assembly_id} {params.workdir}/final.contigs.fa \
+            | bgzip -l 9 -@ {threads} > {output.contigs}
 
-        tar \
-            --create \
-            --file {output.tarball} \
-            --remove-files \
-            --use-compress-program="pigz --best --processes {threads}" \
-            --verbose \
-            {params.out_dir}
+        tar -cv -I "pigz -9 -p {threads}" --remove-files -f {output.workdir_archive} {params.workdir}
 
-        mv {log}.{resources.attempt} {log}
+        mv "$try_log" {log}
         """
 
 
 rule assemble__megahit:
-    """Rename all assemblies contigs to avoid future collisions"""
+    """Run MEGAHIT for every assembly"""
     input:
-        [MEGAHIT / f"{assembly_id}.fa.gz" for assembly_id in ASSEMBLIES],
+        expand(MEGAHIT / "{assembly_id}.fa.gz", assembly_id=ASSEMBLIES),

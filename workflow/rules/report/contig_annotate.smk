@@ -23,7 +23,7 @@ rule report__contig_annotate:
         cpus_per_task=esc("cpus", "report__contig_annotate"),
         slurm_partition=esc("partition", "report__contig_annotate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'report__contig_annotate')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "report__contig_annotate"),
     retries: len(get_escalation_order("report__contig_annotate"))
     shell:
         """

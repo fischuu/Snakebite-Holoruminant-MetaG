@@ -23,7 +23,7 @@ rule report__reads:
         cpus_per_task=esc("cpus", "report__reads"),
         slurm_partition=esc("partition", "report__reads"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'report__reads')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "report__reads"),
     retries: len(get_escalation_order("report__reads"))
     shell:
         """

@@ -1,7 +1,7 @@
 rule mag_annotate__quast:
-    """Assess assembly quality of the dereplicated genome set with QUAST"""
+    """Assembly statistics of the MAG catalogue with QUAST"""
     input:
-        DREP / "dereplicated_genomes.fa.gz",
+        MAG_CATALOGUE,
     output:
         directory(QUAST),
     log:
@@ -17,11 +17,11 @@ rule mag_annotate__quast:
         cpus_per_task=esc("cpus", "mag_annotate__quast"),
         slurm_partition=esc("partition", "mag_annotate__quast"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__quast')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "mag_annotate__quast"),
     retries: len(get_escalation_order("mag_annotate__quast"))
     shell:
         """
         exec > {log} 2>&1
-        debug "threads={threads} input={input} output={output}"
-        quast --output-dir {output} --threads {threads} {input}
+        debug "threads={threads} catalogue={input} output={output}"
+        quast -o {output} -t {threads} {input}
         """

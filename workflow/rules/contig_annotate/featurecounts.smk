@@ -3,11 +3,11 @@ if params["assemble"]["samtools"]["out_type"].upper() == "CRAM":
     rule contig_annotate__cram_to_bam:
         """Create temporary bam-files for quantification"""
         input:
-            ASSEMBLE_BOWTIE2 / "{assembly_id}.{sample_id}.{library_id}.cram"
+            ASSEMBLY_MAPPING / "{assembly_id}.{sample_id}.{library_id}.cram"
         output:
-            temp(ASSEMBLE_BOWTIE2 / "{assembly_id}.{sample_id}.{library_id}.bam"),
+            temp(ASSEMBLY_MAPPING / "{assembly_id}.{sample_id}.{library_id}.bam"),
         log:
-            log=ASSEMBLE_BOWTIE2 / "{assembly_id}.{sample_id}.{library_id}.cramToBam.log",
+            log=ASSEMBLY_MAPPING / "{assembly_id}.{sample_id}.{library_id}.cramToBam.log",
         container:
             docker["assemble"]
         threads: esc("cpus", "contig_annotate__cram_to_bam")
@@ -17,7 +17,7 @@ if params["assemble"]["samtools"]["out_type"].upper() == "CRAM":
             cpus_per_task=esc("cpus", "contig_annotate__cram_to_bam"),
             slurm_partition=esc("partition", "contig_annotate__cram_to_bam"),
             gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__cram_to_bam')['nvme']}",
-            attempt=get_attempt,
+            attempt=esc("attempt", "contig_annotate__cram_to_bam"),
         retries: len(get_escalation_order("contig_annotate__cram_to_bam"))
         shell:
             """
@@ -34,7 +34,7 @@ rule contig_annotate__featurecounts__run:
     Quantify the mapped assembly reads in predicted genes (featureCounts).
     """
     input:
-        bam=ASSEMBLE_BOWTIE2 / "{assembly_id}.{sample_id}.{library_id}.bam",
+        bam=ASSEMBLY_MAPPING / "{assembly_id}.{sample_id}.{library_id}.bam",
         gtf=CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.prodigal.gtf",
     output:
         file=CONTIG_FEATURECOUNTS / "{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.txt",
@@ -47,7 +47,7 @@ rule contig_annotate__featurecounts__run:
         cpus_per_task=esc("cpus", "contig_annotate__featurecounts__run"),
         slurm_partition=esc("partition", "contig_annotate__featurecounts__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__featurecounts__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "contig_annotate__featurecounts__run"),
     retries: len(get_escalation_order("contig_annotate__featurecounts__run"))
     container: docker["subread"]
     shell:"""
@@ -69,5 +69,5 @@ rule contig_annotate__featurecounts:
     input:
         [
             CONTIG_FEATURECOUNTS / "{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.txt"
-            for assembly_id, sample_id, library_id in ASSEMBLY_SAMPLE_LIBRARY
+            for assembly_id, sample_id, library_id in ASSEMBLY_LIBRARIES
         ],

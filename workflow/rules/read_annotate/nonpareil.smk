@@ -8,21 +8,19 @@ rule read_annotate__nonpareil__run:
     wrappers below make sure Snakemake still sees the expected outputs.
     """
     input:
-        forward_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_1.fq.gz",
+        forward_=CLEAN_FORWARD,
     output:
-        npa=touch(NONPAREIL / "{sample_id}.{library_id}.npa"),
-        npc=touch(NONPAREIL / "{sample_id}.{library_id}.npc"),
-        npl=touch(NONPAREIL / "{sample_id}.{library_id}.npl"),
-        npo=touch(NONPAREIL / "{sample_id}.{library_id}.npo"),
+        touch(NONPAREIL / f"{LIBRARY}.npa"),
+        touch(NONPAREIL / f"{LIBRARY}.npc"),
+        touch(NONPAREIL / f"{LIBRARY}.npl"),
+        touch(NONPAREIL / f"{LIBRARY}.npo"),
     log:
-        NONPAREIL / "{sample_id}.{library_id}.log",
+        NONPAREIL / f"{LIBRARY}.log",
     benchmark:
-        NONPAREIL / "benchmark/{sample_id}.{library_id}.tsv",
+        NONPAREIL / f"benchmark/{LIBRARY}.tsv",
     container:
         docker["preprocess"]
     params:
-        prefix=lambda w: NONPAREIL / f"{w.sample_id}.{w.library_id}",
-        reads=lambda w: NONPAREIL /  f"{w.sample_id}.{w.library_id}_1.fq",
         X=params["read_annotate"]["nonpareil"]["X"],
         tmp = config["tmp_storage"]
     threads: esc("cpus", "read_annotate__nonpareil__run")
@@ -32,27 +30,25 @@ rule read_annotate__nonpareil__run:
         cpus_per_task=esc("cpus", "read_annotate__nonpareil__run"),
         slurm_partition=esc("partition", "read_annotate__nonpareil__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__nonpareil__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__nonpareil__run"),
     retries: len(get_escalation_order("read_annotate__nonpareil__run"))
     shell:
         """
         export TMPDIR={params.tmp}
         exec > {log} 2>&1
-        debug "threads={threads} X={params.X} reads={params.reads} prefix={params.prefix}"
+        prefix={NONPAREIL}/{wildcards.sample_id}.{wildcards.library_id}
+        debug "threads={threads} X={params.X} prefix=$prefix"
 
-        zcat {input.forward_} > {params.reads}
-        nonpareil -s {params.reads} -T kmer -b {params.prefix} -f fastq -t {threads} -X {params.X}
-        rm --force {params.reads}
+        zcat {input.forward_} > "${{prefix}}_1.fq"
+        nonpareil -s "${{prefix}}_1.fq" -T kmer -b "$prefix" -f fastq -t {threads} -X {params.X}
+        rm -f "${{prefix}}_1.fq"
         """
 
 
 rule read_annotate__nonpareil__aggregate:
     """Aggregate all the nonpareil results into a single table"""
     input:
-        [
-            NONPAREIL / f"{sample_id}.{library_id}.npo"
-            for sample_id, library_id in SAMPLE_LIBRARY
-        ],
+        [f"{NONPAREIL}/{sample_id}.{library_id}.npo" for sample_id, library_id in SAMPLE_LIBRARY],
     output:
         NONPAREIL / "nonpareil.tsv",
     log:
@@ -68,7 +64,7 @@ rule read_annotate__nonpareil__aggregate:
         cpus_per_task=esc("cpus", "read_annotate__nonpareil__aggregate"),
         slurm_partition=esc("partition", "read_annotate__nonpareil__aggregate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__nonpareil__aggregate')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__nonpareil__aggregate"),
     retries: len(get_escalation_order("read_annotate__nonpareil__aggregate"))
     params:
         input_dir=NONPAREIL,
@@ -77,9 +73,7 @@ rule read_annotate__nonpareil__aggregate:
         """
         exec > {log} 2>&1
         debug "input_dir={params.input_dir} output={output}"
-        Rscript --no-init-file {params.script_folder}/aggregate_nonpareil.R \
-            --input-folder {params.input_dir} \
-            --output-file {output}
+        Rscript --no-init-file {params.script_folder}/nonpareil_summary.R {params.input_dir} {output}
         """
 
 

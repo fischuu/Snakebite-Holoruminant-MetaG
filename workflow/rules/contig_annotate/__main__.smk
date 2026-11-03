@@ -18,7 +18,7 @@ rule contig_annotate:
         ],
         lambda wildcards: [
             CONTIG_FEATURECOUNTS / f"{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.txt"
-            for assembly_id, sample_id, library_id in ASSEMBLY_SAMPLE_LIBRARY
+            for assembly_id, sample_id, library_id in ASSEMBLY_LIBRARIES
         ],
         rules.contig_annotate__diamond.input,
         rules.contig_annotate__hmmer.input,

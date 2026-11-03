@@ -1,4 +1,3 @@
-include: "__functions__.smk"
 include: "assemble.smk"
 include: "contig_annotate.smk"
 include: "mag_annotate.smk"

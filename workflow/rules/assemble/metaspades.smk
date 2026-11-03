@@ -1,15 +1,19 @@
 rule assemble__metaspades__run:
-    """Run MetaSPAdes over one sample, merging all libraries in the process"""
+    """Assemble the pooled libraries of one assembly_id with metaSPAdes and give the contigs pipeline ids
+
+    metaSPAdes takes a single library per run in meta mode, hence the pooling. The eukaryote module
+    reads the assembly graph back from the archive of the working folder.
+    """
     input:
-        forwards=get_forwards_from_assembly_id,
-        reverses=get_reverses_from_assembly_id,
+        forwards=assembly_reads(1),
+        reverses=assembly_reads(2),
     output:
-        fasta=METASPADES / "{assembly_id}.fa.gz",
-        tarball=METASPADES / "{assembly_id}.tar.gz",
-        concatenated_forwards=temp(METASPADES / "{assembly_id}_R1_concat.fastq.gz"),
-        concatenated_reverses=temp(METASPADES / "{assembly_id}_R2_concat.fastq.gz"),
+        contigs=METASPADES / "{assembly_id}.fa.gz",
+        workdir_archive=METASPADES / "{assembly_id}.tar.gz",
+        pooled_forward=temp(METASPADES / "{assembly_id}_R1_concat.fastq.gz"),
+        pooled_reverse=temp(METASPADES / "{assembly_id}_R2_concat.fastq.gz"),
     log:
-        log=METASPADES / "{assembly_id}.log",
+        METASPADES / "{assembly_id}.log",
     benchmark:
         METASPADES / "benchmark/{assembly_id}.tsv",
     container:
@@ -21,65 +25,36 @@ rule assemble__metaspades__run:
         cpus_per_task=esc("cpus", "assemble__metaspades__run"),
         slurm_partition=esc("partition", "assemble__metaspades__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__metaspades__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "assemble__metaspades__run"),
         metaspades_slots=1,
     retries: len(get_escalation_order("assemble__metaspades__run"))
     params:
-        out_dir=lambda w: METASPADES / w.assembly_id,
-        kmer_size=params["assemble"]["metaspades"]["kmer_size"],
-        additional_options=params["assemble"]["metaspades"]["additional_options"],
-        forwards=aggregate_forwards_for_metaspades,
-        reverses=aggregate_reverses_for_metaspades,
-        assembly_id=lambda w: w.assembly_id,
+        workdir=lambda w: METASPADES / w.assembly_id,
+        settings=params["assemble"]["metaspades"],
+        script_folder=SCRIPT_FOLDER,
     shell:
         """
-        # Concatenate forward reads into a single file
-        cat {params.forwards} > {output.concatenated_forwards}
-        
-        # Concatenate reverse reads into a single file
-        cat {params.reverses} > {output.concatenated_reverses}
-        
-        metaspades.py \
-            -t {threads} \
-            --memory {resources.mem_mb} \
-            -k {params.kmer_size} \
-            {params.additional_options} \
-            -1 {output.concatenated_forwards} \
-            -2 {output.concatenated_reverses} \
-            -o {params.out_dir} \
-        2> {log}.{resources.attempt} 1>&2
+        try_log={log}.try{resources.attempt}
+        exec > "$try_log" 2>&1
+        debug "assembly_id={wildcards.assembly_id} threads={threads} mem_mb={resources.mem_mb} settings={params.settings}"
 
-        # metaspades.py's own redirect above (over)writes {log}.{resources.attempt} from
-        # scratch, so any debug call needs to append (2>>) rather than truncate.
-        debug "assembly_id={params.assembly_id} threads={threads} kmer_size={params.kmer_size} mem_mb={resources.mem_mb} out_dir={params.out_dir}" 2>> {log}.{resources.attempt}
+        cat {input.forwards} > {output.pooled_forward}
+        cat {input.reverses} > {output.pooled_reverse}
 
-        ( seqtk seq \
-            {params.out_dir}/contigs.fasta \
-        | cut -f 1 -d " " \
-        | paste - - \
-        | awk \
-            '{{printf(">{params.assembly_id}:bin_NA@contig_%08d\\n%s\\n", NR, $2)}}' \
-        | bgzip \
-            -l9 \
-            -@ {threads} \
-        > {output.fasta} \
-        ) 2>> {log}.{resources.attempt}
+        metaspades.py -1 {output.pooled_forward} -2 {output.pooled_reverse} -o {params.workdir} \
+            -t {threads} -m {resources.mem_mb} -k {params.settings[kmer_size]} \
+            {params.settings[additional_options]}
 
-        debug "renamed contigs written to {output.fasta}" 2>> {log}.{resources.attempt}
+        python {params.script_folder}/contig_ids.py {wildcards.assembly_id} {params.workdir}/contigs.fasta \
+            | bgzip -l 9 -@ {threads} > {output.contigs}
 
-        tar \
-            --create \
-            --file {output.tarball} \
-            --remove-files \
-            --use-compress-program="pigz --best --processes {threads}" \
-            --verbose \
-            {params.out_dir} \
-        2>> {log}.{resources.attempt} 1>&2
+        tar -cv -I "pigz -9 -p {threads}" --remove-files -f {output.workdir_archive} {params.workdir}
 
-        mv {log}.{resources.attempt} {log}
+        mv "$try_log" {log}
         """
 
+
 rule assemble__metaspades:
-    """Rename all assemblies contigs to avoid future collisions"""
+    """Run metaSPAdes for every assembly"""
     input:
-        [METASPADES / f"{assembly_id}.fa.gz" for assembly_id in ASSEMBLIES],
+        expand(METASPADES / "{assembly_id}.fa.gz", assembly_id=ASSEMBLIES),

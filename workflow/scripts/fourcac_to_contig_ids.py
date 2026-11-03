@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Translate 4CAC's per-contig classes from metaSPAdes node names to pipeline contig ids.
 
-assemble__metaspades__run renames the records of metaSPAdes' contigs.fasta, in file order, to
-<assembly_id>:bin_NA@contig_<8-digit record number>. This repeats that numbering on the same
+assemble__metaspades__run renames the records of metaSPAdes' contigs.fasta with contig_ids.py, in
+file order, to <assembly_id>:bin_NA@contig_<8-digit record number>. This repeats that numbering on the same
 contigs.fasta, then joins 4CAC's final classes (4CAC_classification.fasta, which despite its
 name is a header-less "node,class" CSV) and the XGBoost scores they started from.
 
@@ -14,12 +14,12 @@ import sys
 
 
 def read_contig_order(path, assembly_id):
-    """metaSPAdes node name -> pipeline contig id, numbered like assemble__metaspades__run"""
+    """metaSPAdes node name -> pipeline contig id, numbered like contig_ids.py"""
     ids = {}
     with open(path) as handle:
         for line in handle:
             if line.startswith(">"):
-                # the metaspades rule keeps only the first word of the header (cut -f 1 -d " ")
+                # the node name is the first word of the header
                 node = line[1:].split()[0]
                 ids[node] = f"{assembly_id}:bin_NA@contig_{len(ids) + 1:08d}"
     return ids

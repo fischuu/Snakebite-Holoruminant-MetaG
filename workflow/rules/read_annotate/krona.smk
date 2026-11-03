@@ -17,7 +17,7 @@ rule read_annotate__krona__visualize:
         cpus_per_task=esc("cpus", "read_annotate__krona__visualize"),
         slurm_partition=esc("partition", "read_annotate__krona__visualize"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__krona__visualize')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__krona__visualize"),
     retries: len(get_escalation_order("read_annotate__krona__visualize"))
     container:
         docker["krona"]

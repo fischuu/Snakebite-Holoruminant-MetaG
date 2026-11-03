@@ -23,7 +23,7 @@ rule report__mag_annotate:
         cpus_per_task=esc("cpus", "report__mag_annotate"),
         slurm_partition=esc("partition", "report__mag_annotate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'report__mag_annotate')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "report__mag_annotate"),
     retries: len(get_escalation_order("report__mag_annotate"))
     shell:
         """

@@ -1,13 +1,13 @@
 rule reference__hosts__recompress:
-    """Ensure a reference host genome is bgzip-compressed"""
+    """Recompress one host genome with bgzip, which samtools faidx needs"""
     input:
-        fa_gz=lambda wildcards: features["hosts"][wildcards.genome],
+        lambda wildcards: features["hosts"][wildcards.genome],
     output:
-        HOSTS / "{genome}.fa.gz",
+        HOST_FASTA,
     log:
-        HOSTS / "{genome}.log",
+        HOST_GENOMES / "{genome}.log",
     benchmark:
-        HOSTS / "benchmark/{genome}.tsv",
+        HOST_GENOMES / "benchmark/{genome}.tsv",
     container:
         docker["reference"]
     threads: esc("cpus", "reference__hosts__recompress")
@@ -17,14 +17,14 @@ rule reference__hosts__recompress:
         cpus_per_task=esc("cpus", "reference__hosts__recompress"),
         slurm_partition=esc("partition", "reference__hosts__recompress"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'reference__hosts__recompress')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "reference__hosts__recompress"),
     retries: len(get_escalation_order("reference__hosts__recompress"))
     shell:
         """
         exec > {log} 2>&1
         echo "[$(date)] recompressing {wildcards.genome} with bgzip"
-        debug "threads={threads} input={input.fa_gz} output={output}"
-        zcat {input.fa_gz} | bgzip --threads {threads} > {output}
+        debug "threads={threads} input={input} output={output}"
+        zcat {input} | bgzip -@ {threads} > {output}
         echo "[$(date)] done"
         """
 
@@ -32,4 +32,4 @@ rule reference__hosts__recompress:
 rule reference__hosts:
     """Aggregate the recompressed genome for every configured host"""
     input:
-        [HOSTS / f"{genome}.fa.gz" for genome in HOST_NAMES],
+        expand(HOST_FASTA, genome=HOST_NAMES),

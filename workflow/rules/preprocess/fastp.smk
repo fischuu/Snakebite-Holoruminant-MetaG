@@ -30,10 +30,11 @@ rule preprocess__fastp__run:
         cpus_per_task=esc("cpus", "preprocess__fastp__run"),
         slurm_partition=esc("partition", "preprocess__fastp__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'preprocess__fastp__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "preprocess__fastp__run"),
     retries: len(get_escalation_order("preprocess__fastp__run")),
     shell: """
-        exec > {log}.{resources.attempt} 2>&1
+        try_log={log}.try{resources.attempt}
+        exec > "$try_log" 2>&1
         debug "sample={wildcards.sample_id} library={wildcards.library_id} threads={threads} length_required={params.length_required} adapter_forward={params.adapter_forward} adapter_reverse={params.adapter_reverse}"
 
         fastp \
@@ -67,7 +68,7 @@ rule preprocess__fastp__run:
         done
         echo "All outputs validated"
 
-        mv {log}.{resources.attempt} {log}
+        mv "$try_log" {log}
     """
 
 # ---------- preprocess__fastp ----------

@@ -7,7 +7,7 @@ rule eukaryote__tiara__run:
     Tiara writes its class counts next to the table as log_<table name>.
     """
     input:
-        assembly=get_assembly_fasta,
+        assembly=CONTIGS,
     output:
         tsv=EUK_TIARA / "{assembly_id}.tsv",
         summary=EUK_TIARA / "log_{assembly_id}.tsv",
@@ -24,14 +24,15 @@ rule eukaryote__tiara__run:
         cpus_per_task=esc("cpus", "eukaryote__tiara__run"),
         slurm_partition=esc("partition", "eukaryote__tiara__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'eukaryote__tiara__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "eukaryote__tiara__run"),
     retries: len(get_escalation_order("eukaryote__tiara__run"))
     params:
         min_len=params["eukaryote"]["tiara"]["min_len"],
         prob_cutoff=params["eukaryote"]["tiara"]["prob_cutoff"],
     shell:
         """
-        exec > {log}.{resources.attempt} 2>&1
+        try_log={log}.try{resources.attempt}
+        exec > "$try_log" 2>&1
         debug "assembly_id={wildcards.assembly_id} threads={threads} assembly={input.assembly} min_len={params.min_len} prob_cutoff={params.prob_cutoff}"
 
         tiara \
@@ -42,7 +43,7 @@ rule eukaryote__tiara__run:
             --probabilities \
             --threads {threads}
 
-        mv {log}.{resources.attempt} {log}
+        mv "$try_log" {log}
         """
 
 

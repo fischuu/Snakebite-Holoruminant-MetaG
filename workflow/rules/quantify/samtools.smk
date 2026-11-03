@@ -1,16 +1,16 @@
 rule quantify__samtools__stats_cram:
-    """Run `samtools stats` on one MAG-mapping CRAM"""
+    """Mapping statistics of one library on the MAG catalogue with samtools stats"""
     input:
-        cram=QUANT_BOWTIE2 / "{sample_id}.{library_id}.cram",
-        crai=QUANT_BOWTIE2 / "{sample_id}.{library_id}.cram.crai",
-        reference=DREP / "dereplicated_genomes.fa.gz",
-        fai=DREP / "dereplicated_genomes.fa.gz.fai",
+        alignment=MAG_CRAM,
+        index=MAG_CRAI,
+        catalogue=MAG_CATALOGUE,
+        fai=MAG_CATALOGUE_FAI,
     output:
-        txt=QUANT_BOWTIE2 / "{sample_id}.{library_id}.stats.txt",
+        MAG_MAPPING / f"{LIBRARY}.stats.txt",
     log:
-        QUANT_BOWTIE2 / "{sample_id}.{library_id}.stats.log",
+        MAG_MAPPING / f"{LIBRARY}.stats.log",
     benchmark:
-        QUANT_BOWTIE2 / "benchmark/{sample_id}.{library_id}.stats.tsv",
+        MAG_MAPPING / f"benchmark/{LIBRARY}.stats.tsv",
     container:
         docker["quantify"]
     threads: esc("cpus", "quantify__samtools__stats_cram")
@@ -20,14 +20,13 @@ rule quantify__samtools__stats_cram:
         cpus_per_task=esc("cpus", "quantify__samtools__stats_cram"),
         slurm_partition=esc("partition", "quantify__samtools__stats_cram"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__samtools__stats_cram')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "quantify__samtools__stats_cram"),
     retries: len(get_escalation_order("quantify__samtools__stats_cram"))
     shell:
         """
-        samtools stats --reference {input.reference} {input.cram} > {output.txt} 2> {log}
-
-        # The command above truncates {log} via "2>", so this has to be logged after it.
-        debug "sample_id={wildcards.sample_id} library_id={wildcards.library_id} reference={input.reference} output={output.txt}" 2>> {log}
+        exec 2> {log}
+        debug "library={wildcards.sample_id}.{wildcards.library_id} output={output}"
+        samtools stats --reference {input.catalogue} {input.alignment} > {output}
         """
 
 
@@ -35,7 +34,7 @@ rule quantify__samtools:
     """Collect samtools stats/flagstats for every MAG-mapping CRAM"""
     input:
         [
-            QUANT_BOWTIE2 / f"{sample_id}.{library_id}.{ext}"
+            MAG_MAPPING / f"{sample_id}.{library_id}.{ext}"
             for sample_id, library_id in SAMPLE_LIBRARY
             for ext in ("stats.txt", "flagstats.txt")
         ],

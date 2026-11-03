@@ -1,12 +1,3 @@
-def get_assembly_fasta(wildcards):
-    """Renamed contig FASTA of one assembly, from whichever assembler produced it"""
-    if config["assembler"] == "megahit":
-        return MEGAHIT / f"{wildcards.assembly_id}.fa.gz"
-    if config["assembler"] == "metaspades":
-        return METASPADES / f"{wildcards.assembly_id}.fa.gz"
-    return PROVIDED / f"{wildcards.assembly_id}.fa.gz"
-
-
 # 4CAC refines its labels on the metaSPAdes assembly graph, which only the metaspades rule
 # keeps (inside its tarball). MEGAHIT and self-provided assemblies have no graph it can read.
 FOURCAC_SUPPORTED = config["assembler"] == "metaspades"
@@ -16,4 +7,4 @@ if not FOURCAC_SUPPORTED:
 
 def compose_coverage_args_for_remag(wildcards):
     """One --coverage option per alignment of the assembly (one alignment = one sample for REMAG)"""
-    return " ".join(f"--coverage {aln}" for aln in get_alignments_from_assembly_id(wildcards))
+    return " ".join(f"--coverage {aln}" for aln in assembly_alignments(wildcards))

@@ -116,31 +116,26 @@ validate_samples(samples, config["sample-file"])
 # Process sample information
 debug("Processing sample metadata...")
 
-samples = (
-    samples.assign(assembly_id=samples.assembly_ids.str.replace(" ", "").str.split(","))
-    .explode("assembly_id")
-    .sort_values(by=["assembly_id", "sample_id", "library_id"])
-)
-samples = samples.assign(assembly_id=samples.assembly_id.str.strip())
+
+def split_assembly_ids(cell):
+    """The assemblies listed in one assembly_ids cell of samples.tsv; empty cell: none"""
+    return [] if pd.isna(cell) else cell.replace(" ", "").split(",")
+
+
+# One row per library and assembly it goes into, so a library can appear several times
+samples["assembly_id"] = samples["assembly_ids"].map(split_assembly_ids)
+samples = samples.explode("assembly_id").sort_values(["assembly_id", "sample_id", "library_id"])
 
 debug("Generating global variables from sample metadata...")
-
-SAMPLES = samples.sample_id.unique()
-debug(f"Found {len(SAMPLES)} unique samples.")
 
 SAMPLE_LIBRARY = samples[["sample_id", "library_id"]].values.tolist()
 debug(f"Generated sample-library pairs: {len(SAMPLE_LIBRARY)}")
 
-ASSEMBLY_SAMPLE_LIBRARY = (
-    samples[["assembly_id", "sample_id", "library_id"]].dropna(axis=0).values.tolist()
-)
-debug(f"Generated assembly-sample-library triplets: {len(ASSEMBLY_SAMPLE_LIBRARY)}")
+in_assembly = samples.dropna(subset=["assembly_id"])
+ASSEMBLY_LIBRARIES = in_assembly[["assembly_id", "sample_id", "library_id"]].values.tolist()
+debug(f"Generated assembly-sample-library triplets: {len(ASSEMBLY_LIBRARIES)}")
 
-ASSEMBLIES = [
-    assembly_id
-    for assembly_id in samples.assembly_id.unique()
-    if not pd.isna(assembly_id)
-]
+ASSEMBLIES = in_assembly["assembly_id"].unique().tolist()
 debug(f"Total assemblies: {len(ASSEMBLIES)}")
 
 # Load paths and features
@@ -162,7 +157,6 @@ DIAMONDNVME = config["nvme_storage"]
 EGGNOGSHM = choose_temp(config["shm_storage"], config["nvme_storage"], config["tmp_storage"])
 EGGNOGNVME = config["nvme_storage"]
 
-KRAKEN2_DBS = features["databases"]["kraken2"]
 METAPHLAN_DBS = features["databases"]["metaphlan4"]
 PHYLOFLASH_DBS = features["databases"]["phyloflash"]
 HOST_NAMES = [] if features["hosts"] is None else list(features["hosts"].keys())

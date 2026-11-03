@@ -13,7 +13,7 @@ rule preprocess__fastqc__nonhost:
     """FastQC reports for the reads left over after each host-decontamination step"""
     input:
         [
-            PRE_BOWTIE2 / f"non{genome}" / f"{sample_id}.{library_id}_{end}_fastqc.{ext}"
+            HOST_MAPPING / f"non{genome}" / f"{sample_id}.{library_id}_{end}_fastqc.{ext}"
             for genome in HOST_NAMES
             for sample_id, library_id in SAMPLE_LIBRARY
             for end in (1, 2)

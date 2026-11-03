@@ -6,8 +6,8 @@ rule read_annotate__singlem__pipe:
     other read-based annotation tool here.
     """
     input:
-        forward_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_1.fq.gz",
-        reverse_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_2.fq.gz",
+        forward_=CLEAN_FORWARD,
+        reverse_=CLEAN_REVERSE,
         data=features["databases"]["singlem"], 
     output:
         archive_otu_table=SINGLEM / "pipe" / "{sample_id}.{library_id}.archive.json",
@@ -26,7 +26,7 @@ rule read_annotate__singlem__pipe:
         cpus_per_task=esc("cpus", "read_annotate__singlem__pipe"),
         slurm_partition=esc("partition", "read_annotate__singlem__pipe"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__singlem__pipe')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__singlem__pipe"),
     retries: len(get_escalation_order("read_annotate__singlem__pipe"))
     params:
         tmp = config["tmp_storage"]
@@ -76,7 +76,7 @@ rule read_annotate__singlem__condense:
         cpus_per_task=esc("cpus", "read_annotate__singlem__condense"),
         slurm_partition=esc("partition", "read_annotate__singlem__condense"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__singlem__condense')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__singlem__condense"),
     retries: len(get_escalation_order("read_annotate__singlem__condense"))
     shell:
         """
@@ -92,8 +92,8 @@ rule read_annotate__singlem__condense:
 rule read_annotate__singlem__microbial_fraction:
     """Run singlem microbial_fraction over one sample"""
     input:
-        forward_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_1.fq.gz",
-        reverse_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_2.fq.gz",
+        forward_=CLEAN_FORWARD,
+        reverse_=CLEAN_REVERSE,
         data=features["databases"]["singlem"],
         condense=SINGLEM / "pipe" / "{sample_id}.{library_id}.condense.tsv",
     output:
@@ -113,7 +113,7 @@ rule read_annotate__singlem__microbial_fraction:
         cpus_per_task=esc("cpus", "read_annotate__singlem__microbial_fraction"),
         slurm_partition=esc("partition", "read_annotate__singlem__microbial_fraction"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__singlem__microbial_fraction')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__singlem__microbial_fraction"),
     retries: len(get_escalation_order("read_annotate__singlem__microbial_fraction"))
     shell:
         """
@@ -150,7 +150,7 @@ rule read_annotate__singlem__aggregate_microbial_fraction:
         cpus_per_task=esc("cpus", "read_annotate__singlem__aggregate_microbial_fraction"),
         slurm_partition=esc("partition", "read_annotate__singlem__aggregate_microbial_fraction"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__singlem__aggregate_microbial_fraction')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__singlem__aggregate_microbial_fraction"),
     retries: len(get_escalation_order("read_annotate__singlem__aggregate_microbial_fraction"))
     shell:
         """

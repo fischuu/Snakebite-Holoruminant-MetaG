@@ -22,7 +22,7 @@ rule contig_annotate__eggnog7__run:
         cpus_per_task=esc("cpus", "contig_annotate__eggnog7__run"),
         slurm_partition=esc("partition", "contig_annotate__eggnog7__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__eggnog7__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "contig_annotate__eggnog7__run"),
     retries: len(get_escalation_order("contig_annotate__eggnog7__run"))
     container:
         docker["eggnog"]

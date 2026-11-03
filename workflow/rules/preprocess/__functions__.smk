@@ -38,49 +38,33 @@ def compose_rg_extra(wildcards):
     return f"LB:{tag}\tPL:Illumina\tSM:{wildcards.sample_id}"
 
 
-# Host decontamination is a chain: each host's input is the previous host's
-# "non-host" output, and the very first host reads straight from fastp.
-def _host_chain_input(wildcards, end):
-    """Reads feeding into the mapping step for one host in the decontamination chain"""
-    assert end in (1, 2)
-    step = HOST_NAMES.index(wildcards.genome)
-    if step == 0:
-        return FASTP / f"{wildcards.sample_id}.{wildcards.library_id}_{end}.fq.gz"
-    previous_host = HOST_NAMES[step - 1]
-    return (
-        PRE_BOWTIE2
-        / f"non{previous_host}"
-        / f"{wildcards.sample_id}.{wildcards.library_id}_{end}.fq.gz"
-    )
+def _reads_left_by_host(genome):
+    """Folder of the reads that did not map to one host"""
+    return HOST_MAPPING / f"non{genome}"
 
 
-def get_input_forward_for_host_mapping(wildcards):
-    """Forward reads feeding into one host-mapping step"""
-    return _host_chain_input(wildcards, end=1)
+def _mate_file(folder, wildcards, end):
+    return folder / f"{wildcards.sample_id}.{wildcards.library_id}_{end}.fq.gz"
 
 
-def get_input_reverse_for_host_mapping(wildcards):
-    """Reverse reads feeding into one host-mapping step"""
-    return _host_chain_input(wildcards, end=2)
+def reads_for_host_mapping(end):
+    """Function giving one mate's reads that enter the mapping against one host
+
+    Decontamination is a chain: each host gets the reads the host before it left over, and
+    the first host gets fastp's reads.
+    """
+    def reads(wildcards):
+        position = HOST_NAMES.index(wildcards.genome)
+        folder = _reads_left_by_host(HOST_NAMES[position - 1]) if position else FASTP
+        return _mate_file(folder, wildcards, end)
+
+    return reads
 
 
-# The final, fully decontaminated (or fastp-only, if no hosts configured) reads
-def _final_preprocessed_reads(wildcards, end):
-    assert end in (1, 2)
-    if not HOST_NAMES:
-        return FASTP / f"{wildcards.sample_id}.{wildcards.library_id}_{end}.fq.gz"
-    return (
-        PRE_BOWTIE2
-        / f"non{HOST_NAMES[-1]}"
-        / f"{wildcards.sample_id}.{wildcards.library_id}_{end}.fq.gz"
-    )
+def reads_after_last_host(end):
+    """Function giving one mate's reads at the end of that chain (fastp's reads without any host)"""
+    def reads(wildcards):
+        folder = _reads_left_by_host(HOST_NAMES[-1]) if HOST_NAMES else FASTP
+        return _mate_file(folder, wildcards, end)
 
-
-def get_final_forward_from_pre(wildcards):
-    """Forward reads after the full preprocessing chain"""
-    return _final_preprocessed_reads(wildcards, end=1)
-
-
-def get_final_reverse_from_pre(wildcards):
-    """Reverse reads after the full preprocessing chain"""
-    return _final_preprocessed_reads(wildcards, end=2)
+    return reads

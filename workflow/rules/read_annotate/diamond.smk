@@ -1,8 +1,8 @@
 rule read_annotate__diamond__assign:
     """Run Diamond with SHM/NVME staging if possible."""
     input:
-        forwards=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_1.fq.gz",
-        reverses=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_2.fq.gz",
+        forwards=CLEAN_FORWARD,
+        reverses=CLEAN_REVERSE,
         database=lambda w: features["databases"]["diamond"][w.diamond_db],
     output:
         out_R1=DIAMOND / "{diamond_db}" / "{sample_id}.{library_id}_R1.out",
@@ -151,7 +151,7 @@ rule read_annotate__diamond__summarise:
         cpus_per_task=esc("cpus", "read_annotate__diamond__summarise"),
         slurm_partition=esc("partition", "read_annotate__diamond__summarise"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__diamond__summarise')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__diamond__summarise"),
     retries: len(get_escalation_order("read_annotate__diamond__summarise"))
     params:
         script=lambda w: config["pipeline_folder"] + "workflow/scripts/downstream_scripts/create_featuretable_diamond_" + w.diamond_db + ".R",

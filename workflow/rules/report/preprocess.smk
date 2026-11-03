@@ -23,7 +23,7 @@ rule report__preprocess:
         cpus_per_task=esc("cpus", "report__preprocess"),
         slurm_partition=esc("partition", "report__preprocess"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'report__preprocess')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "report__preprocess"),
     retries: len(get_escalation_order("report__preprocess"))
     shell:
         """

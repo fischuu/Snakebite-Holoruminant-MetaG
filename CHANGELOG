@@ -3,6 +3,16 @@
 
 Version 0.4.*:
 -----------
+67: Reworked the rules of the modules assemble, preprocess, quantify and mag_annotate and the shared
+    paths and helpers. Output files stay at the same paths with the same content, see RELEASE_NOTES.
+    Paths used by several rules are now defined once in folders.smk, resource blocks use
+    esc("attempt", ...) and failed attempts keep their log as <log>.try<attempt>. The binners moved to
+    assemble/binners/. New scripts contig_ids.py and label_binned_contigs.py replace the contig renaming
+    in the assembler rules and the two MAGScoT scripts, coverm_wide_table.R and nonpareil_summary.R
+    replace the two aggregate scripts, and four unused scripts and unused config keys are gone.
+    MAGScoT: one hmmsearch rule for both marker sets, and it now waits for the compression of its hits.
+    Fixed: the MaxBin2 clean-up used the wrong file prefix and left its side files in the bin folder,
+    and the target assemble__bowtie2 asked for CRAM files also when BAM was configured.
 66: Added the module eukaryote, which labels every assembly's contigs as eukaryotic or
     prokaryotic with three tools: Tiara, 4CAC (metaSPAdes assemblies only, it needs the
     assembly graph) and REMAG, and bins the eukaryotic contigs with REMAG. Each tool writes one

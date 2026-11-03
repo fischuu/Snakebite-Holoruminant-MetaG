@@ -2,8 +2,8 @@ rule read_annotate__phyloflash__run:
     """Run PhyloFlash over one sample
     """
     input:
-        forward_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_1.fq.gz",
-        reverse_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_2.fq.gz",
+        forward_=CLEAN_FORWARD,
+        reverse_=CLEAN_REVERSE,
         phyloflash_dbs=PHYLOFLASH_DBS,
     output:
         phyloflash_out=PHYLOFLASH / "{sample_id}_{library_id}.phyloFlash.html",
@@ -21,7 +21,7 @@ rule read_annotate__phyloflash__run:
         cpus_per_task=esc("cpus", "read_annotate__phyloflash__run"),
         slurm_partition=esc("partition", "read_annotate__phyloflash__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__phyloflash__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__phyloflash__run"),
     retries: len(get_escalation_order("read_annotate__phyloflash__run"))
     params:
         lib="{sample_id}_{library_id}",
@@ -64,7 +64,7 @@ rule read_annotate__phyloflash__condense:
         cpus_per_task=esc("cpus", "read_annotate__phyloflash__condense"),
         slurm_partition=esc("partition", "read_annotate__phyloflash__condense"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__phyloflash__condense')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__phyloflash__condense"),
     retries: len(get_escalation_order("read_annotate__phyloflash__condense"))
     shell:
         """

@@ -1,23 +1,17 @@
 rule mag_annotate__gtdbtk__classify:
-    """Taxonomically classify the dereplicated genomes with GTDB-Tk"""
+    """Place the MAGs in the GTDB taxonomy with the classify workflow of GTDB-Tk"""
     input:
-        fasta_folder=DREP / "dereplicated_genomes",
-        database=features["databases"]["gtdbtk"],
+        genomes=MAG_GENOMES,
+        reference_data=features["databases"]["gtdbtk"],
     output:
-        summary=GTDBTK / "gtdbtk.summary.tsv",
-        align=GTDBTK / "align.tar.gz",
-        classify=GTDBTK / "classify.tar.gz",
-        identify=GTDBTK / "identify.tar.gz",
+        merged_summary=GTDBTK / "gtdbtk.summary.tsv",
+        archives=expand(GTDBTK / "{part}.tar.gz", part=("align", "classify", "identify")),
     log:
         GTDBTK / "gtdbtk_classify.log",
     benchmark:
         GTDBTK / "benchmark.tsv",
     container:
         docker["gtdbtk"]
-    params:
-        out_dir=GTDBTK,
-        ar53=GTDBTK / "gtdbtk.ar53.summary.tsv",
-        bac120=GTDBTK / "gtdbtk.bac120.summary.tsv",
     threads: esc("cpus", "mag_annotate__gtdbtk__classify")
     resources:
         runtime=esc("runtime", "mag_annotate__gtdbtk__classify"),
@@ -25,55 +19,39 @@ rule mag_annotate__gtdbtk__classify:
         cpus_per_task=esc("cpus", "mag_annotate__gtdbtk__classify"),
         slurm_partition=esc("partition", "mag_annotate__gtdbtk__classify"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__gtdbtk__classify')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "mag_annotate__gtdbtk__classify"),
     retries: len(get_escalation_order("mag_annotate__gtdbtk__classify"))
     shell:
         """
-        exec > {log}.{resources.attempt} 2>&1
-        debug "attempt={resources.attempt} threads={threads} out_dir={params.out_dir} database={input.database}"
+        try_log={log}.try{resources.attempt}
+        exec > "$try_log" 2>&1
+        ar53={GTDBTK}/gtdbtk.ar53.summary.tsv
+        bac120={GTDBTK}/gtdbtk.bac120.summary.tsv
+        debug "attempt={resources.attempt} threads={threads} reference_data={input.reference_data}"
 
-        stale=(
-            {params.out_dir}/align {params.out_dir}/classify {params.out_dir}/identify
-            {params.out_dir}/gtdbtk_classify.log {params.out_dir}/gtdbtk.json
-            {params.out_dir}/gtdbtk.summary.tsv {params.out_dir}/gtdbtk.warnings.log
-            {params.ar53} {params.bac120}
-        )
-        rm --recursive --force -- "${{stale[@]}}"
+        # Results of a failed attempt must not get in the way
+        rm -rf {GTDBTK}/{{align,classify,identify,gtdbtk_classify.log,gtdbtk.json,gtdbtk.summary.tsv,gtdbtk.warnings.log}} \
+            "$ar53" "$bac120"
 
-        export GTDBTK_DATA_PATH="{input.database}"
-        gtdbtk classify_wf \
-            --genome_dir {input.fasta_folder} \
-            --extension fa.gz \
-            --out_dir {params.out_dir} \
-            --cpus {threads} \
-            --skip_ani_screen
+        GTDBTK_DATA_PATH={input.reference_data} gtdbtk classify_wf \
+            --genome_dir {input.genomes} -x fa.gz --out_dir {GTDBTK} --cpus {threads} --skip_ani_screen
 
-        # Archaea (ar53) may or may not be present depending on the genome set;
-        # merge it into the summary only when GTDB-Tk actually produced it.
-        if [[ -f {params.ar53} ]]; then
-            debug "ar53 summary present, merging bac120+ar53 into {output.summary}"
-            csvstack --tabs {params.bac120} {params.ar53} | csvformat --out-tabs > {output.summary}
+        # Not every set of MAGs contains archaea, and only then is there an ar53 table
+        if [[ -f "$ar53" ]]; then
+            csvstack -t "$bac120" "$ar53" | csvformat -T > {output.merged_summary}
         else
-            debug "no ar53 summary produced, using bac120 only for {output.summary}"
-            cp {params.bac120} {output.summary}
+            cp "$bac120" {output.merged_summary}
         fi
 
-        for section in align classify identify; do
-            debug "archiving section=$section to {params.out_dir}/${{section}}.tar.gz"
-            tar \
-                --create \
-                --directory {params.out_dir} \
-                --file {params.out_dir}/${{section}}.tar.gz \
-                --use-compress-program="pigz --processes {threads}" \
-                --verbose \
-                ${{section}}
+        for part in align classify identify; do
+            tar -C {GTDBTK} -cv -I "pigz -p {threads}" -f {GTDBTK}/$part.tar.gz $part
         done
 
-        mv {log}.{resources.attempt} {log}
+        mv "$try_log" {log}
         """
 
 
 rule mag_annotate__gtdbtk:
-    """Run the gtdbtk subworkflow"""
+    """Classify the MAGs with GTDB-Tk"""
     input:
         rules.mag_annotate__gtdbtk__classify.output,

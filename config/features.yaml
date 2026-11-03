@@ -1,6 +1,6 @@
 # Paths and parameters relative to references
 ---
-hosts:  # Add more in case of multi-host, remove entries in case of environmental sample
+hosts:  # Reads are decontaminated against these genomes, in this order. Leave empty for samples without a host
   bovine: resources/reference/Bos_taurus.ARS-UCD1.3.dna.toplevel.fa.gz
   human: resources/reference/Homo_sapiens.GRCh38.dna.toplevel.fa.gz
   #ciliates: resources/reference/Ciliates_20240528.fa.gz
@@ -44,4 +44,3 @@ databases:
     phylophlan: resources/databases/phylophlan/phylophlan
   singlem: resources/databases/singlem/S4.3.0.GTDB_r220.metapackage_20240523.smpkg.zb
   sylph: resources/databases/sylph/gtdb-r220-c200-dbv1.syldb
-  virify: resources/databases/virify

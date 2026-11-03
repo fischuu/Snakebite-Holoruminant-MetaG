@@ -1,8 +1,8 @@
 rule read_annotate__humann__run:
     """Run HumanN3 over one sample"""
     input:
-        forward_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_1.fq.gz",
-        reverse_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_2.fq.gz",
+        forward_=CLEAN_FORWARD,
+        reverse_=CLEAN_REVERSE,
         prot_dbs=features["databases"]["humann_prot_dbs"],
         nt_dbs=features["databases"]["humann_nt_dbs"],
         mp_out=METAPHLAN / "profiled" / "{sample_id}.{library_id}.txt",
@@ -26,7 +26,7 @@ rule read_annotate__humann__run:
         cpus_per_task=esc("cpus", "read_annotate__humann__run"),
         slurm_partition=esc("partition", "read_annotate__humann__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__humann__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__humann__run"),
     retries: len(get_escalation_order("read_annotate__humann__run")),
     shell: """
         echo "In case this rule crashes for larger datasets, you need to ensure a proper size of TMPDIR!"
@@ -73,7 +73,7 @@ rule read_annotate__humann__condense:
         cpus_per_task=esc("cpus", "read_annotate__humann__condense"),
         slurm_partition=esc("partition", "read_annotate__humann__condense"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__humann__condense')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__humann__condense"),
     retries: len(get_escalation_order("read_annotate__humann__condense")),
     shell:
         """
