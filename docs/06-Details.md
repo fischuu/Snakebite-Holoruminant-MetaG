@@ -277,6 +277,28 @@ rule _annotate__checkm2__predict:
     Run CheckM2 over the dereplicated mags
 Install the database manually first
 
+## 'eukaryote' module
+This module labels the contigs of every assembly as eukaryotic or prokaryotic with three tools, and bins
+the eukaryotic contigs. It is not part of `all` and has to be requested explicitly:
+
+```
+bash run_Snakebite-Holoruminant-MetaG.sh eukaryote
+```
+
+Each tool writes one table per assembly, using the same contig ids as the rest of the pipeline:
+
+| Tool | Output | Classes | Notes |
+|------|--------|---------|-------|
+| Tiara | `results/eukaryote/tiara/<assembly>.tsv` | archaea, bacteria, prokarya, eukarya, organelle (mitochondrion/plastid), unknown | Fast, sequence composition |
+| 4CAC | `results/eukaryote/4cac/<assembly>.tsv` | prokarya, eukarya, phage, plasmid, uncertain | metaSPAdes assemblies only (uses the assembly graph) |
+| REMAG | `results/eukaryote/remag/<assembly>.tsv` | eukaryote, non_eukaryote | REMAG also bins the eukaryotic contigs: `results/eukaryote/remag/<assembly>/bins/` |
+
+No databases are needed. Contigs shorter than the minimum length (1000 bp by default, `eukaryote` section of
+`config/params.yaml`) are not classified. REMAG runs on CPU here; it is noticeably faster on a GPU.
+
+The prokaryotic binning in the 'assemble' module scores bins with bacterial/archaeal marker genes (MAGScoT),
+so eukaryotic bins don't come out of it; use the REMAG bins for eukaryotes.
+
 # DRAM database generation
 Apptainer> DRAM-setup.py export_config > /scratch/project_2009831/Pipe_dev/my_dram_config.txt
 Apptainer> export DRAM_CONFIG_LOCATION=/scratch/project_2009831/Pipe_dev/my_dram_config.txt

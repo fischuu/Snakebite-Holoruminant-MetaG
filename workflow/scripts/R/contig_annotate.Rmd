@@ -1,48 +1,66 @@
 ---
 title: "Snakebite - Holoruminant - MetaG"
 subtitle: "contig_annotate module - report"
-author: "t.b.a."
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  html_document:
+  pdf_document:
     toc: true
-    toc_depth: 4
-    toc_float:
-      toc_collapsed: true
+    toc_depth: 3
     number_sections: true
-    theme: lumen
-    df_print: paged
-    code_folding: show
+    fig_caption: true
 ---
 
 ```{r setup, include=FALSE}
-library("GenomicTools")
-library("xtable")   # Needed for LaTeX output of the tables
-library("viridis")  # Needed for the colouring of the plots
-library("rjson")    # Needed for multiqc dgsb etail data
-library("DT")
-library("kableExtra")
-library("edgeR")
-library("ICS")
-library("tsne")
-options(scipen=999,
-        stringsAsFactors=FALSE)
-knitr::opts_chunk$set(echo = FALSE,
-                      cache = FALSE,
-                      cache.lazy = FALSE,
-                      dev = c('png', 'pdf'),
-                      fig.align = 'center', fig.height = 5, fig.width = 8.5)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                       fig.align = "center", fig.width = 7, fig.height = 4)
 
-reportColours <- c("#FF8200", "#00B5E2", "#78BE20", "#7F3F98", "#E13C98", "#0033A0", "#54585A")
+if (!exists("project_folder")) {
+  project_folder <- getwd()
+  pipeline_folder <- getwd()
+  features_file <- "config/features.yaml"
+  sample_file <- "config/samples.tsv"
+}
+
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
+samples <- read.delim(file.path(project_folder, sample_file), comment.char = "#")
+assembly_ids <- unique(unlist(strsplit(samples$assembly_ids, ",\\s*")))
+ca_dir <- file.path(project_folder, "results", "contig_annotate")
 ```
 
-```{r, include=FALSE}
-# Init Step to make sure that the dependencies are loaded
-htmltools::tagList(datatable(cars))
-#htmltools::tagList(ggplotly(ggplot()))
+# Gene prediction (Prodigal)
+
+```{r prodigal-summary}
+gene_counts <- purrr::map_dfr(assembly_ids, function(a) {
+  gtf <- file.path(ca_dir, "prodigal", a, paste0(a, ".prodigal.gtf"))
+  n_genes <- if (file.exists(gtf)) length(readLines(gtf)) else NA_integer_
+  tibble::tibble(assembly_id = a, predicted_genes = n_genes)
+})
+preview_table(gene_counts, n = nrow(gene_counts), caption = "Genes predicted per assembly")
 ```
 
+# Functional/taxonomic annotation of contigs
 
-```{r}
-list.files(file.path(working_dir, "results", "contig_annotate"))
+```{r other-tools, results='asis'}
+generic_tool_section(project_folder, "contig_annotate", "diamond/*/summary_a.tsv", "DIAMOND")
+generic_tool_section(project_folder, "contig_annotate", "eggnog7/*/*.tsv.gz", "eggNOG-mapper (v7 DB)")
+generic_tool_section(project_folder, "contig_annotate", "hmmer/*/*.tblout.tsv", "HMMER")
+generic_tool_section(project_folder, "contig_annotate", "camper/*/annotations.tsv", "CAMPER")
+generic_tool_section(project_folder, "contig_annotate", "featurecounts/*/*.txt", "featureCounts (read quantification per gene)")
+generic_tool_section(project_folder, "contig_annotate", "ncyc/ncyc_results.tsv", "NCyc")
+```
+
+# Runtime statistics
+
+```{r contig-annotate-runtime}
+bench <- discover_benchmarks(project_folder, "contig_annotate")
+runtime_table(bench, caption = "contig_annotate module: runtime and peak memory per rule")
+```
+
+```{r contig-annotate-resource-allocation}
+resource_allocation_table(bench, "contig_annotate", project_folder,
+                          caption = "contig_annotate module: allocated vs. actual resource usage (starting tier)")
+```
+
+```{r contig-annotate-runtime-plot, fig.height=5}
+runtime_plot(bench, title = "contig_annotate module: total runtime per rule")
 ```

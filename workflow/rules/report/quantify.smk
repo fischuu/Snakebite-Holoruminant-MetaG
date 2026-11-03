@@ -1,11 +1,9 @@
 rule report__quantify:
-    """
-    Create the pipeline report for the quantify module (R).
-    """
+    """Render the quantify module PDF report: CoverM genome/contig abundance summary, runtime"""
     input:
         rules.quantify.input,
     output:
-        html=PIPELINE_REPORT / "quantify.html",
+        pdf=PIPELINE_REPORT / "quantify.pdf",
     log:
         PIPELINE_REPORT / "quantify.log",
     benchmark:
@@ -13,9 +11,11 @@ rule report__quantify:
     container:
         docker["r_report"]
     params:
-       script=QUANTIFY_R,
-       features=config["features-file"],
-       wd=WD
+        script=QUANTIFY_R,
+        pipeline_folder=config["pipeline_folder"],
+        features=config["features-file"],
+        sample_file=config["sample-file"],
+        project_folder=WD,
     threads: esc("cpus", "report__quantify")
     resources:
         runtime=esc("runtime", "report__quantify"),
@@ -25,8 +25,13 @@ rule report__quantify:
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'report__quantify')['nvme']}",
         attempt=get_attempt,
     retries: len(get_escalation_order("report__quantify"))
-    shell:"""
-       R -e "working_dir <- '{params.wd}'; \
-             features_file <- '{params.features}'; \
-             rmarkdown::render('{params.script}',output_file='{params.wd}/{output}')" &> {log}
-    """
+    shell:
+        """
+        exec > {log} 2>&1
+        R -e "project_folder <- '{params.project_folder}'; \
+              pipeline_folder <- '{params.pipeline_folder}'; \
+              features_file <- '{params.features}'; \
+              sample_file <- '{params.sample_file}'; \
+              rmarkdown::render('{params.script}', output_format='pdf_document', \
+                                 output_file=file.path('{params.project_folder}', '{output.pdf}'))"
+        """

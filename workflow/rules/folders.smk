@@ -41,14 +41,11 @@ ASSEMBLE_BOWTIE2 = ASSEMBLE / "bowtie2/"
 CONCOCT = ASSEMBLE / "concoct/"
 METABAT2 = ASSEMBLE / "metabat2/"
 MAXBIN2 = ASSEMBLE / "maxbin2/"
-# VAMB = ASSEMBLE / "vamb/"  # This could be a metabinner
 MAGSCOT = ASSEMBLE / "magscot/"
 PRODIGAL = MAGSCOT / "prodigal/"
 DREP = ASSEMBLE / "drep/"
 
 PROVIDED = ASSEMBLE / config["assembler"]
-
-#PROVIDED = ASSEMBLE / "long_reads"
 
 # quantify
 QUANT = Path("results/quantify/")
@@ -82,6 +79,12 @@ CONTIG_EGGNOG = CONTIG / "eggnog"
 CONTIG_EGGNOG7 = CONTIG / "eggnog7"
 CONTIG_SYLPH = CONTIG / "sylph"
 CONTIG_FEATURECOUNTS = CONTIG / "featurecounts"
+
+# eukaryote
+EUK = Path("results/eukaryote/")
+EUK_TIARA = EUK / "tiara/"
+EUK_4CAC = EUK / "4cac/"
+EUK_REMAG = EUK / "remag/"
 
 
 # reports

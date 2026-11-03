@@ -12,6 +12,8 @@ rule mag_annotate__dram_mag__annotate:
         rrnas=DRAMMAG / "{assembly_id}" / "annotate" / "rrnas.tsv",
     log:
         DRAMMAG / "{assembly_id}" / "annotate_{assembly_id}.log",
+    benchmark:
+        DRAMMAG / "{assembly_id}" / "benchmark_annotate.tsv",
     container:
         docker["dram"]
     params:
@@ -31,25 +33,41 @@ rule mag_annotate__dram_mag__annotate:
     shell:
         """
         rm -rf {params.tmp_dir}
-        
+
+        # DRAM spawns tRNAscan-SE internally, which does its own $TMPDIR
+        # lookup for scratch files -- on this cluster the inherited value is
+        # a SLURM per-job path that only exists on the real host /tmp, not
+        # inside the container's bind-mounted one (same root cause as the
+        # magscot/parallel and bakta/tRNAscan-SE fixes). Point it at our own
+        # guaranteed-to-exist subdirectory instead; without this, DRAM.py
+        # annotate crashes on tRNAscan-SE and this rule's own fallback below
+        # silently swallows that by touching empty output files, which then
+        # only surfaces as a confusing pandas EmptyDataError in distill.
+        sys_tmp_dir="/tmp/dram_mag.{wildcards.assembly_id}.$$"
+        mkdir -p "$sys_tmp_dir"
+        export TMPDIR="$sys_tmp_dir"
+
         echo "Hostname: $(hostname)" 2>> {log} 1>&2
         echo "Temporary directory: $TMPDIR" 2>> {log} 1>&2
         df -h 2>> {log} 1>&2
-        
+
+        debug "assembly_id={wildcards.assembly_id} config={params.config} dram_db={input.dram_db} tmp_dir={params.tmp_dir} threads={threads}" 2>> {log}
         DRAM.py annotate \
                 --config_loc {params.config} \
                 --input_fasta {input.contigs} \
                 --output_dir {params.tmp_dir} \
                 --threads {threads} \
         2>> {log} 1>&2
-        
+
         for f in annotations.tsv trnas.tsv rrnas.tsv; do
+          debug "checking expected DRAM output: {params.tmp_dir}/$f" 2>> {log}
           if [ ! -f "{params.tmp_dir}/$f" ]; then
             echo "DRAM did not generate $f -> creating empty file" >> {log}
             touch "{params.tmp_dir}/$f"
           fi
         done
 
+        rm --recursive --force "$sys_tmp_dir"
     """
     
 rule mag_annotate__fix_dram_mag_annotations_scaffold:
@@ -65,6 +83,7 @@ rule mag_annotate__fix_dram_mag_annotations_scaffold:
         script_folder=SCRIPT_FOLDER,
     shell:
         """
+        debug "input={input} output={output}" 2>> {log}
         python {params.script_folder}/fix_annotations.py {input} {output} 2>> {log} 1>&2
         """
         
@@ -83,17 +102,19 @@ rule mag_annotate__dram_mag__distill:
         product_tsv=DRAMMAG / "{assembly_id}" / "product.tsv",
     log:
         DRAMMAG / "{assembly_id}" / "distill.log2",
+    benchmark:
+        DRAMMAG / "{assembly_id}" / "benchmark_distill.tsv",
     container:
         docker["dram"]
-    threads: esc("cpus", "mag_annotate__fix_dram_mag_annotations_scaffold")
+    threads: esc("cpus", "mag_annotate__dram_mag__distill")
     resources:
-        runtime=esc("runtime", "mag_annotate__fix_dram_mag_annotations_scaffold"),
-        mem_mb=esc("mem_mb", "mag_annotate__fix_dram_mag_annotations_scaffold"),
-        cpus_per_task=esc("cpus", "mag_annotate__fix_dram_mag_annotations_scaffold"),
-        slurm_partition=esc("partition", "mag_annotate__fix_dram_mag_annotations_scaffold"),
-        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__fix_dram_mag_annotations_scaffold')['nvme']}",
+        runtime=esc("runtime", "mag_annotate__dram_mag__distill"),
+        mem_mb=esc("mem_mb", "mag_annotate__dram_mag__distill"),
+        cpus_per_task=esc("cpus", "mag_annotate__dram_mag__distill"),
+        slurm_partition=esc("partition", "mag_annotate__dram_mag__distill"),
+        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__dram_mag__distill')['nvme']}",
         attempt=get_attempt,
-    retries: len(get_escalation_order("mag_annotate__fix_dram_mag_annotations_scaffold"))
+    retries: len(get_escalation_order("mag_annotate__dram_mag__distill"))
     params:
         config=config["dram-config"],
         outdir=lambda wildcards: f"{DRAMMAG}/{wildcards.assembly_id}",
@@ -102,7 +123,7 @@ rule mag_annotate__dram_mag__distill:
         """
         # This is maybe needed as snakemake creates the folders, but dram relies on creating it itself
         rm -rf {params.outdir_tmp} 2> {log} 1>&2
-        
+
         DRAM.py distill \
             --config_loc {params.config} \
             --input_file {input.annotation} \
@@ -111,12 +132,17 @@ rule mag_annotate__dram_mag__distill:
             --output_dir {params.outdir_tmp} \
         2> {log} 1>&2
 
+        # Both commands above use "2>" (truncate), so a debug call placed any
+        # earlier in this script would just get overwritten -- this is the
+        # first point where appending to {log} actually sticks.
+        debug "assembly_id={wildcards.assembly_id} config={params.config} outdir_tmp={params.outdir_tmp} outdir={params.outdir} threads={threads}" 2>> {log}
+
         mv {params.outdir_tmp}/* {params.outdir}/ 2>> {log} 1>&2
         rm -rf {params.outdir_tmp}/ 2>> {log} 1>&2
         """
 
 rule mag_annotate__dram_mags:
     """Run DRAM over the sample-wise mags"""
-     input:
+    input:
         #expand(DRAMMAG / "{assembly_id}" / "annotate"  / "annotations.tsv", assembly_id=ASSEMBLIES),
         expand(DRAMMAG / "{assembly_id}" / "genome_stats.tsv", assembly_id=ASSEMBLIES),

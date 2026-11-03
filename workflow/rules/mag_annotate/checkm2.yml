@@ -1,9 +1,0 @@
-# checkm2: environment to run checkm2 over the dereplicated bins
----
-name: checkm2
-channels:
-  - conda-forge
-  - bioconda
-  - defaults
-dependencies:
-  - checkm2=1.0.1

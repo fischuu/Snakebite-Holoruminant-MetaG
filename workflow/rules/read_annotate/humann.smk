@@ -29,13 +29,14 @@ rule read_annotate__humann__run:
         attempt=get_attempt,
     retries: len(get_escalation_order("read_annotate__humann__run")),
     shell: """
-         
         echo "In case this rule crashes for larger datasets, you need to ensure a proper size of TMPDIR!"
     
-        echo "$(date) **Starting rule read_annotate__humann__run, attempt {resources.attempt}**" > {log}.{resources.attempt}
+        echo "$(date) **Starting rule read_annotate__humann__run, attempt {resources.attempt}**" > {log}
+        debug "threads={threads} out_folder={params.out_folder} additional_options={params.additional_options}" 2>> {log}
 
         cat {input.forward_} {input.reverse_} > {output.cat}
-        
+        debug "concatenated read size: $(du -h {output.cat} 2>/dev/null | cut -f1)" 2>> {log}
+
         humann --input {output.cat} --output {params.out_folder} \
                --threads {threads} \
                --protein-database {input.prot_dbs} \
@@ -43,11 +44,9 @@ rule read_annotate__humann__run:
                --output-basename {params.out_name} \
                --taxonomic-profile {input.mp_out} \
                {params.additional_options} \
-        2>> {log}.{resources.attempt} 1>&2
+        2>> {log} 1>&2
 
-        echo "$(date) **Finished rule read_annotate__humann__run, attempt {resources.attempt}**" >> {log}.{resources.attempt}
-
-        mv {log}.{resources.attempt} {log}
+        echo "$(date) **Finished rule read_annotate__humann__run, attempt {resources.attempt}**" >> {log}
     """
 
 rule read_annotate__humann__condense:
@@ -78,8 +77,7 @@ rule read_annotate__humann__condense:
     retries: len(get_escalation_order("read_annotate__humann__condense")),
     shell:
         """
-        cat {input.genefamily_data} > {output}
-        2> {log} 1>&2
+        cat {input.genefamily_data} > {output} 2> {log}
         """
 
 rule read_annotate__humann:

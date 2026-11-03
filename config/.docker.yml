@@ -1,6 +1,7 @@
 # Paths to used docker containers, the defaults should be correct for most of the users and should
 # only need adjustments in expert usage situations.
 ---
+4cac: "docker://metagenlab/4cac:1.0"  # third-party image, a 4CAC checkout in /pkg/4CAC (see params.yaml)
 assemble: "docker://fischuu/hrp_assemble:0.2"
 bowtie2: "docker://fischuu/hrp_bowtie2:0.1"
 checkm2: "docker://fischuu/hrp_checkm2:0.1"
@@ -18,9 +19,8 @@ preprocess: "docker://fischuu/hrp_preprocess:0.8"
 quantify: "docker://fischuu/hrp_quantify:0.2"
 reads: "docker://fischuu/hrp_reads:0.2"
 reference: "docker://fischuu/hrp_reference:0.1"
-report: "docker://fischuu/hrp_report:0.2"
+remag: "docker://quay.io/biocontainers/remag:0.5.1--pyhdfd78af_0"
 r_report: "docker://fischuu/r-gbs:4.2.1-0.7"
 subread: "docker://fischuu/subread:2.0.1-0.1"
 sylph: "docker://fischuu/sylph:0.8.1_0.1"
-vamb: "docker://fischuu/hrp_vamb:0.1"
-virify: "docker://fischuu/hrp_virify:0.1"
+tiara: "docker://quay.io/biocontainers/tiara:1.0.3"

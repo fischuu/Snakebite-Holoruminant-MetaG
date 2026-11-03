@@ -16,6 +16,7 @@ rule test_error:
     shell:
         """
         echo "Starting dummy 1-minute loop..." > {log}.{resources.attempt}
+        debug "attempt={resources.attempt} fail_at_sec={params.fail_at_sec}" 2>> {log}.{resources.attempt}
         for sec in {{10..60..10}}; do
             echo "Elapsed: $sec seconds" >> {log}.{resources.attempt}
             if [ "{params.fail_at_sec}" = "$sec" ]; then

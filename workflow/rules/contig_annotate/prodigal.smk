@@ -1,4 +1,4 @@
-rule contig_annotate__prodigal_run:
+rule contig_annotate__prodigal__run:
     """
     Predict genes from assemblies (PRODIGAL).
     """
@@ -14,25 +14,27 @@ rule contig_annotate__prodigal_run:
         gtfplain=CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.prodigal_plain.gtf",
     log:
         CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.log"
+    benchmark:
+        CONTIG_PRODIGAL / "benchmark/{assembly_id}.tsv"
     container:
         docker["assemble"]
-    threads: esc("cpus", "contig_annotate__prodigal_run")
+    threads: esc("cpus", "contig_annotate__prodigal__run")
     resources:
-        runtime=esc("runtime", "contig_annotate__prodigal_run"),
-        mem_mb=esc("mem_mb", "contig_annotate__prodigal_run"),
-        cpus_per_task=esc("cpus", "contig_annotate__prodigal_run"),
-        slurm_partition=esc("partition", "contig_annotate__prodigal_run"),
-        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__prodigal_run')['nvme']}",
+        runtime=esc("runtime", "contig_annotate__prodigal__run"),
+        mem_mb=esc("mem_mb", "contig_annotate__prodigal__run"),
+        cpus_per_task=esc("cpus", "contig_annotate__prodigal__run"),
+        slurm_partition=esc("partition", "contig_annotate__prodigal__run"),
+        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__prodigal__run')['nvme']}",
         attempt=get_attempt,
-    retries: len(get_escalation_order("contig_annotate__prodigal_run"))
-    params:
-        tmp_file=lambda wildcards: f"{CONTIG_PRODIGAL}/{wildcards.assembly_id}.fa",
-    shell:""" 
+    retries: len(get_escalation_order("contig_annotate__prodigal__run"))
+    shell:"""
+         exec 2> {log}
+         debug "assembly_id={wildcards.assembly_id} threads={threads} assembly_input={input.assembly} out_fa={output.fa} out_gtf={output.gtf}"
          prodigal -i <(gunzip -c {input.assembly}) \
                   -o {output.gtf} \
                   -a {output.fa} \
                   -p meta -f gff
-                  
+
          grep -v '^#' {output.gtf} > {output.gtfplain}
     """
     
@@ -50,6 +52,8 @@ checkpoint contig_annotate__cut_prodigal:
         split=params["contig_annotate"]["prodigal"]["split"]
     log:
         CONTIG_PRODIGAL / "logs/{assembly_id}_cut_prodigal.log"
+    benchmark:
+        CONTIG_PRODIGAL / "benchmark/{assembly_id}_cut_prodigal.tsv"
     threads: esc("cpus", "contig_annotate__cut_prodigal")
     resources:
         runtime=esc("runtime", "contig_annotate__cut_prodigal"),
@@ -63,11 +67,11 @@ checkpoint contig_annotate__cut_prodigal:
         docker["mag_annotate"]
     shell:"""
        mkdir -p {output}
+       debug "assembly_id={wildcards.assembly_id} threads={threads} split={params.split} input={input}" 2>> {log}
        {params.folder}/workflow/scripts/cutProdigal.sh {params.split} {params.out} {input} 2>> {log} 1>&2
-    """    
+    """
     
 rule contig_annotate__prodigal:
     """Run prodigal on all assemblies"""
     input:
-       # [CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.prodigal.fa" for assembly_id in ASSEMBLIES],
         expand(CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.prodigal.fa", assembly_id=ASSEMBLIES),

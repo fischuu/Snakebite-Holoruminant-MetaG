@@ -33,6 +33,7 @@ rule read_annotate__ncyc__prepare_input:
     shell:
         """
         echo "=== Running read_annotate__ncyc__prepare_input ===" > {log} 2>&1
+        debug "reads={params.reads} output={output}" 2>> {log}
 
         {params.folder}/workflow/scripts/prepare_ncyc_inputs.sh {params.reads} {output} fq.gz >> {log} 2>&1
         
@@ -72,6 +73,7 @@ rule read_annotate__ncyc__run:
         # Extract the database folder (we assume that all files are in the same ncyc folder)
         db_faa={params.faa}
         db_folder=$(dirname "$db_faa")
+        debug "threads={threads} reads_dir={params.reads_dir} db_faa=$db_faa db_folder=$db_folder outdir={params.outdir}" 2>> {log}
 
         perl {params.folder}/workflow/scripts/NCycProfiler.PL \
                             -d {params.reads_dir} \

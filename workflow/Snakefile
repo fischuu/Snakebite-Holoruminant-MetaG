@@ -6,7 +6,11 @@ import pandas as pd
 import yaml
 import os
 
-DEBUG = True
+# Debug verbosity, controlled by the run script via `export PIPELINE_DEBUG=1`
+# (defaults to off). Gates both the Snakefile-parse-time debug() calls below
+# and the bash debug() function injected into every rule's shell block, see
+# shell.prefix() further down.
+DEBUG = os.environ.get("PIPELINE_DEBUG", "0") == "1"
 
 import re
 
@@ -61,6 +65,53 @@ features = yaml.load(open(config["features-file"], "r"), Loader=yaml.SafeLoader)
 
 debug(f"Reading sample metadata: {config['sample-file']}")
 samples = pd.read_table(config["sample-file"], comment="#", dtype="str")
+
+
+def validate_samples(samples, sample_file):
+    """Refuse a sample sheet whose rows would silently collapse onto one library or one file.
+
+    Must run on the raw sheet, before the assembly_id explode below (which legitimately
+    repeats a (sample_id, library_id) pair once per assembly). Every per-library output is
+    keyed on that pair, so a duplicated pair means only the first row's reads are ever
+    linked by reads__link__run - the other rows' files are silently ignored, and each
+    assembly's read list repeats that one library once per row.
+    """
+    read_columns = ["forward_filename", "reverse_filename"]
+    columns = ["sample_id", "library_id"] + read_columns
+    problems = []
+
+    dup_pair = samples.duplicated(["sample_id", "library_id"], keep=False)
+    if dup_pair.any():
+        problems.append(
+            "Duplicate (sample_id, library_id) pairs:\n"
+            + samples.loc[dup_pair, columns].to_string(index=False)
+            + "\n\nlibrary_id must be unique per sequencing lane/library within a sample (e.g."
+            " L001, L002, ...), or concatenate the lanes first (workflow/scripts/"
+            "concatenateFiles.sh). Don't use the Illumina S-number (e.g. S14): it is shared"
+            " by all lanes of a sample. Otherwise only the first row's reads are processed"
+            " and the other rows are silently dropped."
+        )
+
+    # Across both columns, so a file listed as forward on one row and reverse on another (or
+    # as both forward and reverse of one row) is caught too.
+    paths = samples[read_columns].apply(lambda col: col.map(os.path.normpath, na_action="ignore"))
+    all_paths = pd.concat([paths[col] for col in read_columns]).dropna()
+    dup_path = paths.isin(all_paths[all_paths.duplicated()].tolist()).any(axis=1)
+    if dup_path.any():
+        problems.append(
+            "Rows pointing to the same forward/reverse file:\n"
+            + samples.loc[dup_path, columns].to_string(index=False)
+            + "\n\nEach FASTQ must be listed exactly once, otherwise its reads are counted"
+            " once per row."
+        )
+
+    if problems:
+        raise ValueError(
+            f"Invalid sample sheet {sample_file}:\n\n" + "\n\n".join(problems)
+        )
+
+
+validate_samples(samples, config["sample-file"])
 
 # Process sample information
 debug("Processing sample metadata...")
@@ -149,6 +200,20 @@ with open("config/escalation.yaml") as f:
 
 ESCALATION_CONFIG = {k: [x.strip() for x in v.split(",")] for k, v in raw.items()}
 
+# Make a `debug` shell function available inside every rule's shell block,
+# so individual .smk files don't each have to redefine it. Gated on the same
+# PIPELINE_DEBUG env var as the Python-side debug() above; the run script
+# exports it, and it propagates through SLURM and into the Singularity
+# container (both inherit the submitting shell's environment by default).
+# Braces are doubled ({{ }}) because Snakemake's shell formatting would
+# otherwise try to interpret single braces as {wildcards}/{params}-style
+# substitutions.
+shell.prefix(
+    'debug() {{ '
+    'if [ "${{PIPELINE_DEBUG:-0}}" = "1" ]; then echo "[DEBUG] $*" >&2; fi; '
+    '}}; '
+)
+
 # Import subworkflows
 debug("Including subworkflows...")
 
@@ -162,6 +227,7 @@ include: "rules/assemble/__main__.smk"
 include: "rules/quantify/__main__.smk"
 include: "rules/mag_annotate/__main__.smk"
 include: "rules/contig_annotate/__main__.smk"
+include: "rules/eukaryote/__main__.smk"
 include: "rules/report/__main__.smk"
 include: "rules/devel/throw_error.smk"
 

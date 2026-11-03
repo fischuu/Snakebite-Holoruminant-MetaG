@@ -1,48 +1,66 @@
 ---
 title: "Snakebite - Holoruminant - MetaG"
 subtitle: "reference module - report"
-author: "t.b.a."
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  html_document:
+  pdf_document:
     toc: true
-    toc_depth: 4
-    toc_float:
-      toc_collapsed: true
+    toc_depth: 3
     number_sections: true
-    theme: lumen
-    df_print: paged
-    code_folding: show
+    fig_caption: true
 ---
 
 ```{r setup, include=FALSE}
-library("GenomicTools")
-library("xtable")   # Needed for LaTeX output of the tables
-library("viridis")  # Needed for the colouring of the plots
-library("rjson")    # Needed for multiqc dgsb etail data
-library("DT")
-library("kableExtra")
-library("edgeR")
-library("ICS")
-library("tsne")
-options(scipen=999,
-        stringsAsFactors=FALSE)
-knitr::opts_chunk$set(echo = FALSE,
-                      cache = FALSE,
-                      cache.lazy = FALSE,
-                      dev = c('png', 'pdf'),
-                      fig.align = 'center', fig.height = 5, fig.width = 8.5)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                       fig.align = "center", fig.width = 7, fig.height = 4)
 
-reportColours <- c("#FF8200", "#00B5E2", "#78BE20", "#7F3F98", "#E13C98", "#0033A0", "#54585A")
+if (!exists("project_folder")) {
+  project_folder <- getwd()
+  pipeline_folder <- getwd()
+  features_file <- "config/features.yaml"
+  sample_file <- "config/samples.tsv"
+}
+
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
+features <- yaml::read_yaml(file.path(project_folder, features_file))
 ```
 
-```{r, include=FALSE}
-# Init Step to make sure that the dependencies are loaded
-htmltools::tagList(datatable(cars))
-#htmltools::tagList(ggplotly(ggplot()))
+# Configured host genomes
+
+Each configured host genome is sequentially decontaminated against in the
+`preprocess` module, in the order listed here.
+
+```{r hosts-table}
+hosts <- features$hosts
+if (is.null(hosts) || length(hosts) == 0) {
+  cat("_No host genomes configured -- this is an environmental-sample run with no decontamination step._\n")
+} else {
+  host_dir <- file.path(project_folder, "results", "reference", "hosts")
+  host_df <- tibble::tibble(
+    order = seq_along(hosts),
+    host = names(hosts),
+    configured_path = unlist(hosts),
+    recompressed_size_mb = purrr::map_dbl(names(hosts), function(h) {
+      p <- file.path(host_dir, paste0(h, ".fa.gz"))
+      if (file.exists(p)) round(file.size(p) / 1024^2, 1) else NA
+    })
+  )
+  preview_table(host_df, n = nrow(host_df), caption = "Configured hosts, in decontamination order")
+}
 ```
 
+# Runtime statistics
 
-```{r}
-list.files(file.path(working_dir, "results", "reference"))
+```{r reference-runtime}
+bench <- discover_benchmarks(project_folder, "reference")
+runtime_table(bench, caption = "reference module: runtime and peak memory per rule")
+```
+
+```{r reference-resource-allocation}
+resource_allocation_table(bench, "reference", project_folder,
+                          caption = "reference module: allocated vs. actual resource usage (starting tier)")
+```
+
+```{r reference-runtime-plot, fig.height=3}
+runtime_plot(bench, title = "reference module: total runtime per rule")
 ```

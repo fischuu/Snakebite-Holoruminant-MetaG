@@ -11,7 +11,7 @@ include: "phylophlan.smk"
 
 
 rule mag_annotate:
-    """Evaluate the dereplication steps"""
+    """Annotate the dereplicated MAG catalogue with every configured tool"""
     input:
         rules.mag_annotate__bakta.output,
         rules.mag_annotate__bakta_mags.input,

@@ -37,9 +37,10 @@ rule read_annotate__diamond__assign:
     shell:
         r"""
         set +u
-        
-        echo "Starting Diamond rule attempt {resources.attempt}" > {log}.{resources.attempt} 1>&2
-        mkdir --parents {params.out_folder} 2>> {log}.{resources.attempt} 1>&2
+
+        echo "Starting Diamond rule attempt {resources.attempt}" > {log} 1>&2
+        debug "threads={threads}, out_folder={params.out_folder}, run_in_shm={params.run_in_shm}, copy_dbs={params.copy_dbs}" 2>> {log}
+        mkdir --parents {params.out_folder} 2>> {log} 1>&2
 
         # Set the bash variables, based on the snakemake input
         DB_SRC="{input.database}"
@@ -50,7 +51,7 @@ rule read_annotate__diamond__assign:
 
         # Disable /dev/shm if config says so
         if [ "{params.run_in_shm}" != "True" ]; then
-            echo "Config disables /dev/shm use for this rule" 2>> {log}.{resources.attempt} 1>&2
+            echo "Config disables /dev/shm use for this rule" 2>> {log} 1>&2
             SHM=""
             DB_SHM=""
         fi
@@ -64,7 +65,8 @@ rule read_annotate__diamond__assign:
 
         set -u
 
-        echo "DB_SRC: $DB_SRC, COPY_DBS: {params.copy_dbs}" 2>> {log}.{resources.attempt} 1>&2
+        echo "DB_SRC: $DB_SRC, COPY_DBS: {params.copy_dbs}" 2>> {log} 1>&2
+        debug "SHM=$SHM NVME=$NVME DB_SHM=$DB_SHM DB_NVME=$DB_NVME" 2>> {log}
 
         if [ {params.copy_dbs} = "True" ]; then
         
@@ -72,50 +74,56 @@ rule read_annotate__diamond__assign:
             SHM_AVAIL=$(timeout 10s df --output=avail -B1 "$SHM" 2>/dev/null | tail -1 || echo 0)
             NVME_AVAIL=$(timeout 10s df --output=avail -B1 "$NVME" 2>/dev/null | tail -1 || echo 0)
 
-            echo "DB_SIZE: $DB_SIZE, SHM_AVAIL: $SHM_AVAIL, NVME_AVAIL: $NVME_AVAIL" 2>> {log}.{resources.attempt} 1>&2
+            echo "DB_SIZE: $DB_SIZE, SHM_AVAIL: $SHM_AVAIL, NVME_AVAIL: $NVME_AVAIL" 2>> {log} 1>&2
 
+            # Staging tier chosen by comparing the DB file size against available
+            # space, biggest/fastest tier first; falls through to running in place
+            # from DB_SRC only on the final escalation attempt (see `retries` above).
+            NEED_COPY="true"
             if [ "$DB_SIZE" -lt "$SHM_AVAIL" ]; then
                 DB_DST="$DB_SHM"
-                echo "Set DB_DST to $DB_DST (SHM)" 2>> {log}.{resources.attempt} 1>&2
+                echo "Set DB_DST to $DB_DST (SHM)" 2>> {log} 1>&2
             elif [ "$DB_SIZE" -lt "$NVME_AVAIL" ]; then
                 DB_DST="$DB_NVME"
-                echo "Set DB_DST to $DB_DST (NVME)" 2>> {log}.{resources.attempt} 1>&2
+                echo "Set DB_DST to $DB_DST (NVME)" 2>> {log} 1>&2
             else
                 if [ {resources.attempt} -eq {params.retries} ]; then
                     DB_DST="$DB_SRC"
-                    echo "Not enough space, use DB_SRC" 2>> {log}.{resources.attempt} 1>&2
+                    NEED_COPY="false"
+                    echo "Not enough space, use DB_SRC" 2>> {log} 1>&2
                 else
-                    echo "DB too large for SHM/NVME, aborting attempt {resources.attempt}" 2>> {log}.{resources.attempt} 1>&2
+                    echo "DB too large for SHM/NVME, aborting attempt {resources.attempt}" 2>> {log} 1>&2
                     exit 1
                 fi
             fi
 
-            if [ "$DB_DST"/{params.diamond_path} != "$DB_SRC" ]; then
+            if [ "$NEED_COPY" = "true" ]; then
                 mkdir -p "$DB_DST"
-                cp "$DB_SRC" "$DB_DST" 2>> {log}.{resources.attempt}
-                echo "Database copied to $DB_DST" 2>> {log}.{resources.attempt} 1>&2
-                
-                echo "Remove file extension from {params.diamond_path}" 2>> {log}.{resources.attempt} 1>&2
+                cp "$DB_SRC" "$DB_DST" 2>> {log}
+                echo "Database copied to $DB_DST" 2>> {log} 1>&2
+
+                echo "Remove file extension from {params.diamond_path}" 2>> {log} 1>&2
                 DB="{params.diamond_path}"
                 DB_BASE="${{DB%.dmnd}}"
-                
+
                 DB_LOC="$DB_DST/$DB_BASE"
+            else
+                DB_LOC="$DB_SRC"
             fi
         else
-            echo "Skipping DB copy - using source directly" 2>> {log}.{resources.attempt} 1>&2
+            echo "Skipping DB copy - using source directly" 2>> {log} 1>&2
             DB_LOC="$DB_SRC"
         fi
 
-        echo "Running Diamond using DB_LOC=$DB_LOC" 2>> {log}.{resources.attempt} 1>&2
+        echo "Running Diamond using DB_LOC=$DB_LOC" 2>> {log} 1>&2
+        debug "forwards={input.forwards} out_R1={output.out_R1} out_R2={output.out_R2}" 2>> {log}
 
-        diamond blastx -d "$DB_LOC" -q {input.forwards} -o {output.out_R1} -p {threads} --max-target-seqs {params.max_target_seqs} 2>> {log}.{resources.attempt}
-        diamond blastx -d "$DB_LOC" -q {input.reverses} -o {output.out_R2} -p {threads} --max-target-seqs {params.max_target_seqs} 2>> {log}.{resources.attempt}
+        diamond blastx -d "$DB_LOC" -q {input.forwards} -o {output.out_R1} -p {threads} --max-target-seqs {params.max_target_seqs} 2>> {log}
+        diamond blastx -d "$DB_LOC" -q {input.reverses} -o {output.out_R2} -p {threads} --max-target-seqs {params.max_target_seqs} 2>> {log}
 
         if [ "{params.run_in_shm}" = "True" ] && [ "$DB_DST" = "$DB_SHM" ]; then
-            rm -rfv "$DB_DST" 2>> {log}.{resources.attempt}
+            rm -rfv "$DB_DST" 2>> {log}
         fi
-
-        mv {log}.{resources.attempt} {log}
         """
 
 
@@ -134,6 +142,8 @@ rule read_annotate__diamond__summarise:
         DIAMOND / "{diamond_db}" / "summary_b.tsv"
     log:
         DIAMOND / "{diamond_db}" / "read_annotate__diamond__summarise.log"
+    benchmark:
+        DIAMOND / "{diamond_db}" / "benchmark_summarise.tsv"
     threads: esc("cpus", "read_annotate__diamond__summarise")
     resources:
         runtime=esc("runtime", "read_annotate__diamond__summarise"),

@@ -14,7 +14,7 @@ rule contig_annotate__diamond__assign:
         runtime=esc("runtime", "contig_annotate__diamond__assign"),
         mem_mb=esc("mem_mb", "contig_annotate__diamond__assign"),
         cpus_per_task=esc("cpus", "contig_annotate__diamond__assign"),
-        partition=esc("partition", "contig_annotate__diamond__assign"),
+        slurm_partition=esc("partition", "contig_annotate__diamond__assign"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__diamond__assign')['nvme']}",
         attempt=lambda wildcards, attempt: attempt,
     retries: len(get_escalation_order("contig_annotate__diamond__assign")) - 1,
@@ -36,6 +36,7 @@ rule contig_annotate__diamond__assign:
         set +u
         
         echo "Starting Diamond rule attempt {resources.attempt}" > {log}.{resources.attempt} 1>&2
+        debug "threads={threads} out_folder={params.out_folder} run_in_shm={params.run_in_shm} copy_dbs={params.copy_dbs}" 2>> {log}.{resources.attempt}
         mkdir --parents {params.out_folder} 2>> {log}.{resources.attempt} 1>&2
 
         # Set the bash variables, based on the snakemake input
@@ -62,15 +63,20 @@ rule contig_annotate__diamond__assign:
         set -u
 
         echo "DB_SRC: $DB_SRC, COPY_DBS: {params.copy_dbs}" 2>> {log}.{resources.attempt} 1>&2
+        debug "SHM=$SHM NVME=$NVME DB_SHM=$DB_SHM DB_NVME=$DB_NVME" 2>> {log}.{resources.attempt}
 
         if [ {params.copy_dbs} = "True" ]; then
-        
+
             DB_SIZE=$(du -sb $DB_SRC | cut -f1)
             SHM_AVAIL=$(timeout 10s df --output=avail -B1 "$SHM" 2>/dev/null | tail -1 || echo 0)
             NVME_AVAIL=$(timeout 10s df --output=avail -B1 "$NVME" 2>/dev/null | tail -1 || echo 0)
 
             echo "DB_SIZE: $DB_SIZE, SHM_AVAIL: $SHM_AVAIL, NVME_AVAIL: $NVME_AVAIL" 2>> {log}.{resources.attempt} 1>&2
 
+            # Staging tier chosen by comparing the DB file size against available
+            # space, biggest/fastest tier first; falls through to running in place
+            # from DB_SRC only on the final escalation attempt (see `retries` above).
+            NEED_COPY="true"
             if [ "$DB_SIZE" -lt "$SHM_AVAIL" ]; then
                 DB_DST="$DB_SHM"
                 echo "Set DB_DST to $DB_DST (SHM)" 2>> {log}.{resources.attempt} 1>&2
@@ -80,6 +86,7 @@ rule contig_annotate__diamond__assign:
             else
                 if [ {resources.attempt} -eq {params.retries} ]; then
                     DB_DST="$DB_SRC"
+                    NEED_COPY="false"
                     echo "Not enough space, use DB_SRC" 2>> {log}.{resources.attempt} 1>&2
                 else
                     echo "DB too large for SHM/NVME, aborting attempt {resources.attempt}" 2>> {log}.{resources.attempt} 1>&2
@@ -87,16 +94,18 @@ rule contig_annotate__diamond__assign:
                 fi
             fi
 
-            if [ "$DB_DST"/{params.diamond_path} != "$DB_SRC" ]; then
+            if [ "$NEED_COPY" = "true" ]; then
                 mkdir -p "$DB_DST"
                 cp "$DB_SRC" "$DB_DST" 2>> {log}.{resources.attempt}
                 echo "Database copied to $DB_DST" 2>> {log}.{resources.attempt} 1>&2
-                
+
                 echo "Remove file extension from {params.diamond_path}" 2>> {log}.{resources.attempt} 1>&2
                 DB="{params.diamond_path}"
                 DB_BASE="${{DB%.dmnd}}"
-                
+
                 DB_LOC="$DB_DST/$DB_BASE"
+            else
+                DB_LOC="$DB_SRC"
             fi
         else
             echo "Skipping DB copy - using source directly" 2>> {log}.{resources.attempt} 1>&2
@@ -104,6 +113,7 @@ rule contig_annotate__diamond__assign:
         fi
 
         echo "Running Diamond using DB_LOC=$DB_LOC" 2>> {log}.{resources.attempt} 1>&2
+        debug "fa={input.fa} output={output} threads={threads}" 2>> {log}.{resources.attempt}
 
         diamond blastp -d "$DB_LOC" -q {input.fa} -o {output} -p {threads} 2>> {log}.{resources.attempt}
   
@@ -120,19 +130,21 @@ rule contig_annotate__diamond__summarise:
     input:
         lambda w: [
             CONTIG_DIAMOND / w.diamond_db / f"{assembly_id}.out"
-            for assembly_id, library_id in SAMPLE_LIBRARY
+            for assembly_id in ASSEMBLIES
         ]
     output:
         CONTIG_DIAMOND / "{diamond_db}" / "summary_a.tsv",
         CONTIG_DIAMOND / "{diamond_db}" / "summary_b.tsv"
     log:
-        CONTIG_DIAMOND / "{diamond_db}" / "read_annotate__diamond__summarise.log"
-    threads: esc("cpus", "read_annotate__diamond__summarise")
+        CONTIG_DIAMOND / "{diamond_db}" / "contig_annotate__diamond__summarise.log"
+    benchmark:
+        CONTIG_DIAMOND / "{diamond_db}" / "benchmark_summarise.tsv"
+    threads: esc("cpus", "contig_annotate__diamond__summarise")
     resources:
         runtime=esc("runtime", "contig_annotate__diamond__summarise"),
         mem_mb=esc("mem_mb", "contig_annotate__diamond__summarise"),
         cpus_per_task=esc("cpus", "contig_annotate__diamond__summarise"),
-        partition=esc("partition", "contig_annotate__diamond__summarise"),
+        slurm_partition=esc("partition", "contig_annotate__diamond__summarise"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__diamond__summarise')['nvme']}",
         attempt=get_attempt,
     retries: len(get_escalation_order("contig_annotate__diamond__summarise"))

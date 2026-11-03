@@ -1,8 +1,35 @@
 # CHANGELOG
 ##############
 
-Version 0.4.*: 
+Version 0.4.*:
 -----------
+66: Added the module eukaryote, which labels every assembly's contigs as eukaryotic or
+    prokaryotic with three tools: Tiara, 4CAC (metaSPAdes assemblies only, it needs the
+    assembly graph) and REMAG, and bins the eukaryotic contigs with REMAG. Each tool writes one
+    table per assembly with the pipeline's contig ids (results/eukaryote/<tool>/<assembly>.tsv).
+    The module is not part of 'all'; run it with the target 'eukaryote' (or eukaryote__tiara,
+    eukaryote__4cac, eukaryote__remag). Settings are under 'eukaryote' in params.yaml; the
+    minimum contig lengths default to 1000 bp so that fragmented (e.g. soil) assemblies can be
+    classified at all.
+65: Bugfix: contig_annotate__diamond__summarise now requires one DIAMOND .out per assembly
+    (ASSEMBLIES), like contig_annotate__diamond does. It iterated over the sample_ids in
+    SAMPLE_LIBRARY instead, so it only matched when every sample was its own assembly. With
+    co-assemblies, the co-assembly's .out was never built for the summary. A sample in more
+    than one assembly was listed several times. A sample that is not an assembly of its own
+    (e.g. all samples in one pooled assembly) scheduled a metaspades assembly named after that
+    sample, with no reads assigned to it. The R summary reads every *.out in the folder, so a
+    summary is only affected if it ran before all per-assembly .out files existed. Rerun it
+    in that case.
+64: Bugfix: samples.tsv is now validated at startup (on the raw sheet, before the assembly_ids
+    explode). A sheet with duplicate (sample_id, library_id) pairs, e.g. several lanes of a
+    sample all given lib1 (what createSampleSheet.sh writes) or the Illumina S-number as
+    library_id, was silently accepted: only the first row's reads were ever linked and
+    processed, the other lanes were dropped, and each assembly's read list repeated that one
+    library once per row. Such sheets, and sheets listing the same FASTQ on more than one row
+    (in forward_filename or reverse_filename), now fail with an error listing the offending
+    rows. The per-library samples.tsv lookups (reads, fastp adapters) also fail loudly now
+    instead of silently taking the first match. Results from such a sheet need to be
+    regenerated from scratch.
 63: Added NCyc also to the contig annotate extra module, using the prodigal protein output
 62: Added the tool NCyc to the pipeline (to module read_annotate_extra)
 61: Accidental rerun of rules triggered by an indexing step in contig_annotate fixed (issue #47)

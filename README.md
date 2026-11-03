@@ -5,8 +5,7 @@
 This Snakemake pipeline dedicated to Metagenomic data analysis consists out of several modules that
 cover a) read-based b) contig-based and c) MAG-based analyses as well as quantification, quality
 checks and a reporting module (which is currently under development). Naturally, it runs seamlessly
-on HPC systems and all required software tools are bundled in docker container and/or conda
-environments. Further, all required databases are pre-configured and ready to be downloaded from a
+on HPC systems and all required software tools are bundled in docker containers. Further, all required databases are pre-configured and ready to be downloaded from a
 central place.
 
 This makes it straight forward and as user-friendly as it can get.
@@ -43,25 +42,50 @@ Please use the issue tracker from the GitHub or contact one of the contributors,
 
 ## References
 
+Read preprocessing and quality control:
 - [`fastp`](https://github.com/OpenGene/fastp)
+- [`bowtie2`](https://github.com/BenLangmead/bowtie2)
+- [`samtools`](https://github.com/samtools/samtools)
+- [`FastQC`](https://github.com/s-andrews/FastQC)
+- [`multiqc`](https://github.com/ewels/MultiQC)
+
+Read-based annotation and profiling:
 - [`kraken2`](https://github.com/DerrickWood/kraken2)
 - [`SingleM`](https://github.com/wwood/singlem)
 - [`Nonpareil`](https://github.com/lmrodriguezr/nonpareil)
-- [`bowtie2`](https://github.com/BenLangmead/bowtie2)
-- [`samtools`](https://github.com/samtools/samtools)
+- [`HUMAnN`](https://github.com/biobakery/humann)
+- [`MetaPhlAn`](https://github.com/biobakery/MetaPhlAn)
+- [`phyloFlash`](https://github.com/HRGV/phyloFlash)
+- [`Sylph`](https://github.com/bluenote-1577/sylph)
+- [`Krona`](https://github.com/marbl/Krona)
+- [`DIAMOND`](https://github.com/bbuchfink/diamond)
+- [`NCyc`](https://github.com/qichao1984/NCyc)
+
+Assembly and binning:
 - [`MEGAHIT`](https://github.com/voutcn/megahit)
+- [`SPAdes`](https://github.com/ablab/spades) (metaSPAdes)
+- [`Prodigal`](https://github.com/hyattpd/Prodigal)
+- [`HMMER`](https://github.com/EddyRivasLab/hmmer)
 - [`CONCOCT`](https://github.com/BinPro/CONCOCT)
 - [`MaxBin2`](http://downloads.jbei.org/data/microbial_communities/MaxBin/MaxBin.html)
 - [`MetaBat2`](https://bitbucket.org/berkeleylab/metabat)
 - [`MAGScoT`](https://github.com/ikmb/MAGScoT)
 - [`dRep`](https://github.com/MrOlm/drep)
+
+MAG and contig annotation:
 - [`QUAST`](https://github.com/ablab/quast)
+- [`CheckM2`](https://github.com/chklovski/CheckM2)
 - [`GTDB-TK`](https://github.com/Ecogenomics/GTDBTk)
 - [`DRAM`](https://github.com/WrightonLabCSU/DRAM)
+- [`CAMPER`](https://github.com/WrightonLabCSU/CAMPER)
+- [`eggNOG-mapper`](https://github.com/eggnogdb/eggnog-mapper)
+- [`Bakta`](https://github.com/oschwengers/bakta)
+- [`PhyloPhlAn`](https://github.com/biobakery/phylophlan)
+- [`Proteinortho`](https://gitlab.com/paulklemm_PhD/proteinortho)
+
+Quantification:
 - [`CoverM`](https://github.com/wwood/CoverM)
-- [`FastQC`](https://github.com/s-andrews/FastQC)
-- [`multiqc`](https://github.com/ewels/MultiQC)
-- [`NCyc`](https://github.com/qichao1984/NCyc)
+- [`Subread/featureCounts`](https://sourceforge.net/projects/subread/)
 
 
 # Acknowledgements

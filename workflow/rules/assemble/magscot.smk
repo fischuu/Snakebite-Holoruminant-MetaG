@@ -1,15 +1,17 @@
 rule assemble__magscot__prodigal:
-    """Run prodigal over a single assembly"""
+    """Predict genes on one assembly with prodigal, parallelized over FASTA chunks"""
     input:
         assembly=lambda wildcards: (
-            MEGAHIT / f"{wildcards.assembly_id}.fa.gz" if config["assembler"] == "megahit" else 
-            METASPADES / f"{wildcards.assembly_id}.fa.gz"if config["assembler"] == "metaspades" else 
+            MEGAHIT / f"{wildcards.assembly_id}.fa.gz" if config["assembler"] == "megahit" else
+            METASPADES / f"{wildcards.assembly_id}.fa.gz"if config["assembler"] == "metaspades" else
             PROVIDED / f"{wildcards.assembly_id}.fa.gz"
         ),
     output:
         proteins=MAGSCOT / "{assembly_id}" / "prodigal.faa",
     log:
         MAGSCOT / "{assembly_id}" / "prodigal.log",
+    benchmark:
+        MAGSCOT / "{assembly_id}" / "benchmark_prodigal.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__prodigal")
@@ -23,31 +25,40 @@ rule assemble__magscot__prodigal:
     retries: len(get_escalation_order("assemble__magscot__prodigal"))
     shell:
         """
-        
-        ( gzip \
-            --decompress \
-            --stdout \
-            {input.assembly} \
-        | parallel \
-            --jobs {threads} \
-            --block 1M \
-            --recstart '>' \
-            --pipe \
-            --keep-order \
-            prodigal \
-                -p meta \
-                -a /dev/stdout \
-                -d /dev/null  \
-                -o /dev/null \
-        > {output.proteins} \
-        ) 2> {log}.{resources.attempt}
+        exec 2> {log}.{resources.attempt}
+        debug "assembly_id={wildcards.assembly_id} threads={threads} assembly={input.assembly} proteins={output.proteins}"
 
+        # The Singularity/Apptainer container's /tmp is bind-mounted to the
+        # project's own tmp/ folder (see --singularity-args in the run script),
+        # but SLURM's inherited $TMPDIR (and, on this cluster, $TMP/config
+        # tmp_storage too -- they resolve to the same value) still points at a
+        # per-job path that only exists on the *real* host /tmp, not inside the
+        # bind-mounted one. GNU parallel trusts $TMPDIR for its .par control
+        # files and fails with "Parent directory ... does not exist" otherwise.
+        # Neither inherited variable is usable here, so create our own
+        # dedicated, guaranteed-to-exist subdirectory under the container's
+        # (valid, bind-mounted) /tmp instead. Made unique per assembly/attempt
+        # since /tmp is one shared host directory across all concurrently
+        # running jobs (this pipeline allows up to 150 in parallel).
+        # NOTE: if the job is killed before cleanup at the end, this directory
+        # is left behind under /tmp, same caveat as the kraken2 shm staging.
+        tmp_dir="/tmp/magscot_prodigal.{wildcards.assembly_id}.{resources.attempt}.$$"
+        mkdir -p "$tmp_dir"
+        export TMPDIR="$tmp_dir"
+        debug "TMPDIR reset to $TMPDIR (dedicated container-local subdir)"
+
+        zcat {input.assembly} \
+            | parallel --jobs {threads} --block 1M --recstart '>' --pipe --keep-order \
+                prodigal -p meta -a /dev/stdout -d /dev/null -o /dev/null \
+            > {output.proteins}
+
+        rm --recursive --force "$tmp_dir"
         mv {log}.{resources.attempt} {log}
         """
 
 
 rule assemble__magscot__hmmsearch_pfam:
-    """Run hmmsearch over the predicted proteins of an assembly using Pfam as database"""
+    """Search predicted proteins against Pfam with hmmsearch"""
     input:
         proteins=MAGSCOT / "{assembly_id}" / "prodigal.faa",
         hmm=features["magscot"]["pfam_hmm"],
@@ -55,6 +66,8 @@ rule assemble__magscot__hmmsearch_pfam:
         tblout=MAGSCOT / "{assembly_id}" / "pfam.tblout.gz",
     log:
         MAGSCOT / "{assembly_id}" / "pfam.log",
+    benchmark:
+        MAGSCOT / "{assembly_id}" / "benchmark_hmmsearch_pfam.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__hmmsearch_pfam")
@@ -68,26 +81,20 @@ rule assemble__magscot__hmmsearch_pfam:
     retries: len(get_escalation_order("assemble__magscot__hmmsearch_pfam"))
     shell:
         """
-        echo "=== Running assemble__magscot__hmmsearch_pfam for assembly {wildcards.assembly_id} ===" > {log} 1>&2
-
+        exec > {log} 2>&1
+        echo "[{wildcards.assembly_id}] hmmsearch vs Pfam"
+        debug "threads={threads} hmm={input.hmm} proteins={input.proteins} tblout={output.tblout}"
         hmmsearch \
             -o /dev/null \
             --tblout >(pigz --best --processes {threads} > {output.tblout}) \
-            --noali \
-            --notextw \
-            --cut_nc \
+            --noali --notextw --cut_nc \
             --cpu {threads} \
-            {input.hmm} \
-            {input.proteins} \
-        2>> {log} 1>&2
-
-        echo "=== Finished running assemble__magscot__hmmsearch_tigr for assembly {wildcards.assembly_id} ===" >> {log} 1>&2
-
+            {input.hmm} {input.proteins}
         """
 
 
 rule assemble__magscot__hmmsearch_tigr:
-    """Run hmmsearch over the predicted proteins of an assembly using TIGR as database"""
+    """Search predicted proteins against TIGRFAM with hmmsearch"""
     input:
         proteins=MAGSCOT / "{assembly_id}" / "prodigal.faa",
         hmm=features["magscot"]["tigr_hmm"],
@@ -95,6 +102,8 @@ rule assemble__magscot__hmmsearch_tigr:
         tblout=MAGSCOT / "{assembly_id}" / "tigr.tblout.gz",
     log:
         MAGSCOT / "{assembly_id}" / "tigr.log",
+    benchmark:
+        MAGSCOT / "{assembly_id}" / "benchmark_hmmsearch_tigr.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__hmmsearch_tigr")
@@ -108,27 +117,23 @@ rule assemble__magscot__hmmsearch_tigr:
     retries: len(get_escalation_order("assemble__magscot__hmmsearch_tigr"))
     shell:
         """
-        echo "=== Running assemble__magscot__hmmsearch_tigr for assembly {wildcards.assembly_id} ===" > {log} 1>&2
-
+        exec > {log} 2>&1
+        echo "[{wildcards.assembly_id}] hmmsearch vs TIGRFAM"
+        debug "threads={threads} hmm={input.hmm} proteins={input.proteins} tblout={output.tblout}"
         hmmsearch \
             -o /dev/null \
             --tblout >(pigz --best --processes {threads} > {output.tblout}) \
-            --noali \
-            --notextw \
-            --cut_nc \
+            --noali --notextw --cut_nc \
             --cpu {threads} \
-            {input.hmm} \
-            {input.proteins} \
-        2>> {log} 1>&2
-        
-        echo "=== Finished running assemble__magscot__hmmsearch_tigr for assembly {wildcards.assembly_id} ===" >> {log} 1>&2
+            {input.hmm} {input.proteins}
         """
 
 
 rule assemble__magscot__join_hmms:
-    """Join the results of hmmsearch over TIGR and Pfam
+    """Combine the Pfam and TIGRFAM hits into MAGScoT's expected 3-column format
 
-    Note: "|| true" is used to avoid grep returning an error code when no lines are found
+    zgrep exits non-zero when a tblout has no hits (every line is a '#' comment);
+    that's an expected outcome here, not an error, so it's deliberately ignored.
     """
     input:
         tigr_tblout=MAGSCOT / "{assembly_id}" / "tigr.tblout.gz",
@@ -137,6 +142,8 @@ rule assemble__magscot__join_hmms:
         merged=MAGSCOT / "{assembly_id}" / "hmm.tblout",
     log:
         MAGSCOT / "{assembly_id}" / "hmm.log",
+    benchmark:
+        MAGSCOT / "{assembly_id}" / "benchmark_join_hmms.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__join_hmms")
@@ -150,25 +157,17 @@ rule assemble__magscot__join_hmms:
     retries: len(get_escalation_order("assemble__magscot__join_hmms"))
     shell:
         """
-        echo "=== Running assemble__magscot__join_hmms for assembly {wildcards.assembly_id} ===" > {log} 1>&2
-
-        ( (zgrep -v "^#" {input.tigr_tblout} || true) \
-        | awk '{{print $1 "\\t" $3 "\\t" $5}}' ) \
-        >  {output.merged} 2>>  {log}
-
-        ( (zgrep -v "^#" {input.pfam_tblout} || true) \
-        | awk '{{print $1 "\\t" $4 "\\t" $5}}' ) \
-        >> {output.merged} 2>> {log}
-        
-        echo "=== Finished running assemble__magscot__hmmsearch_pfam for assembly {wildcards.assembly_id} ===" >> {log} 1>&2
+        exec > {log} 2>&1
+        debug "tigr_tblout={input.tigr_tblout} pfam_tblout={input.pfam_tblout} merged={output.merged}"
+        (zgrep -v '^#' {input.tigr_tblout} || true) | awk '{{print $1"\t"$3"\t"$5}}' >  {output.merged}
+        (zgrep -v '^#' {input.pfam_tblout} || true) | awk '{{print $1"\t"$4"\t"$5}}' >> {output.merged}
         """
 
 
 rule assemble__magscot__merge_contig_to_bin:
-    """Merge the contig to bin files from CONCOCT, MaxBin2 and MetaBAT2
+    """Combine CONCOCT/MaxBin2/MetaBAT2 bin assignments into one contig-to-bin table
 
-    The output file should have the following format:
-    BIN_ID <TAB> CONTIG_ID <TAB> METHOD
+    Output columns: BIN_ID <TAB> CONTIG_ID <TAB> METHOD
     """
     input:
         concoct=CONCOCT / "{assembly_id}",
@@ -178,6 +177,8 @@ rule assemble__magscot__merge_contig_to_bin:
         MAGSCOT / "{assembly_id}" / "contigs_to_bin.tsv",
     log:
         MAGSCOT / "{assembly_id}" / "contigs_to_bin.log",
+    benchmark:
+        MAGSCOT / "{assembly_id}" / "benchmark_merge_contig_to_bin.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__merge_contig_to_bin")
@@ -191,31 +192,29 @@ rule assemble__magscot__merge_contig_to_bin:
     retries: len(get_escalation_order("assemble__magscot__merge_contig_to_bin"))
     shell:
         """
-        echo "=== Running assemble__magscot__merge_contig_to_bin for assembly {wildcards.assembly_id} ===" > {log} 1>&2
-        
-        for file in $(find {input.concoct} -name "*.fa.gz" -type f) ; do
-            bin_id=$(basename $file .fa)
-            zgrep ^">" $file | tr -d ">" \
-            | awk -v bin_id=$bin_id '{{print "bin_" bin_id "\\t" $1 "\\tconcoct"}}'
-        done > {output} 2>> {log}
-
-        for file in $(find {input.maxbin2} -name "*.fa.gz" -type f) ; do
-            bin_id=$(basename $file .fa)
-            zgrep ^">" $file | tr -d ">" \
-            | awk -v bin_id=$bin_id '{{print "bin_" bin_id "\\t" $1 "\\tmaxbin2"}}'
-        done >> {output} 2>> {log}
-
-        for file in $(find {input.metabat2} -name "*.fa.gz" -type f) ; do
-            bin_id=$(basename $file .fa)
-            zgrep ^">" $file | tr -d ">" \
-            | awk -v bin_id=$bin_id '{{print "bin_" bin_id "\\t" $1 "\\tmetabat2"}}'
-        done >> {output} 2>> {log}
-        
-        echo "=== Finished running assemble__magscot__merge_contig_to_bin for assembly {wildcards.assembly_id} ===" >> {log} 1>&2
+        exec > {log} 2>&1
+        debug "assembly_id={wildcards.assembly_id} output={output}"
+        : > {output}
+        for entry in "concoct:{input.concoct}" "maxbin2:{input.maxbin2}" "metabat2:{input.metabat2}"; do
+            method=${{entry%%:*}}
+            binner_dir=${{entry#*:}}
+            debug "merging bins from method=$method dir=$binner_dir"
+            for fa in $(find "$binner_dir" -name "*.fa.gz" -type f); do
+                bin_id=$(basename "$fa" .fa)
+                zgrep '^>' "$fa" | tr -d '>' \
+                    | awk -v bin="$bin_id" -v method="$method" '{{ print "bin_" bin "\t" $1 "\t" method }}'
+            done
+        done >> {output}
         """
 
+
 rule assemble__magscot__run:
-    """Run MAGSCOT over one assembly"""
+    """Score and refine bins from the merged contig-to-bin table with MAGScoT
+
+    MAGScoT can legitimately find no viable bins for a poor assembly; that run
+    is allowed to fail without failing the pipeline, and the expected output
+    files are touched into existence so downstream rules have something to read.
+    """
     input:
         contigs_to_bin=MAGSCOT / "{assembly_id}" / "contigs_to_bin.tsv",
         hmm=MAGSCOT / "{assembly_id}" / "hmm.tblout",
@@ -227,6 +226,8 @@ rule assemble__magscot__run:
         scores=MAGSCOT / "{assembly_id}" / "magscot.scores.out",
     log:
         MAGSCOT / "{assembly_id}/magscot.log",
+    benchmark:
+        MAGSCOT / "{assembly_id}" / "benchmark_run.tsv",
     container:
         docker["assemble"]
     params:
@@ -245,32 +246,30 @@ rule assemble__magscot__run:
     retries: len(get_escalation_order("assemble__magscot__run"))
     shell:
         """
-        set -e
-        {{
         Rscript --vanilla {params.script_folder}/MAGScoT/MAGScoT.R \
             --input {input.contigs_to_bin} \
             --hmm {input.hmm} \
             --out {params.out_prefix} \
             {params.extra} \
             --threshold {params.th} \
-         2> {log} 1>&2 || echo "No result but proceeding."
-         }}
-         
-        touch {output.ar53} {output.bac120} {output.refined_contig_to_bin} {output.refined_out} {output.scores};
-        
-        echo $? >> {log}
-        
+            > {log} 2>&1 || echo "MAGScoT exited non-zero (likely no bins produced); continuing" >> {log}
+
+        debug "assembly_id={wildcards.assembly_id} threshold={params.th} contigs_to_bin={input.contigs_to_bin}" 2>> {log}
+        touch {output.ar53} {output.bac120} {output.refined_contig_to_bin} {output.refined_out} {output.scores}
+        echo "exit: $?" >> {log}
         """
 
 
 rule assemble__magscot__reformat:
-    """Reformat the results from MAGSCOT"""
+    """Convert MAGScoT's refined contig-to-bin table into the pipeline's bin-naming scheme"""
     input:
         refined_contig_to_bin=MAGSCOT / "{assembly_id}" / "magscot.refined.contig_to_bin.out",
     output:
         clean=MAGSCOT / "{assembly_id}" / "magscot.reformat.tsv",
     log:
         MAGSCOT / "{assembly_id}" / "magscot.reformat.log",
+    benchmark:
+        MAGSCOT / "{assembly_id}" / "benchmark_reformat.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__reformat")
@@ -286,26 +285,25 @@ rule assemble__magscot__reformat:
         script_folder=SCRIPT_FOLDER,
     shell:
         """
-        set -e
-        
         if [ -s {input.refined_contig_to_bin} ]; then
             Rscript --vanilla {params.script_folder}/clean_magscot_bin_to_contig.R \
                 --input-file {input.refined_contig_to_bin} \
-               --output-file {output.clean} \
-            2> {log} 1>&2
+                --output-file {output.clean} \
+            > {log} 2>&1
         else
-            echo "Input file is empty or missing. Skipping reformat step." > {log}
-            touch {output.clean}  # Create empty output file
+            echo "MAGScoT produced no bins for this assembly; writing an empty output" > {log}
+            touch {output.clean}
         fi
+        debug "assembly_id={wildcards.assembly_id} refined_contig_to_bin={input.refined_contig_to_bin} clean={output.clean}" 2>> {log}
         """
 
 
 rule assemble__magscot__rename:
-    """Rename the contigs in the assembly to match the assembly and bin names"""
+    """Rename assembly contigs to the pipeline's bin-aware header scheme, dropping unbinned contigs"""
     input:
         assembly=lambda wildcards: (
-            MEGAHIT / f"{wildcards.assembly_id}.fa.gz" if config["assembler"] == "megahit" else 
-            METASPADES / f"{wildcards.assembly_id}.fa.gz"if config["assembler"] == "metaspades" else 
+            MEGAHIT / f"{wildcards.assembly_id}.fa.gz" if config["assembler"] == "megahit" else
+            METASPADES / f"{wildcards.assembly_id}.fa.gz"if config["assembler"] == "metaspades" else
             PROVIDED / f"{wildcards.assembly_id}.fa.gz"
         ),
         clean=MAGSCOT / "{assembly_id}" / "magscot.reformat.tsv",
@@ -313,6 +311,8 @@ rule assemble__magscot__rename:
         fasta=MAGSCOT / "{assembly_id}.fa.gz",
     log:
         MAGSCOT / "{assembly_id}" / "magscot.rename.log",
+    benchmark:
+        MAGSCOT / "{assembly_id}" / "benchmark_rename.tsv",
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__rename")
@@ -326,26 +326,24 @@ rule assemble__magscot__rename:
     retries: len(get_escalation_order("assemble__magscot__rename"))
     params:
         script_folder=SCRIPT_FOLDER,
-        fasta=lambda wildcards: MAGSCOT / f"{wildcards.assembly_id}.fa",
+        empty_fasta=lambda wildcards: MAGSCOT / f"{wildcards.assembly_id}.fa",
     shell:
         """
         if [ -s {input.clean} ]; then
             python {params.script_folder}/reformat_fasta_magscot.py \
-            <(gzip -dc {input.assembly}) \
-            {input.clean} \
-        | pigz \
-            --best \
-            > {output.fasta} 2>> {log}  # Ajoute les erreurs au log
+                <(zcat {input.assembly}) \
+                {input.clean} \
+            | pigz --best > {output.fasta} 2> {log}
         else
-            echo "No data found, skipping renaming step." > {log}
-
-            touch {params.fasta}
-            gzip {params.fasta}
+            echo "No bin mapping available; writing an empty assembly" > {log}
+            touch {params.empty_fasta}
+            gzip {params.empty_fasta}
         fi
+        debug "assembly_id={wildcards.assembly_id} clean={input.clean} fasta={output.fasta}" 2>> {log}
         """
 
 
 rule assemble__magscot:
-    """Run MAGSCOT over all assemblies"""
+    """Run MAGScoT bin refinement over every assembly"""
     input:
         [MAGSCOT / f"{assembly_id}.fa.gz" for assembly_id in ASSEMBLIES],

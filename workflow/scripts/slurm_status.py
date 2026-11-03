@@ -1,88 +1,67 @@
 #!/usr/bin/env python3
+"""Report a SLURM job's status to Snakemake as "running"/"success"/"failed".
+
+Adapted from the status-checking approach used by SLURM Snakemake executor
+profiles (see https://github.com/ManavalanG/slurm), which query `sacct` with
+a fallback to `scontrol` for jobs sacct hasn't indexed yet.
+"""
+import logging
 import re
-import subprocess as sp
 import shlex
+import subprocess as sp
 import sys
 import time
-import logging
 
-logger = logging.getLogger("__name__")
+logger = logging.getLogger(__name__)
 
-STATUS_ATTEMPTS = 20
+MAX_ATTEMPTS = 20
 
-jobid = sys.argv[1]
+FAILED_STATES = {
+    "BOOT_FAIL", "OUT_OF_MEMORY", "DEADLINE", "FAILED",
+    "NODE_FAIL", "PREEMPTED", "TIMEOUT", "SUSPENDED",
+}
+# CANCELLED can carry a suffix (e.g. "CANCELLED by 1234"); handled separately below.
 
-for i in range(STATUS_ATTEMPTS):
-    try:
-        sacct_res = sp.check_output(shlex.split("sacct -P -b -j {} -n".format(jobid)))
-        res = {
-            x.split("|")[0]: x.split("|")[1]
-            for x in sacct_res.decode().strip().split("\n")
-        }
-        break
-    except sp.CalledProcessError as e:
-        logger.error("sacct process error")
-        logger.error(e)
-    except IndexError as e:
-        pass
-    # Try getting job with scontrol instead in case sacct is misconfigured
-    try:
-        sctrl_res = sp.check_output(
-            shlex.split("scontrol -o show job {}".format(jobid))
-        )
-        m = re.search("JobState=(\w+)", sctrl_res.decode())
-        res = {jobid: m.group(1)}
-        break
-    except sp.CalledProcessError as e:
-        logger.error("scontrol process error")
-        logger.error(e)
-        if i >= STATUS_ATTEMPTS - 1:
-            print("failed")
-            exit(0)
-        else:
+
+def query_sacct(jobid):
+    out = sp.check_output(shlex.split(f"sacct -P -b -j {jobid} -n"))
+    lines = out.decode().strip().split("\n")
+    return {line.split("|")[0]: line.split("|")[1] for line in lines}
+
+
+def query_scontrol(jobid):
+    out = sp.check_output(shlex.split(f"scontrol -o show job {jobid}"))
+    match = re.search(r"JobState=(\w+)", out.decode())
+    return {jobid: match.group(1)}
+
+
+def job_state(jobid):
+    for attempt in range(MAX_ATTEMPTS):
+        try:
+            return query_sacct(jobid)[jobid]
+        except (sp.CalledProcessError, IndexError, KeyError) as exc:
+            logger.error("sacct lookup failed: %s", exc)
+        try:
+            return query_scontrol(jobid)[jobid]
+        except sp.CalledProcessError as exc:
+            logger.error("scontrol lookup failed: %s", exc)
+            if attempt >= MAX_ATTEMPTS - 1:
+                return None
             time.sleep(1)
-
-status = res[jobid]
-
-if status == "BOOT_FAIL":
-    print("failed")
-elif status == "OUT_OF_MEMORY":
-    print("failed")
-elif status.startswith("CANCELLED"):
-    print("failed")
-elif status == "COMPLETED":
-    print("success")
-elif status == "DEADLINE":
-    print("failed")
-elif status == "FAILED":
-    print("failed")
-elif status == "NODE_FAIL":
-    print("failed")
-elif status == "PREEMPTED":
-    print("failed")
-elif status == "TIMEOUT":
-    print("failed")
-# Unclear whether SUSPENDED should be treated as running or failed
-elif status == "SUSPENDED":
-    print("failed")
-else:
-    print("running")
+    return None
 
 
-# sourced from https://github.com/ManavalanG/slurm/blob/master/%7B%7Bcookiecutter.profile_name%7D%7D/slurm-status.py
+def main():
+    jobid = sys.argv[1]
+    state = job_state(jobid)
 
-# #!/usr/bin/env python3
-# import subprocess
-# import sys
+    if state is None or state.startswith("CANCELLED") or state in FAILED_STATES:
+        print("failed")
+    elif state == "COMPLETED":
+        print("success")
+    else:
+        print("running")
 
-# jobid = sys.argv[-1]
 
-# output = str(subprocess.check_output("sacct -j %s --format State --noheader | head -1 | awk '{print $1}'" % jobid, shell=True).strip())
-
-# running_status=["PENDING", "CONFIGURING", "COMPLETING", "RUNNING", "SUSPENDED", "PREEMPTED", "TIMEOUT"]
-# if "COMPLETED" in output:
-#   print("success")
-# elif any(r in output for r in running_status):
-#   print("running")
-# else:
-#   print("failed")
+if __name__ == "__main__":
+    main()

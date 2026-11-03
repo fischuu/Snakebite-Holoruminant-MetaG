@@ -1,48 +1,131 @@
 ---
 title: "Snakebite - Holoruminant - MetaG"
 subtitle: "read_annotate module - report"
-author: "t.b.a."
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  html_document:
+  pdf_document:
     toc: true
-    toc_depth: 4
-    toc_float:
-      toc_collapsed: true
+    toc_depth: 3
     number_sections: true
-    theme: lumen
-    df_print: paged
-    code_folding: show
+    fig_caption: true
 ---
 
 ```{r setup, include=FALSE}
-library("GenomicTools")
-library("xtable")   # Needed for LaTeX output of the tables
-library("viridis")  # Needed for the colouring of the plots
-library("rjson")    # Needed for multiqc dgsb etail data
-library("DT")
-library("kableExtra")
-library("edgeR")
-library("ICS")
-library("tsne")
-options(scipen=999,
-        stringsAsFactors=FALSE)
-knitr::opts_chunk$set(echo = FALSE,
-                      cache = FALSE,
-                      cache.lazy = FALSE,
-                      dev = c('png', 'pdf'),
-                      fig.align = 'center', fig.height = 5, fig.width = 8.5)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                       fig.align = "center", fig.width = 7, fig.height = 4)
 
-reportColours <- c("#FF8200", "#00B5E2", "#78BE20", "#7F3F98", "#E13C98", "#0033A0", "#54585A")
+if (!exists("project_folder")) {
+  project_folder <- getwd()
+  pipeline_folder <- getwd()
+  features_file <- "config/features.yaml"
+  sample_file <- "config/samples.tsv"
+}
+
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
+samples <- read.delim(file.path(project_folder, sample_file), comment.char = "#")
+features <- yaml::read_yaml(file.path(project_folder, features_file))
+ra_dir <- file.path(project_folder, "results", "read_annotate")
 ```
 
-```{r, include=FALSE}
-# Init Step to make sure that the dependencies are loaded
-htmltools::tagList(datatable(cars))
-#htmltools::tagList(ggplotly(ggplot()))
+# Kraken2 taxonomic classification
+
+```{r kraken2-summary}
+kraken_dbs <- names(features$databases$kraken2)
+kraken_dir <- file.path(ra_dir, "kraken2")
+
+top_taxa <- purrr::map_dfr(kraken_dbs, function(db) {
+  purrr::pmap_dfr(samples[, c("sample_id", "library_id")], function(sample_id, library_id) {
+    f <- file.path(kraken_dir, db, paste0(sample_id, ".", library_id, ".report"))
+    df <- parse_kraken2_report(f, top_n = 5)
+    if (nrow(df) == 0) return(NULL)
+    dplyr::bind_cols(database = db, library = paste(sample_id, library_id, sep = "."), df)
+  })
+})
+
+if (nrow(top_taxa) == 0) {
+  cat("_No kraken2 output found yet._\n")
+} else {
+  preview_table(
+    top_taxa[, c("database", "library", "name", "rank", "pct", "reads_clade")],
+    n = min(30, nrow(top_taxa)),
+    caption = "Top 5 taxa by clade percentage, per library and database"
+  )
+}
 ```
 
+# Sequence diversity / coverage (Nonpareil)
 
-```{r}
-list.files(file.path(working_dir, "results", "read_annotate"))
+```{r nonpareil-summary}
+nonpareil_tsv <- file.path(ra_dir, "nonpareil", "nonpareil.tsv")
+preview_table(safe_read_tsv(nonpareil_tsv), n = 50, caption = "Nonpareil diversity/coverage estimates per sample")
+```
+
+# Marker-gene taxonomic profiling (SingleM)
+
+```{r singlem-summary}
+mf_tsv <- file.path(ra_dir, "singlem", "microbial_fraction.tsv")
+mf_df <- safe_read_tsv(mf_tsv)
+if (nrow(mf_df) > 0) {
+  preview_table(mf_df, n = nrow(mf_df), caption = "SingleM microbial fraction per library")
+} else {
+  cat("_No SingleM microbial_fraction output found yet._\n")
+}
+```
+
+# Functional profiling (HUMAnN)
+
+```{r humann-summary}
+humann_top <- parse_humann_top_features(file.path(ra_dir, "humann", "humann_genefamilies.tsv"))
+if (nrow(humann_top) == 0) {
+  cat("_No HUMAnN output found yet._\n")
+} else {
+  preview_table(humann_top[, 1:2], n = nrow(humann_top),
+                caption = "Top gene families by total abundance across samples (UNMAPPED/UNGROUPED excluded)")
+}
+```
+
+# Taxonomic profiling (MetaPhlAn)
+
+```{r metaphlan-summary}
+metaphlan_top <- parse_metaphlan_top_taxa(file.path(ra_dir, "metaphlan", "metaphlan_profiled.tsv"))
+if (nrow(metaphlan_top) == 0) {
+  cat("_No MetaPhlAn output found yet._\n")
+} else {
+  preview_table(metaphlan_top[, 1:2], n = nrow(metaphlan_top),
+                caption = "Top species by mean relative abundance across samples")
+}
+```
+
+```{r metaphlan-plot, fig.height=4}
+if (nrow(metaphlan_top) > 0) {
+  ggplot(metaphlan_top, aes(x = reorder(species, mean_abundance), y = mean_abundance)) +
+    geom_col(fill = "#7F3F98") +
+    coord_flip() +
+    labs(title = "Top species by mean relative abundance", x = NULL, y = "Mean relative abundance (%)") +
+    theme_minimal(base_size = 11)
+}
+```
+
+# Other read-based annotation tools
+
+```{r other-tools, results='asis'}
+generic_tool_section(project_folder, "read_annotate", "sylph/*.tsv", "Sylph (containment-based profiling)")
+generic_tool_section(project_folder, "read_annotate", "diamond/*/*.tsv", "DIAMOND (protein-level read annotation)")
+generic_tool_section(project_folder, "read_annotate", "ncyc/*.tsv", "NCyc (nitrogen-cycling genes)")
+```
+
+# Runtime statistics
+
+```{r read-annotate-runtime}
+bench <- discover_benchmarks(project_folder, "read_annotate")
+runtime_table(bench, caption = "read_annotate module: runtime and peak memory per rule")
+```
+
+```{r read-annotate-resource-allocation}
+resource_allocation_table(bench, "read_annotate", project_folder,
+                          caption = "read_annotate module: allocated vs. actual resource usage (starting tier)")
+```
+
+```{r read-annotate-runtime-plot, fig.height=5}
+runtime_plot(bench, title = "read_annotate module: total runtime per rule")
 ```

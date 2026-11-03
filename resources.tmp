@@ -1,9 +1,0 @@
-    threads: esc("cpus", "xxx")
-    resources:
-        runtime=esc("runtime", "xxx"),
-        mem_mb=esc("mem_mb", "xxx"),
-        cpu_per_task=esc("cpus", "xxx"),
-        slurm_partition=esc("partition", "xxx"),
-        slurm_extra="'--gres=nvme:" + str(esc_val("nvme", "xxx", attempt=1)) + "'",
-        attempt=get_attempt,
-    retries: len(get_escalation_order("xxx"))

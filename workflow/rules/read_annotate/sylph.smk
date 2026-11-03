@@ -8,6 +8,8 @@ rule read_annotate__sylph_profile:
         PRE_SYLPH / "{sample_id}.{library_id}.profiling.tsv",
     log:
         PRE_SYLPH / "{sample_id}.{library_id}.profiling_report.log",
+    benchmark:
+        PRE_SYLPH / "benchmark/{sample_id}.{library_id}.tsv",
     container:
         docker["sylph"]
     threads: esc("cpus", "read_annotate__sylph_profile")
@@ -22,18 +24,16 @@ rule read_annotate__sylph_profile:
     retries: len(get_escalation_order("read_annotate__sylph_profile"))
     shell:
         """
-        
-        echo "Starting Sylph rule attempt {resources.attempt}" > {log}.{resources.attempt}
-        
+        echo "Starting Sylph rule attempt {resources.attempt}" > {log}
+        debug "threads={threads} forwards={input.forwards} reverses={input.reverses} db={input.db}" 2>> {log}
+
         # Below this line is a dev part for testing the resubmission and escalation 
         # if [ {resources.attempt} -le 2 ]; then
-        #    echo "Failing intentionally on attempt {resources.attempt}" >> {log}.{resources.attempt}
+        #    echo "Failing intentionally on attempt {resources.attempt}" >> {log}
         #    ls --nonexistentflag
         #fi
         
-        sylph profile {input.db} -1 {input.forwards} -2 {input.reverses} -t {threads} > {output} 2>> {log}.{resources.attempt}
-        
-        mv {log}.{resources.attempt} {log}
+        sylph profile {input.db} -1 {input.forwards} -2 {input.reverses} -t {threads} > {output} 2>> {log}
         """
 
 

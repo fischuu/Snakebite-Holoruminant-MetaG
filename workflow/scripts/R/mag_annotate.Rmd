@@ -1,48 +1,123 @@
 ---
 title: "Snakebite - Holoruminant - MetaG"
-subtitle: "mag annotate module - report"
-author: "t.b.a."
+subtitle: "mag_annotate module - report"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  html_document:
+  pdf_document:
     toc: true
-    toc_depth: 4
-    toc_float:
-      toc_collapsed: true
+    toc_depth: 3
     number_sections: true
-    theme: lumen
-    df_print: paged
-    code_folding: show
+    fig_caption: true
 ---
 
 ```{r setup, include=FALSE}
-library("GenomicTools")
-library("xtable")   # Needed for LaTeX output of the tables
-library("viridis")  # Needed for the colouring of the plots
-library("rjson")    # Needed for multiqc dgsb etail data
-library("DT")
-library("kableExtra")
-library("edgeR")
-library("ICS")
-library("tsne")
-options(scipen=999,
-        stringsAsFactors=FALSE)
-knitr::opts_chunk$set(echo = FALSE,
-                      cache = FALSE,
-                      cache.lazy = FALSE,
-                      dev = c('png', 'pdf'),
-                      fig.align = 'center', fig.height = 5, fig.width = 8.5)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                       fig.align = "center", fig.width = 7, fig.height = 4)
 
-reportColours <- c("#FF8200", "#00B5E2", "#78BE20", "#7F3F98", "#E13C98", "#0033A0", "#54585A")
+if (!exists("project_folder")) {
+  project_folder <- getwd()
+  pipeline_folder <- getwd()
+  features_file <- "config/features.yaml"
+  sample_file <- "config/samples.tsv"
+}
+
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
+ma_dir <- file.path(project_folder, "results", "mag_annotate")
 ```
 
-```{r, include=FALSE}
-# Init Step to make sure that the dependencies are loaded
-htmltools::tagList(datatable(cars))
-#htmltools::tagList(ggplotly(ggplot()))
+# Genome quality (CheckM2)
+
+```{r checkm2-summary, results='asis'}
+checkm2_df <- safe_read_tsv(file.path(ma_dir, "checkm2", "quality_report.tsv"))
+
+if (nrow(checkm2_df) == 0) {
+  cat("_No CheckM2 output found yet._\n")
+} else {
+  n_hq <- sum(checkm2_df$Completeness >= 90 & checkm2_df$Contamination <= 5, na.rm = TRUE)
+  cat(sprintf(
+    "**%d** genomes assessed; mean completeness **%.1f%%**, mean contamination **%.1f%%**; **%d** meet the >=90%% complete / <=5%% contaminated (MIMAG high-quality draft) threshold.\n\n",
+    nrow(checkm2_df), mean(checkm2_df$Completeness, na.rm = TRUE),
+    mean(checkm2_df$Contamination, na.rm = TRUE), n_hq
+  ))
+  preview_table(
+    checkm2_df[, intersect(c("Name", "Completeness", "Contamination", "Genome_Size", "GC_Content"), colnames(checkm2_df))],
+    n = nrow(checkm2_df), caption = "CheckM2 quality per genome"
+  )
+}
 ```
 
+```{r checkm2-plot, fig.height=4}
+if (nrow(checkm2_df) > 0) {
+  ggplot(checkm2_df, aes(x = Contamination, y = Completeness)) +
+    geom_point(colour = "#00B5E2", size = 2) +
+    geom_hline(yintercept = 90, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = 5, linetype = "dashed", colour = "grey50") +
+    labs(title = "Genome quality (dashed lines = MIMAG high-quality draft threshold)",
+         x = "Contamination (%)", y = "Completeness (%)") +
+    theme_minimal(base_size = 11)
+}
+```
 
-```{r}
-list.files(file.path(working_dir, "results", "mag_annotate"))
+# Taxonomic classification (GTDB-Tk)
+
+```{r gtdbtk-summary}
+gtdbtk_df <- safe_read_tsv(file.path(ma_dir, "gtdbtk", "gtdbtk.summary.tsv"))
+
+if (nrow(gtdbtk_df) == 0) {
+  cat("_No GTDB-Tk output found yet._\n")
+} else {
+  gtdbtk_df$phylum <- sub(".*p__([^;]*);.*", "\\1", gtdbtk_df$classification)
+  preview_table(
+    gtdbtk_df[, intersect(c("user_genome", "classification"), colnames(gtdbtk_df))],
+    n = nrow(gtdbtk_df), caption = "GTDB-Tk taxonomy per genome"
+  )
+}
+```
+
+```{r gtdbtk-plot, fig.height=4}
+if (nrow(gtdbtk_df) > 0) {
+  phylum_counts <- gtdbtk_df %>% count(phylum, sort = TRUE)
+  ggplot(phylum_counts, aes(x = reorder(phylum, n), y = n)) +
+    geom_col(fill = "#78BE20") +
+    coord_flip() +
+    labs(title = "Genomes per phylum", x = NULL, y = "Number of genomes") +
+    theme_minimal(base_size = 11)
+}
+```
+
+# Assembly quality (QUAST)
+
+```{r quast-summary}
+quast_report <- file.path(ma_dir, "quast", "report.tsv")
+if (file.exists(quast_report)) {
+  preview_table(safe_read_tsv(quast_report), n = 30, caption = "QUAST assembly statistics")
+} else {
+  cat("_No QUAST report found yet._\n")
+}
+```
+
+# Other MAG annotation tools
+
+```{r other-tools, results='asis'}
+generic_tool_section(project_folder, "mag_annotate", "dram/genome_stats.tsv", "DRAM (dereplicated genome catalogue)")
+generic_tool_section(project_folder, "mag_annotate", "dram_mag/*/genome_stats.tsv", "DRAM (per-assembly MAGs)")
+generic_tool_section(project_folder, "mag_annotate", "bakta/bakta.tsv", "Bakta (dereplicated genome catalogue)")
+generic_tool_section(project_folder, "mag_annotate", "camper/annotations.tsv", "CAMPER")
+generic_tool_section(project_folder, "mag_annotate", "proteinortho/*.tsv", "Proteinortho")
+```
+
+# Runtime statistics
+
+```{r mag-annotate-runtime}
+bench <- discover_benchmarks(project_folder, "mag_annotate")
+runtime_table(bench, caption = "mag_annotate module: runtime and peak memory per rule")
+```
+
+```{r mag-annotate-resource-allocation}
+resource_allocation_table(bench, "mag_annotate", project_folder,
+                          caption = "mag_annotate module: allocated vs. actual resource usage (starting tier)")
+```
+
+```{r mag-annotate-runtime-plot, fig.height=6}
+runtime_plot(bench, title = "mag_annotate module: total runtime per rule")
 ```

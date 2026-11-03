@@ -28,6 +28,7 @@ rule read_annotate__phyloflash__run:
         outdir=PHYLOFLASH
     shell:
         """
+        debug "threads={threads} lib={params.lib} dbhome={input.phyloflash_dbs} outdir={params.outdir}" 2>> {log}
         phyloFlash.pl -dbhome {input.phyloflash_dbs} \
                       -lib {params.lib} -CPUs {threads} \
                       -read1 {input.forward_} \
@@ -42,7 +43,7 @@ rule read_annotate__phyloflash__run:
 rule read_annotate__phyloflash__condense:
     """Aggregate all the PhyloFlash results into a single table"""
     input:
-        genefamily_data=[
+        phyloflash_logs=[
             PHYLOFLASH / f"{sample_id}_{library_id}.phyloFlash.log"
             for sample_id, library_id in SAMPLE_LIBRARY
         ]
@@ -67,8 +68,7 @@ rule read_annotate__phyloflash__condense:
     retries: len(get_escalation_order("read_annotate__phyloflash__condense"))
     shell:
         """
-        cat {input.genefamily_data} > {output}
-        2> {log} 1>&2
+        cat {input.phyloflash_logs} > {output} 2> {log}
         """
 
 rule read_annotate__phyloflash:

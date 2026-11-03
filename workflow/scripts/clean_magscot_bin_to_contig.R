@@ -1,60 +1,32 @@
+#!/usr/bin/env Rscript
+# Convert MAGScoT's refined contig-to-bin table (columns: binnew, contig, ...)
+# into the pipeline's own "{assembly_id}:bin_{bin_id}@{contig_id}" scheme.
+
 library(tidyverse)
 library(argparse)
 
 parser <- ArgumentParser()
-
 parser$add_argument(
   "-i", "--input-file",
-  type = "character",
-  dest = "input_file",
-  help = "Bin to contig file from magscot"
+  dest = "input_file", help = "Refined contig-to-bin file from MAGScoT"
 )
-
 parser$add_argument(
   "-o", "--output-file",
-  type = "character",
-  dest = "output_file",
-  help = "clean bin to contig file"
+  dest = "output_file", help = "Cleaned-up contig-to-bin file"
 )
-
 args <- parser$parse_args()
-input_file <- args$input_file
-output_file <- args$output_file
-output_folder <- dirname(output_file)
 print(args)
 
-dir.create(output_folder, showWarnings = FALSE, recursive = TRUE)
+dir.create(dirname(args$output_file), showWarnings = FALSE, recursive = TRUE)
 
-raw_magscot <- read_tsv(input_file)
+# MAGScoT prefixes its bin names with a variable-depth path, e.g.
+# "some/path/magscot_cleanbin_3"; only the trailing "3" is the actual bin id.
+last_path_segment <- function(x) map_chr(str_split(x, "/"), tail, n = 1)
 
-
-# can't use map_chr(-1) so we have to find the position
-bin_location <-
-  raw_magscot$binnew[1] %>%
-  str_split("/") %>%
-  .[[1]] %>%
-  length()
-
-raw_magscot %>%
-  mutate(
-    binnew = binnew %>%
-      str_split("/") %>%
-      map_chr(bin_location) %>%
-      str_remove("magscot_cleanbin_")
-  ) %>%
-  separate(
-    col = contig,
-    into = c("tmp", "contig_id"),
-    sep = "@",
-    remove = FALSE
-  ) %>%
-  separate(
-    col = tmp,
-    into = c("assembly_id", "bin_id"),
-    sep = ":",
-    remove = TRUE
-  ) %>%
-  mutate(
-    seqname = str_glue("{assembly_id}:bin_{binnew}@{contig_id}")
-  ) %>%
-  write_tsv(output_file)
+read_tsv(args$input_file) %>%
+  mutate(bin_id = str_remove(last_path_segment(binnew), "magscot_cleanbin_")) %>%
+  separate(contig, into = c("assembly_bin", "contig_id"), sep = "@", remove = FALSE) %>%
+  separate(assembly_bin, into = c("assembly_id", "orig_bin_id"), sep = ":", remove = TRUE) %>%
+  mutate(seqname = str_glue("{assembly_id}:bin_{bin_id}@{contig_id}")) %>%
+  select(-orig_bin_id) %>%
+  write_tsv(args$output_file)

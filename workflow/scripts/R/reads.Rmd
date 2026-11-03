@@ -1,95 +1,79 @@
 ---
 title: "Snakebite - Holoruminant - MetaG"
-subtitle: "Reads module - report"
-author: "t.b.a."
+subtitle: "reads module - report"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  html_document:
+  pdf_document:
     toc: true
-    toc_depth: 4
-    toc_float:
-      toc_collapsed: true
+    toc_depth: 3
     number_sections: true
-    theme: lumen
-    df_print: paged
-    code_folding: show
+    fig_caption: true
 ---
 
 ```{r setup, include=FALSE}
-library("GenomicTools")
-library("xtable")   # Needed for LaTeX output of the tables
-library("viridis")  # Needed for the colouring of the plots
-library("rjson")    # Needed for multiqc dgsb etail data
-library("DT")
-library("kableExtra")
-library("edgeR")
-library("ICS")
-library("tsne")
-options(scipen=999,
-        stringsAsFactors=FALSE)
-knitr::opts_chunk$set(echo = FALSE,
-                      cache = FALSE,
-                      cache.lazy = FALSE,
-                      dev = c('png', 'pdf'),
-                      fig.align = 'center', fig.height = 5, fig.width = 8.5)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                       fig.align = "center", fig.width = 7, fig.height = 4)
 
-reportColours <- c("#FF8200", "#00B5E2", "#78BE20", "#7F3F98", "#E13C98", "#0033A0", "#54585A")
-
-if(!is.element("snakemake",ls())){
-    working_dir <- '/scratch/project_2009831/Pipe_test';          
-    features_file <- 'config/features.yaml';          
-    sample_file <- 'config/samples.tsv';
+if (!exists("project_folder")) {
+  project_folder <- getwd()
+  pipeline_folder <- getwd()
+  features_file <- "config/features.yaml"
+  sample_file <- "config/samples.tsv"
 }
-```
 
-
-```{r}
-# Import sample file
-sample_tsv <- read.table(file.path(working_dir,sample_file), header=TRUE)
-list.files(file.path(working_dir, "results", "reads"))
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
+samples <- read.delim(file.path(project_folder, sample_file), comment.char = "#")
 ```
 
 # Sample summary
 
-```{r sample summary}
-n_samples    <- length(unique(sample_tsv$sample_id))
-n_assemblies <- length(unique(sample_tsv$assembly_ids))
+```{r sample-summary, results='asis'}
+n_samples <- length(unique(samples$sample_id))
+assembly_ids <- unique(unlist(strsplit(samples$assembly_ids, ",\\s*")))
 
-assembly_ids <- unique(sample_tsv$assembly_ids)
-
-assembly_summary <- data.frame(
+assembly_summary <- tibble::tibble(
   assembly_id = assembly_ids,
-  n_samples   = sapply(assembly_ids, function(a) {
-    sum(sample_tsv$assembly_ids == a)
-  }),
+  n_samples = sapply(assembly_ids, function(a) sum(grepl(a, samples$assembly_ids))),
   samples = sapply(assembly_ids, function(a) {
-    paste(sample_tsv$sample_id[sample_tsv$assembly_ids == a],
-          collapse = ", ")
-  }),
-  stringsAsFactors = FALSE
+    paste(samples$sample_id[grepl(a, samples$assembly_ids)], collapse = ", ")
+  })
 )
 
-xt <- xtable(
-  assembly_summary,
-  caption = "Summary of samples per assembly",
-  label   = "tab:assembly_summary"
-)
-
-print(
-  xt,
-  include.rownames = FALSE,
-  comment = FALSE
-)
-
+cat(sprintf("**%d** unique samples, grouped into **%d** assemblies.\n\n", n_samples, length(assembly_ids)))
+preview_table(assembly_summary, n = nrow(assembly_summary), caption = "Samples per assembly")
 ```
 
-# Import FastQC stats
+# Raw read QC (FastQC)
 
-```{r, eval=FALSE}
-zipfile <- file.path(working_dir, "results", "reads")
+```{r fastqc-summary}
+reads_dir <- file.path(project_folder, "results", "reads")
+zips <- Sys.glob(file.path(reads_dir, "*_fastqc.zip"))
 
-con <- unz(zipfile, "sample_fastqc/fastqc_data.txt")
-fastqc_raw <- readLines(con)
-close(con)
+if (length(zips) == 0) {
+  cat("_No FastQC output found yet._\n")
+} else {
+  fastqc_df <- purrr::map_dfr(zips, parse_fastqc_zip)
+  keep_cols <- intersect(
+    c("sample", "Total Sequences", "Sequence length", "%GC"),
+    colnames(fastqc_df)
+  )
+  preview_table(fastqc_df[, keep_cols], n = nrow(fastqc_df),
+                caption = "FastQC basic statistics per raw read file")
+}
+```
 
+# Runtime statistics
+
+```{r reads-runtime}
+bench <- discover_benchmarks(project_folder, "reads")
+runtime_table(bench, caption = "reads module: runtime and peak memory per rule")
+```
+
+```{r reads-resource-allocation}
+resource_allocation_table(bench, "reads", project_folder,
+                          caption = "reads module: allocated vs. actual resource usage (starting tier)")
+```
+
+```{r reads-runtime-plot, fig.height=3}
+runtime_plot(bench, title = "reads module: total runtime per rule")
 ```

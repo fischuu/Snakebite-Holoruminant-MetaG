@@ -1,19 +1,27 @@
 #!/usr/bin/env bash
+# Transpose a wide TSV of "percent unmapped" values into a long/tidy table,
+# converting each value to "percent mapped" (100 - value) along the way.
+# The header of each column is expected to be underscore-separated as
+# <sample>_<library>_<reference>; that gets split into three output columns.
+#
+# Usage: transpose_table.sh [input.tsv] [output.tsv]
 
-# Determine the number of columns in the input file
-num_columns=$(head -n1 unmapped.tsv | awk -F'\t' '{print NF}')
+set -euo pipefail
 
-# Loop through each column and extract the corresponding elements
-for ((col=1; col <= num_columns; col++)); do
-# Extract the elements from the current column, split by '_' and join with tab delimiter
-awk -F'\t' -v col="$col" '
-    NR==1 {
-    split($col, arr, "_");
-    printf("%s\t%s\t%s\n", arr[1], arr[2], arr[3]);
-    }
-    NR>1 {
-    value = 100 - $col;
-    printf("%.5f\n", value);
-    }
-' unmapped.tsv | paste -d'\t' -s
-done > longer.tsv
+input="${1:-unmapped.tsv}"
+output="${2:-longer.tsv}"
+
+n_cols=$(head -n1 "$input" | awk -F'\t' '{print NF}')
+
+: > "$output"
+for col in $(seq 1 "$n_cols"); do
+    cut -f"$col" "$input" | awk -F'_' '
+        NR == 1 {
+            printf "%s\t%s\t%s\n", $1, $2, $3
+            next
+        }
+        {
+            printf "%.5f\n", 100 - $1
+        }
+    ' | paste -sd'\t' - >> "$output"
+done

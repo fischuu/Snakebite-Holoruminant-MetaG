@@ -12,6 +12,8 @@ rule contig_annotate__eggnog_find_homology:
         file=CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.seed_orthologs"
     log:
         CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.log"
+    benchmark:
+        CONTIG_EGGNOG / "{assembly_id}/Chunks/benchmark_homology.{i}.tsv"
     params:
         folder = lambda wildcards: CONTIG_EGGNOG / f"{wildcards.assembly_id}/Chunks/",
         tmp=config["nvme_storage"],
@@ -22,7 +24,7 @@ rule contig_annotate__eggnog_find_homology:
         runtime=esc("runtime", "contig_annotate__eggnog_find_homology"),
         mem_mb=esc("mem_mb", "contig_annotate__eggnog_find_homology"),
         cpus_per_task=esc("cpus", "contig_annotate__eggnog_find_homology"),
-        partition=esc("partition", "contig_annotate__eggnog_find_homology"),
+        slurm_partition=esc("partition", "contig_annotate__eggnog_find_homology"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__eggnog_find_homology')['nvme']}",
         attempt=get_attempt,
     retries: len(get_escalation_order("contig_annotate__eggnog_find_homology"))
@@ -31,12 +33,15 @@ rule contig_annotate__eggnog_find_homology:
     shell:""" 
         DATA_DIR="{params.tmp}"
 
+        # If no nvme_storage tmp dir is configured, run emapper straight against
+        # the shared eggnog DB location instead of staging a local copy.
         if [ -z "$DATA_DIR" ]; then
             DATA_DIR="{params.fa}"
         else
             cp {params.fa}/eggnog* {params.tmp} &> {log};
         fi;
 
+        debug "assembly_id={wildcards.assembly_id} chunk={wildcards.i} threads={threads} DATA_DIR=$DATA_DIR" 2>> {log}
 
          emapper.py -m diamond --data_dir $DATA_DIR --override --no_annot --no_file_comments --cpu {threads} -i {input.files} --output_dir {params.folder} -o {params.out}  2>> {log} 1>&2;
     """
@@ -53,12 +58,14 @@ rule contig_annotate__eggnog_orthology_chunk:
         done = CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.annotations.done"
     log:
         CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.annotations.log"
+    benchmark:
+        CONTIG_EGGNOG / "{assembly_id}/Chunks/benchmark_orthology.{i}.tsv"
     threads: esc("cpus", "contig_annotate__eggnog_orthology_chunk")
     resources:
         runtime=esc("runtime", "contig_annotate__eggnog_orthology_chunk"),
         mem_mb=esc("mem_mb", "contig_annotate__eggnog_orthology_chunk"),
         cpus_per_task=esc("cpus", "contig_annotate__eggnog_orthology_chunk"),
-        partition=esc("partition", "contig_annotate__eggnog_orthology_chunk"),
+        slurm_partition=esc("partition", "contig_annotate__eggnog_orthology_chunk"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__eggnog_orthology_chunk')['nvme']}",
         attempt=get_attempt,
     retries: len(get_escalation_order("contig_annotate__eggnog_orthology_chunk"))    
@@ -73,7 +80,8 @@ rule contig_annotate__eggnog_orthology_chunk:
         shm=config["shm_storage"],
         nvme=config["nvme_storage"],
     shell: """
-     
+      debug "assembly_id={wildcards.assembly_id} chunk={wildcards.i} threads={threads} copy_dbs={params.copy_dbs} run_in_shm={params.run_in_shm}" 2>> {log}
+
       # check if dbs should be copied, otherwise use the original location
         if [ {params.copy_dbs} = "True" ]; then
         
@@ -103,6 +111,7 @@ rule contig_annotate__eggnog_orthology_chunk:
                 COUNT=$((COUNT + 1))
                 echo $COUNT > "$COUNTER_FILE"
                 echo "Incremented counter: $COUNT jobs using DB" >> {log}
+                debug "reference count now $COUNT for $DATA_DIR" 2>> {log}
             ) 200>"$COUNTER_FILE.lock"
     
             # === Copy DB if not already done ===
@@ -126,6 +135,7 @@ rule contig_annotate__eggnog_orthology_chunk:
 
         # === Run emapper ===
         mkdir -p {params.outdir}
+        debug "seed={input.seed} DATA_DIR=$DATA_DIR outdir={params.outdir} threads={threads}" 2>> {log}
         emapper.py --data_dir $DATA_DIR \
                    --annotate_hits_table {input.seed} \
                    --no_file_comments \
@@ -134,21 +144,25 @@ rule contig_annotate__eggnog_orthology_chunk:
                    --override \
                    --cpu {threads} >> {log} 2>&1
 
-        # === Decrement counter and cleanup if last job ===
-        (
-            flock -x 200
-            COUNT=$(cat "$COUNTER_FILE")
-            COUNT=$((COUNT - 1))
-            if [ $COUNT -le 0 ]; then
-                echo 0 > "$COUNTER_FILE"
-                echo "No more jobs using DB, cleaning $DATA_DIR" >> {log}
-                rm -rf "$DATA_DIR"
-                rm -f "$DONE_FILE"
-            else
-                echo $COUNT > "$COUNTER_FILE"
-                echo "Remaining jobs using DB: $COUNT" >> {log}
-            fi
-        ) 200>"$COUNTER_FILE.lock"
+        # === Decrement counter and cleanup if last job (only when a shared
+        # staged copy was actually made -- nothing to reference-count or
+        # clean up when running straight from the original database) ===
+        if [ {params.copy_dbs} = "True" ]; then
+            (
+                flock -x 200
+                COUNT=$(cat "$COUNTER_FILE")
+                COUNT=$((COUNT - 1))
+                if [ $COUNT -le 0 ]; then
+                    echo 0 > "$COUNTER_FILE"
+                    echo "No more jobs using DB, cleaning $DATA_DIR" >> {log}
+                    rm -rf "$DATA_DIR"
+                    rm -f "$DONE_FILE"
+                else
+                    echo $COUNT > "$COUNTER_FILE"
+                    echo "Remaining jobs using DB: $COUNT" >> {log}
+                fi
+            ) 200>"$COUNTER_FILE.lock"
+        fi
 
         touch {output.done}
     """
@@ -161,6 +175,8 @@ rule contig_annotate__eggnog_merge_annotations:
         CONTIG_EGGNOG / "{assembly_id}/eggnog_output.emapper.annotations"
     log:
         CONTIG_EGGNOG / "{assembly_id}/eggnog_output.emapper.annotations.log"
+    benchmark:
+        CONTIG_EGGNOG / "{assembly_id}/benchmark_merge_annotations.tsv"
     shell:"""
        cat {input} > {output} 2> {log}
     """
