@@ -1,14 +1,17 @@
+_DRAM_TABLES = DRAM / "annotate"
+
+
 rule mag_annotate__dram__annotate:
     """Annotate the dereplicated genome catalogue with DRAM"""
     input:
-        dereplicated_genomes=DREP / "dereplicated_genomes.fa.gz",
-        gtdbtk_summary=GTDBTK / "gtdbtk.summary.tsv",
-        dram_db=features["databases"]["dram"],
+        catalogue=MAG_CATALOGUE,
+        taxonomy=GTDBTK / "gtdbtk.summary.tsv",
+        reference_data=features["databases"]["dram"],
     output:
-        annotation=DRAM / "annotate" / "annotations.tsv",
-        trnas=DRAM / "annotate" / "trnas.tsv",
-        rrnas=DRAM / "annotate" / "rrnas.tsv",
-        genes=DRAM / "annotate" / "genes.faa",
+        _DRAM_TABLES / "annotations.tsv",
+        _DRAM_TABLES / "trnas.tsv",
+        _DRAM_TABLES / "rrnas.tsv",
+        _DRAM_TABLES / "genes.faa",
     log:
         DRAM / "annotate.log",
     benchmark:
@@ -16,11 +19,7 @@ rule mag_annotate__dram__annotate:
     container:
         docker["dram"]
     params:
-        config=config["dram-config"],
-        min_contig_size=1500,
-        out_dir=DRAM,
-        tmp_dir=DRAM / "annotate",
-        parallel_retries=5,
+        dram_config=config["dram-config"],
     threads: esc("cpus", "mag_annotate__dram__annotate")
     resources:
         runtime=esc("runtime", "mag_annotate__dram__annotate"),
@@ -28,13 +27,13 @@ rule mag_annotate__dram__annotate:
         cpus_per_task=esc("cpus", "mag_annotate__dram__annotate"),
         slurm_partition=esc("partition", "mag_annotate__dram__annotate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__dram__annotate')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "mag_annotate__dram__annotate"),
     retries: len(get_escalation_order("mag_annotate__dram__annotate"))
     shell:
         """
         exec > {log} 2>&1
-        debug "config={params.config} dram_db={input.dram_db} tmp_dir={params.tmp_dir} threads={threads} min_contig_size={params.min_contig_size}"
-        rm --recursive --force {params.tmp_dir}
+        debug "dram_config={params.dram_config} reference_data={input.reference_data} threads={threads}"
+        rm -rf {_DRAM_TABLES}
 
         # See mag_annotate__dram_mag__annotate: DRAM spawns tRNAscan-SE
         # internally, which independently reads $TMPDIR for its own scratch
@@ -48,33 +47,27 @@ rule mag_annotate__dram__annotate:
         echo "TMPDIR: $TMPDIR"
         df -h
 
-        DRAM.py annotate \
-            --config_loc {params.config} \
-            --input_fasta {input.dereplicated_genomes} \
-            --output_dir {params.tmp_dir} \
-            --threads {threads} \
-            --gtdb_taxonomy {input.gtdbtk_summary}
+        DRAM.py annotate -i {input.catalogue} -o {_DRAM_TABLES} --threads {threads} \
+            --gtdb_taxonomy {input.taxonomy} --config_loc {params.dram_config}
 
-        # DRAM can skip producing a table when it finds nothing of that kind
-        # (e.g. no tRNAs); downstream rules still expect the file to exist.
-        for expected in annotations.tsv trnas.tsv rrnas.tsv; do
-            path="{params.tmp_dir}/$expected"
-            debug "checking expected DRAM output: $path"
-            if [ ! -f "$path" ]; then
-                echo "DRAM produced no $expected -- creating an empty placeholder"
-                touch "$path"
+        # DRAM skips a table when it finds nothing of that kind (e.g. no tRNAs), but the
+        # rules after this one read all three.
+        for table in annotations.tsv trnas.tsv rrnas.tsv; do
+            if [ ! -f "{_DRAM_TABLES}/$table" ]; then
+                echo "DRAM wrote no $table: leaving an empty file"
+                touch "{_DRAM_TABLES}/$table"
             fi
         done
 
-        rm --recursive --force "$sys_tmp_dir"
+        rm -rf "$sys_tmp_dir"
         """
 
 rule mag_annotate__fix_dram_annotations_scaffold:
     """Patch up DRAM's annotation table (see fix_annotations.py) before distillation"""
     input:
-        DRAM / "annotate" / "annotations.tsv",
+        _DRAM_TABLES / "annotations.tsv",
     output:
-        DRAM / "annotate" / "annotations.fixed.tsv",
+        _DRAM_TABLES / "annotations.fixed.tsv",
     log:
         DRAM / "fix_annotation.log",
     container:
@@ -92,15 +85,15 @@ rule mag_annotate__fix_dram_annotations_scaffold:
 rule mag_annotate__dram__distill:
     """Summarize the annotated genomes into DRAM's genome/metabolism reports"""
     input:
-        annotations=DRAM / "annotate" / "annotations.fixed.tsv",
-        trnas=DRAM / "annotate" / "trnas.tsv",
-        rrnas=DRAM / "annotate" / "rrnas.tsv",
-        dram_db=features["databases"]["dram"],
+        annotations=_DRAM_TABLES / "annotations.fixed.tsv",
+        trnas=_DRAM_TABLES / "trnas.tsv",
+        rrnas=_DRAM_TABLES / "rrnas.tsv",
+        reference_data=features["databases"]["dram"],
     output:
-        genome=DRAM / "genome_stats.tsv",
-        metabolism=DRAM / "metabolism_summary.xlsx",
-        product_html=DRAM / "product.html",
-        product_tsv=DRAM / "product.tsv",
+        DRAM / "genome_stats.tsv",
+        DRAM / "metabolism_summary.xlsx",
+        DRAM / "product.html",
+        DRAM / "product.tsv",
     log:
         DRAM / "distill.log2",
     benchmark:
@@ -114,29 +107,24 @@ rule mag_annotate__dram__distill:
         cpus_per_task=esc("cpus", "mag_annotate__dram__distill"),
         slurm_partition=esc("partition", "mag_annotate__dram__distill"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__dram__distill')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "mag_annotate__dram__distill"),
     retries: len(get_escalation_order("mag_annotate__dram__distill"))
     params:
-        config=config["dram-config"],
-        outdir_tmp=DRAM / "distill_tmp",
-        outdir=DRAM,
+        dram_config=config["dram-config"],
     shell:
         """
         exec > {log} 2>&1
-        debug "config={params.config} outdir_tmp={params.outdir_tmp} outdir={params.outdir} threads={threads}"
-        # DRAM insists on creating this directory itself, but Snakemake has
-        # already created the parent tree ahead of time -- clear it first.
-        rm --recursive --force {params.outdir_tmp}
+        workdir={DRAM}/distill_tmp
+        debug "dram_config={params.dram_config} workdir=$workdir threads={threads}"
 
-        DRAM.py distill \
-            --config_loc {params.config} \
-            --input_file {input.annotations} \
-            --rrna_path {input.rrnas} \
-            --trna_path {input.trnas} \
-            --output_dir {params.outdir_tmp}
+        # DRAM wants to create its output folder itself
+        rm -rf "$workdir"
 
-        mv {params.outdir_tmp}/* {params.outdir}/
-        rm --recursive --force {params.outdir_tmp}
+        DRAM.py distill -i {input.annotations} -o "$workdir" \
+            --trna_path {input.trnas} --rrna_path {input.rrnas} --config_loc {params.dram_config}
+
+        mv "$workdir"/* {DRAM}/
+        rm -rf "$workdir"
         """
 
 rule mag_annotate__dram:

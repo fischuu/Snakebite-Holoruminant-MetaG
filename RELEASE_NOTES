@@ -1,3 +1,26 @@
+# Version 0.4.67
+################################################################################
+
+The rules of several modules were reworked, while all output files stay at the same paths with the same
+content. For an existing project folder:
+
+1. Snakemake notices the changed code and would otherwise rerun the finished rules, so always do a dry run first
+   and continue the project with the option
+
+   --rerun-triggers mtime
+
+2. Some rules have new names, which your project's config/escalation.yaml has to follow. Rules that are not listed
+   there get the default escalation (small, medium, large).
+
+   assemble__magscot__hmmsearch_pfam and _tigr   ->  assemble__magscot__hmmsearch
+   assemble__magscot__join_hmms                  ->  assemble__magscot__marker_table
+   assemble__magscot__reformat and _rename       ->  assemble__magscot__label_contigs
+   assemble__drep__separate_bins                 ->  assemble__drep__split_bins
+   assemble__drep__join_genomes                  ->  assemble__drep__catalogue
+
+3. The memory_gb and bowtie2-build entries of params.yaml and the virify entry of features.yaml were never read.
+   You can remove them from your copies, but they do no harm.
+
 # Version 0.3.8
 ################################################################################
 

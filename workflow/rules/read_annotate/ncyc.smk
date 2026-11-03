@@ -2,11 +2,11 @@ rule read_annotate__ncyc__prepare_input:
     """Create sample sheet for NCycDB Perl wrapper (runs all samples at once)"""
     input:
         forwards=[
-            PRE_BOWTIE2 / "decontaminated_reads" / f"{sample_id}.{library_id}_1.fq.gz"
+            CLEAN_READS / f"{sample_id}.{library_id}_1.fq.gz"
             for sample_id, library_id in SAMPLE_LIBRARY
         ],
         reverses=[
-            PRE_BOWTIE2 / "decontaminated_reads" / f"{sample_id}.{library_id}_2.fq.gz"
+            CLEAN_READS / f"{sample_id}.{library_id}_2.fq.gz"
             for sample_id, library_id in SAMPLE_LIBRARY
         ],
     output:
@@ -24,11 +24,11 @@ rule read_annotate__ncyc__prepare_input:
         cpus_per_task=esc("cpus", "read_annotate__ncyc__prepare_input"),
         slurm_partition=esc("partition", "read_annotate__ncyc__prepare_input"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__ncyc__prepare_input')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__ncyc__prepare_input"),
     retries: len(get_escalation_order("read_annotate__ncyc__prepare_input"))
     params:
         folder=config["pipeline_folder"],
-        reads=PRE_BOWTIE2 / "decontaminated_reads",
+        reads=CLEAN_READS,
         outdir=NCYC / "results",
     shell:
         """
@@ -59,12 +59,12 @@ rule read_annotate__ncyc__run:
         cpus_per_task=esc("cpus", "read_annotate__ncyc__run"),
         slurm_partition=esc("partition", "read_annotate__ncyc__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__ncyc__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__ncyc__run"),
     retries: len(get_escalation_order("read_annotate__ncyc__run"))
     params:
         folder=config["pipeline_folder"],
         outdir=NCYC,
-        reads_dir=PRE_BOWTIE2 / "decontaminated_reads" ,
+        reads_dir=CLEAN_READS ,
         faa=features["databases"]["ncyc"],
     shell:
         """

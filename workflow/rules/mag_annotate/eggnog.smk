@@ -1,7 +1,7 @@
 rule mag_annotate__eggnog:
     """Run eggnog over the dereplicated mags"""
     input:
-        contigs=DREP / "dereplicated_genomes.fa.gz",
+        contigs=MAG_CATALOGUE,
     output:
         directory(EGGNOG) ,
     log:
@@ -22,7 +22,7 @@ rule mag_annotate__eggnog:
         cpus_per_task=esc("cpus", "mag_annotate__eggnog"),
         slurm_partition=esc("partition", "mag_annotate__eggnog"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__eggnog')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "mag_annotate__eggnog"),
     retries: len(get_escalation_order("mag_annotate__eggnog"))
     shell:
         """

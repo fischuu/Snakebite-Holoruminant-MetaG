@@ -24,7 +24,7 @@ rule contig_annotate__camper__annotate:
         cpus_per_task=esc("cpus", "contig_annotate__camper__annotate"),
         slurm_partition=esc("partition", "contig_annotate__camper__annotate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__camper__annotate')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "contig_annotate__camper__annotate"),
     retries: len(get_escalation_order("contig_annotate__camper__annotate"))
     shell:
         """

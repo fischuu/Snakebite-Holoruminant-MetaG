@@ -3,7 +3,7 @@ rule mag_annotate__phylophlan:
     Run phylophlan for the dereplicated genomes
     """
     input:
-        DREP / "dereplicated_genomes",
+        MAG_GENOMES,
     output:
         folder=directory(PHYLOPHLAN / "SGB"),
         result= PHYLOPHLAN / "SGB" / "SGB.tsv",
@@ -18,7 +18,7 @@ rule mag_annotate__phylophlan:
         cpus_per_task=esc("cpus", "mag_annotate__phylophlan"),
         slurm_partition=esc("partition", "mag_annotate__phylophlan"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__phylophlan')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "mag_annotate__phylophlan"),
     retries: len(get_escalation_order("mag_annotate__phylophlan"))
     container:
         docker["mag_annotate"]

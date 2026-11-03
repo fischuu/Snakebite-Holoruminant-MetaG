@@ -2,8 +2,8 @@ rule read_annotate__metaphlan__run:
     """Run metaphlan over one sample
     """
     input:
-        forward_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_1.fq.gz",
-        reverse_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_2.fq.gz",
+        forward_=CLEAN_FORWARD,
+        reverse_=CLEAN_REVERSE,
         data=features["databases"]["metaphlan4"],
     output:
         bt2_out=METAPHLAN / "bowtie2_out" / "{sample_id}.{library_id}.bz2",
@@ -21,7 +21,7 @@ rule read_annotate__metaphlan__run:
         cpus_per_task=esc("cpus", "read_annotate__metaphlan__run"),
         slurm_partition=esc("partition", "read_annotate__metaphlan__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__metaphlan__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__metaphlan__run"),
     retries: len(get_escalation_order("read_annotate__metaphlan__run"))
     params:
         tmp = config["tmp_storage"]
@@ -64,7 +64,7 @@ rule read_annotate__metaphlan__condense:
         cpus_per_task=esc("cpus", "read_annotate__metaphlan__condense"),
         slurm_partition=esc("partition", "read_annotate__metaphlan__condense"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__metaphlan__condense')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__metaphlan__condense"),
     retries: len(get_escalation_order("read_annotate__metaphlan__condense"))
     shell:
         """

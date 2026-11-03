@@ -1,26 +1,27 @@
 # For now, I took the GTDBTK annotation out, as we get the taxonomic assignment also from the globlal run
 
+_DRAM_ASSEMBLY = DRAMMAG / "{assembly_id}"
+_DRAM_ASSEMBLY_TABLES = _DRAM_ASSEMBLY / "annotate"
+
+
 rule mag_annotate__dram_mag__annotate:
-    """Annotate dereplicate genomes with DRAM"""
+    """Annotate the binned contigs of one assembly with DRAM"""
     input:
         contigs=MAGSCOT / "{assembly_id}.fa.gz",
-        #gtdbtk_summary=GTDBTK / "gtdbtk.summary.tsv",
-        dram_db=features["databases"]["dram"],
+        reference_data=features["databases"]["dram"],
     output:
-        annotation=DRAMMAG / "{assembly_id}" / "annotate"  / "annotations.tsv",
-        trnas=DRAMMAG / "{assembly_id}" / "annotate" / "trnas.tsv",
-        rrnas=DRAMMAG / "{assembly_id}" / "annotate" / "rrnas.tsv",
+        _DRAM_ASSEMBLY_TABLES / "annotations.tsv",
+        _DRAM_ASSEMBLY_TABLES / "trnas.tsv",
+        _DRAM_ASSEMBLY_TABLES / "rrnas.tsv",
     log:
-        DRAMMAG / "{assembly_id}" / "annotate_{assembly_id}.log",
+        _DRAM_ASSEMBLY / "annotate_{assembly_id}.log",
     benchmark:
-        DRAMMAG / "{assembly_id}" / "benchmark_annotate.tsv",
+        _DRAM_ASSEMBLY / "benchmark_annotate.tsv",
     container:
         docker["dram"]
     params:
-        config=config["dram-config"],
-        min_contig_size=1500,
-        out_dir=lambda wildcards: f"{DRAMMAG}/{wildcards.assembly_id}",
-        tmp_dir=lambda wildcards: f"{DRAMMAG}/{wildcards.assembly_id}/annotate",
+        dram_config=config["dram-config"],
+        tables=lambda wildcards: DRAMMAG / wildcards.assembly_id / "annotate",
     threads: esc("cpus", "mag_annotate__dram_mag__annotate")
     resources:
         runtime=esc("runtime", "mag_annotate__dram_mag__annotate"),
@@ -28,11 +29,12 @@ rule mag_annotate__dram_mag__annotate:
         cpus_per_task=esc("cpus", "mag_annotate__dram_mag__annotate"),
         slurm_partition=esc("partition", "mag_annotate__dram_mag__annotate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__dram_mag__annotate')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "mag_annotate__dram_mag__annotate"),
     retries: len(get_escalation_order("mag_annotate__dram_mag__annotate"))
     shell:
         """
-        rm -rf {params.tmp_dir}
+        exec > {log} 2>&1
+        rm -rf {params.tables}
 
         # DRAM spawns tRNAscan-SE internally, which does its own $TMPDIR
         # lookup for scratch files -- on this cluster the inherited value is
@@ -47,34 +49,33 @@ rule mag_annotate__dram_mag__annotate:
         mkdir -p "$sys_tmp_dir"
         export TMPDIR="$sys_tmp_dir"
 
-        echo "Hostname: $(hostname)" 2>> {log} 1>&2
-        echo "Temporary directory: $TMPDIR" 2>> {log} 1>&2
-        df -h 2>> {log} 1>&2
+        echo "Hostname: $(hostname)"
+        echo "Temporary directory: $TMPDIR"
+        df -h
 
-        debug "assembly_id={wildcards.assembly_id} config={params.config} dram_db={input.dram_db} tmp_dir={params.tmp_dir} threads={threads}" 2>> {log}
-        DRAM.py annotate \
-                --config_loc {params.config} \
-                --input_fasta {input.contigs} \
-                --output_dir {params.tmp_dir} \
-                --threads {threads} \
-        2>> {log} 1>&2
+        debug "assembly_id={wildcards.assembly_id} dram_config={params.dram_config} reference_data={input.reference_data} threads={threads}"
+        DRAM.py annotate -i {input.contigs} -o {params.tables} --threads {threads} \
+            --config_loc {params.dram_config}
 
-        for f in annotations.tsv trnas.tsv rrnas.tsv; do
-          debug "checking expected DRAM output: {params.tmp_dir}/$f" 2>> {log}
-          if [ ! -f "{params.tmp_dir}/$f" ]; then
-            echo "DRAM did not generate $f -> creating empty file" >> {log}
-            touch "{params.tmp_dir}/$f"
-          fi
+        # DRAM skips a table when it finds nothing of that kind (e.g. no tRNAs), but the
+        # rules after this one read all three.
+        for table in annotations.tsv trnas.tsv rrnas.tsv; do
+            if [ ! -f "{params.tables}/$table" ]; then
+                echo "DRAM wrote no $table: leaving an empty file"
+                touch "{params.tables}/$table"
+            fi
         done
 
-        rm --recursive --force "$sys_tmp_dir"
-    """
-    
+        rm -rf "$sys_tmp_dir"
+        """
+
+
 rule mag_annotate__fix_dram_mag_annotations_scaffold:
+    """Patch up DRAM's annotation table (see fix_annotations.py) before distillation"""
     input:
-        DRAMMAG / "{assembly_id}" / "annotate"  / "annotations.tsv",
+        _DRAM_ASSEMBLY_TABLES / "annotations.tsv",
     output:
-        DRAMMAG / "{assembly_id}" / "annotate"  / "annotations.fixed.tsv",
+        _DRAM_ASSEMBLY_TABLES / "annotations.fixed.tsv",
     log:
         DRAMMAG / "{assembly_id}_fix_annotation.log",
     container:
@@ -83,27 +84,27 @@ rule mag_annotate__fix_dram_mag_annotations_scaffold:
         script_folder=SCRIPT_FOLDER,
     shell:
         """
-        debug "input={input} output={output}" 2>> {log}
-        python {params.script_folder}/fix_annotations.py {input} {output} 2>> {log} 1>&2
+        exec > {log} 2>&1
+        debug "input={input} output={output}"
+        python {params.script_folder}/fix_annotations.py {input} {output}
         """
-        
-    
+
 
 rule mag_annotate__dram_mag__distill:
-    """Distill DRAM annotations."""
+    """Summarize the annotated contigs of one assembly into DRAM's genome/metabolism reports"""
     input:
-        annotation=DRAMMAG / "{assembly_id}" / "annotate"  / "annotations.fixed.tsv",
-        trnas=DRAMMAG / "{assembly_id}" / "annotate" / "trnas.tsv",
-        rrnas=DRAMMAG / "{assembly_id}" / "annotate" / "rrnas.tsv",
-        dram_db=features["databases"]["dram"],
+        annotations=_DRAM_ASSEMBLY_TABLES / "annotations.fixed.tsv",
+        trnas=_DRAM_ASSEMBLY_TABLES / "trnas.tsv",
+        rrnas=_DRAM_ASSEMBLY_TABLES / "rrnas.tsv",
+        reference_data=features["databases"]["dram"],
     output:
-        genome=DRAMMAG / "{assembly_id}" / "genome_stats.tsv",
-        metabolism=DRAMMAG / "{assembly_id}" / "metabolism_summary.xlsx",
-        product_tsv=DRAMMAG / "{assembly_id}" / "product.tsv",
+        _DRAM_ASSEMBLY / "genome_stats.tsv",
+        _DRAM_ASSEMBLY / "metabolism_summary.xlsx",
+        _DRAM_ASSEMBLY / "product.tsv",
     log:
-        DRAMMAG / "{assembly_id}" / "distill.log2",
+        _DRAM_ASSEMBLY / "distill.log2",
     benchmark:
-        DRAMMAG / "{assembly_id}" / "benchmark_distill.tsv",
+        _DRAM_ASSEMBLY / "benchmark_distill.tsv",
     container:
         docker["dram"]
     threads: esc("cpus", "mag_annotate__dram_mag__distill")
@@ -113,36 +114,29 @@ rule mag_annotate__dram_mag__distill:
         cpus_per_task=esc("cpus", "mag_annotate__dram_mag__distill"),
         slurm_partition=esc("partition", "mag_annotate__dram_mag__distill"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__dram_mag__distill')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "mag_annotate__dram_mag__distill"),
     retries: len(get_escalation_order("mag_annotate__dram_mag__distill"))
     params:
-        config=config["dram-config"],
-        outdir=lambda wildcards: f"{DRAMMAG}/{wildcards.assembly_id}",
-        outdir_tmp=lambda wildcards: f"{DRAMMAG}/{wildcards.assembly_id}/distill_tmp",
+        dram_config=config["dram-config"],
+        assembly_folder=lambda wildcards: DRAMMAG / wildcards.assembly_id,
     shell:
         """
-        # This is maybe needed as snakemake creates the folders, but dram relies on creating it itself
-        rm -rf {params.outdir_tmp} 2> {log} 1>&2
+        exec > {log} 2>&1
+        workdir={params.assembly_folder}/distill_tmp
+        debug "assembly_id={wildcards.assembly_id} dram_config={params.dram_config} workdir=$workdir threads={threads}"
 
-        DRAM.py distill \
-            --config_loc {params.config} \
-            --input_file {input.annotation} \
-            --rrna_path {input.rrnas} \
-            --trna_path {input.trnas} \
-            --output_dir {params.outdir_tmp} \
-        2> {log} 1>&2
+        # DRAM wants to create its output folder itself
+        rm -rf "$workdir"
 
-        # Both commands above use "2>" (truncate), so a debug call placed any
-        # earlier in this script would just get overwritten -- this is the
-        # first point where appending to {log} actually sticks.
-        debug "assembly_id={wildcards.assembly_id} config={params.config} outdir_tmp={params.outdir_tmp} outdir={params.outdir} threads={threads}" 2>> {log}
+        DRAM.py distill -i {input.annotations} -o "$workdir" \
+            --trna_path {input.trnas} --rrna_path {input.rrnas} --config_loc {params.dram_config}
 
-        mv {params.outdir_tmp}/* {params.outdir}/ 2>> {log} 1>&2
-        rm -rf {params.outdir_tmp}/ 2>> {log} 1>&2
+        mv "$workdir"/* {params.assembly_folder}/
+        rm -rf "$workdir"
         """
+
 
 rule mag_annotate__dram_mags:
     """Run DRAM over the sample-wise mags"""
     input:
-        #expand(DRAMMAG / "{assembly_id}" / "annotate"  / "annotations.tsv", assembly_id=ASSEMBLIES),
-        expand(DRAMMAG / "{assembly_id}" / "genome_stats.tsv", assembly_id=ASSEMBLIES),
+        expand(_DRAM_ASSEMBLY / "genome_stats.tsv", assembly_id=ASSEMBLIES),

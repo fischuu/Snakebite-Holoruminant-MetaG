@@ -1,42 +1,44 @@
-rule assemble__drep__separate_bins:
-    """Split each assembly's renamed, binned FASTA into one file per bin"""
+_BIN_FILES = DREP / "separated_bins"
+
+
+rule assemble__drep__split_bins:
+    """Write every refined bin of all assemblies to its own FASTA, the way dRep takes its genomes"""
     input:
-        assemblies=[MAGSCOT / f"{assembly_id}.fa.gz" for assembly_id in ASSEMBLIES],
+        expand(MAGSCOT / "{assembly_id}.fa.gz", assembly_id=ASSEMBLIES),
     output:
-        out_dir=directory(DREP / "separated_bins"),
+        directory(_BIN_FILES),
     log:
         DREP / "separate_bins.log",
     benchmark:
         DREP / "benchmark/separate_bins.tsv",
     container:
         docker["assemble"]
-    threads: esc("cpus", "assemble__drep__separate_bins")
+    threads: esc("cpus", "assemble__drep__split_bins")
     resources:
-        runtime=esc("runtime", "assemble__drep__separate_bins"),
-        mem_mb=esc("mem_mb", "assemble__drep__separate_bins"),
-        cpus_per_task=esc("cpus", "assemble__drep__separate_bins"),
-        slurm_partition=esc("partition", "assemble__drep__separate_bins"),
-        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__drep__separate_bins')['nvme']}",
-        attempt=get_attempt,
-    retries: len(get_escalation_order("assemble__drep__separate_bins"))
+        runtime=esc("runtime", "assemble__drep__split_bins"),
+        mem_mb=esc("mem_mb", "assemble__drep__split_bins"),
+        cpus_per_task=esc("cpus", "assemble__drep__split_bins"),
+        slurm_partition=esc("partition", "assemble__drep__split_bins"),
+        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__drep__split_bins')['nvme']}",
+        attempt=esc("attempt", "assemble__drep__split_bins"),
+    retries: len(get_escalation_order("assemble__drep__split_bins"))
     params:
-        folder=config["pipeline_folder"],
+        script_folder=SCRIPT_FOLDER,
     shell:
         """
         exec > {log} 2>&1
-        debug "out_dir={output.out_dir} assemblies_count=$(echo {input.assemblies} | wc -w)"
-        {params.folder}/workflow/scripts/split_bins.sh {output.out_dir} {input.assemblies}
+        debug "bin_files={output} assemblies=$(echo {input} | wc -w)"
+        {params.script_folder}/split_bins.sh {output} {input}
         """
 
 
 rule assemble__drep__run:
-    """Dereplicate all the bins using dRep."""
+    """Dereplicate the bins of all assemblies into one set of genomes with dRep"""
     input:
-        genomes=DREP / "separated_bins",
+        _BIN_FILES,
     output:
-        dereplicated_genomes=directory(DREP / "dereplicated_genomes"),
-        data=DREP / "data.tar.gz",
-        data_tables=DREP / "data_tables.tar.gz",
+        genomes=directory(MAG_GENOMES),
+        archives=expand(DREP / "{section}.tar.gz", section=("data", "data_tables")),
     log:
         DREP / "drep.log",
     benchmark:
@@ -50,86 +52,64 @@ rule assemble__drep__run:
         cpus_per_task=esc("cpus", "assemble__drep__run"),
         slurm_partition=esc("partition", "assemble__drep__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__drep__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "assemble__drep__run"),
     retries: len(get_escalation_order("assemble__drep__run"))
     params:
-        out_dir=DREP,
-        completeness=params["assemble"]["drep"]["completeness"],
-        contamination=params["assemble"]["drep"]["contamination"],
-        P_ani=params["assemble"]["drep"]["P_ani"],
-        S_ani=params["assemble"]["drep"]["S_ani"],
-        nc=params["assemble"]["drep"]["nc"],
-        extra=params["assemble"]["drep"]["extra"]
+        settings=params["assemble"]["drep"],
     shell:
         """
-        exec > {log}.{resources.attempt} 2>&1
-        debug "threads={threads} completeness={params.completeness} contamination={params.contamination} P_ani={params.P_ani} S_ani={params.S_ani} nc={params.nc}"
+        try_log={log}.try{resources.attempt}
+        exec > "$try_log" 2>&1
+        debug "threads={threads} settings={params.settings}"
 
-        stale=(
-            {params.out_dir}/data_tables {params.out_dir}/data
-            {params.out_dir}/dereplicated_genomes {params.out_dir}/figures {params.out_dir}/log
-        )
-        rm --recursive --force -- "${{stale[@]}}"
+        # dRep will not start over in a folder holding the results of a failed attempt
+        rm -rf {DREP}/{{data,data_tables,dereplicated_genomes,figures,log}}
 
-        dRep dereplicate \
-            {params.out_dir} \
-            --processors {threads} \
-            --completeness {params.completeness} \
-            --contamination {params.contamination} \
-            --P_ani {params.P_ani} \
-            --S_ani {params.S_ani} \
-            -nc {params.nc} \
-            {params.extra} \
-            --genomes {input.genomes}/*.fa
+        dRep dereplicate {DREP} -g {input}/*.fa -p {threads} \
+            -comp {params.settings[completeness]} -con {params.settings[contamination]} \
+            -pa {params.settings[P_ani]} -sa {params.settings[S_ani]} -nc {params.settings[nc]} \
+            {params.settings[extra]}
 
         for section in data data_tables; do
-            debug "archiving section=$section into {params.out_dir}/${{section}}.tar.gz"
-            tar \
-                --create \
-                --directory {params.out_dir} \
-                --file {params.out_dir}/${{section}}.tar.gz \
-                --remove-files \
-                --use-compress-program="pigz --processes {threads}" \
-                --verbose \
-                ${{section}}
+            tar -C {DREP} -cv -I "pigz -p {threads}" --remove-files -f {DREP}/$section.tar.gz $section
         done
 
-        find {output.dereplicated_genomes} -type f ! -name "*.gz" -exec gzip {{}} +
+        find {output.genomes} -type f -not -name "*.gz" -exec pigz -p {threads} {{}} +
 
-        mv {log}.{resources.attempt} {log}
+        mv "$try_log" {log}
         """
 
 
-rule assemble__drep__join_genomes:
-    """Join all the dereplicated genomes into a single file."""
+rule assemble__drep__catalogue:
+    """Concatenate the dereplicated genomes into the MAG catalogue"""
     input:
-        DREP / "dereplicated_genomes",
+        MAG_GENOMES,
     output:
-        DREP / "dereplicated_genomes.fa.gz",
+        MAG_CATALOGUE,
     log:
         DREP / "dereplicated_genomes.log",
     benchmark:
         DREP / "benchmark/join_genomes.tsv",
     container:
         docker["assemble"]
-    threads: esc("cpus", "assemble__drep__join_genomes")
+    threads: esc("cpus", "assemble__drep__catalogue")
     resources:
-        runtime=esc("runtime", "assemble__drep__join_genomes"),
-        mem_mb=esc("mem_mb", "assemble__drep__join_genomes"),
-        cpus_per_task=esc("cpus", "assemble__drep__join_genomes"),
-        slurm_partition=esc("partition", "assemble__drep__join_genomes"),
-        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__drep__join_genomes')['nvme']}",
-        attempt=get_attempt,
-    retries: len(get_escalation_order("assemble__drep__join_genomes"))
+        runtime=esc("runtime", "assemble__drep__catalogue"),
+        mem_mb=esc("mem_mb", "assemble__drep__catalogue"),
+        cpus_per_task=esc("cpus", "assemble__drep__catalogue"),
+        slurm_partition=esc("partition", "assemble__drep__catalogue"),
+        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__drep__catalogue')['nvme']}",
+        attempt=esc("attempt", "assemble__drep__catalogue"),
+    retries: len(get_escalation_order("assemble__drep__catalogue"))
     shell:
         """
         exec 2> {log}
-        debug "genomes_dir={input} threads={threads} output={output}"
-        zcat {input}/*.fa.gz | bgzip --compress-level 9 --threads {threads} > {output}
+        debug "genomes={input} threads={threads} catalogue={output}"
+        zcat {input}/*.fa.gz | bgzip -l 9 -@ {threads} > {output}
         """
 
 
 rule assemble__drep:
-    """Dereplicate all bins across every assembly into one genome catalogue with dRep"""
+    """Build the MAG catalogue from the bins of all assemblies"""
     input:
-        DREP / "dereplicated_genomes.fa.gz",
+        MAG_CATALOGUE,

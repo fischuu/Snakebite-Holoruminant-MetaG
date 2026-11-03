@@ -1,13 +1,13 @@
 rule quantify__bowtie2__build:
-    """Build a bowtie2 index for the dereplicated genome catalogue"""
+    """Index the MAG catalogue for read mapping"""
     input:
-        contigs=DREP / "dereplicated_genomes.fa.gz",
+        MAG_CATALOGUE,
     output:
-        mock=touch(QUANT_INDEX / "dereplicated_genomes"),
+        index=touch(MAG_INDEX / "dereplicated_genomes"),
     log:
-        QUANT_INDEX / "dereplicated_genomes.log",
+        MAG_INDEX / "dereplicated_genomes.log",
     benchmark:
-        QUANT_INDEX / "benchmark/dereplicated_genomes.tsv",
+        MAG_INDEX / "benchmark/dereplicated_genomes.tsv",
     container:
         docker["bowtie2"]
     threads: esc("cpus", "quantify__bowtie2__build")
@@ -17,30 +17,30 @@ rule quantify__bowtie2__build:
         cpus_per_task=esc("cpus", "quantify__bowtie2__build"),
         slurm_partition=esc("partition", "quantify__bowtie2__build"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__bowtie2__build')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "quantify__bowtie2__build"),
     retries: len(get_escalation_order("quantify__bowtie2__build"))
     shell:
         """
         exec 2> {log}
-        debug "threads={threads} contigs={input.contigs} mock={output.mock}"
-        bowtie2-build --threads {threads} {input.contigs} {output.mock}
+        debug "threads={threads} catalogue={input} index={output.index}"
+        bowtie2-build --threads {threads} {input} {output.index}
         """
 
 
 rule quantify__bowtie2__map:
-    """Map one sample/library against the dereplicated genome catalogue"""
+    """Map one library against the MAG catalogue"""
     input:
-        mock=QUANT_INDEX / "dereplicated_genomes",
-        forward_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_1.fq.gz",
-        reverse_=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_2.fq.gz",
-        reference=DREP / "dereplicated_genomes.fa.gz",
-        fai=DREP / "dereplicated_genomes.fa.gz.fai",
+        index=MAG_INDEX / "dereplicated_genomes",
+        forward_=CLEAN_FORWARD,
+        reverse_=CLEAN_REVERSE,
+        catalogue=MAG_CATALOGUE,
+        fai=MAG_CATALOGUE_FAI,
     output:
-        cram=QUANT_BOWTIE2 / "{sample_id}.{library_id}.cram",
+        MAG_CRAM,
     log:
-        QUANT_BOWTIE2 / "{sample_id}.{library_id}.log",
+        MAG_MAPPING / f"{LIBRARY}.log",
     benchmark:
-        QUANT_BOWTIE2 / "benchmark/{sample_id}.{library_id}.tsv",
+        MAG_MAPPING / f"benchmark/{LIBRARY}.tsv",
     container:
         docker["bowtie2"]
     threads: esc("cpus", "quantify__bowtie2__map")
@@ -50,31 +50,31 @@ rule quantify__bowtie2__map:
         cpus_per_task=esc("cpus", "quantify__bowtie2__map"),
         slurm_partition=esc("partition", "quantify__bowtie2__map"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__bowtie2__map')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "quantify__bowtie2__map"),
     retries: len(get_escalation_order("quantify__bowtie2__map"))
     params:
-        samtools_mem=params["quantify"]["samtools"]["mem"],
+        sort_memory=params["quantify"]["samtools"]["mem"],
         rg_id=compose_rg_id,
         rg_extra=compose_rg_extra,
     shell:
         """
         exec > {log} 2>&1
-        debug "sample_id={wildcards.sample_id} library_id={wildcards.library_id} threads={threads} rg_id={params.rg_id} samtools_mem={params.samtools_mem} cram={output.cram}"
+        debug "library={wildcards.sample_id}.{wildcards.library_id} threads={threads} rg_id={params.rg_id} sort_memory={params.sort_memory} cram={output}"
 
-        # Clear any stale samtools-sort spill files from a killed prior attempt.
-        find "$(dirname {output.cram})" -name "$(basename {output.cram}).tmp.*.bam" -delete
+        # samtools sort leaves "*.tmp.NNNN.bam" spill files behind when a previous attempt was killed
+        find "$(dirname {output})" -name "$(basename {output}).tmp.*.bam" -delete
 
-        bowtie2 -x {input.mock} -1 {input.forward_} -2 {input.reverse_} \
-                --threads {threads} --rg-id '{params.rg_id}' --rg '{params.rg_extra}' \
-            | samtools sort --reference {input.reference} -l 9 -M -m {params.samtools_mem} \
-                --threads {threads} -o {output.cram} -
+        bowtie2 --threads {threads} --rg-id '{params.rg_id}' --rg '{params.rg_extra}' \
+                -x {input.index} -1 {input.forward_} -2 {input.reverse_} \
+            | samtools sort -@ {threads} -m {params.sort_memory} -l 9 -M --reference {input.catalogue} \
+                -o {output} -
         """
 
 
 rule quantify__bowtie2:
-    """Map every sample to the dereplicated genome catalogue"""
+    """Map every library against the MAG catalogue"""
     input:
         [
-            QUANT_BOWTIE2 / f"{sample_id}.{library_id}.cram"
+            MAG_MAPPING / f"{sample_id}.{library_id}.cram"
             for sample_id, library_id in SAMPLE_LIBRARY
         ],

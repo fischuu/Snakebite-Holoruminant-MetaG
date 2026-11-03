@@ -11,7 +11,7 @@ rule eukaryote__remag__filter:
     turned into failures here.
     """
     input:
-        assembly=get_assembly_fasta,
+        assembly=CONTIGS,
     output:
         tsv=EUK_REMAG / "{assembly_id}.tsv",
         filtered=EUK_REMAG / "{assembly_id}" / "{assembly_id}.fa_eukaryotic_filtered.fasta",
@@ -28,7 +28,7 @@ rule eukaryote__remag__filter:
         cpus_per_task=esc("cpus", "eukaryote__remag__filter"),
         slurm_partition=esc("partition", "eukaryote__remag__filter"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'eukaryote__remag__filter')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "eukaryote__remag__filter"),
     retries: len(get_escalation_order("eukaryote__remag__filter"))
     params:
         out_dir=lambda w: EUK_REMAG / w.assembly_id,
@@ -36,7 +36,8 @@ rule eukaryote__remag__filter:
         hyenadna_batch_size=params["eukaryote"]["remag"]["hyenadna_batch_size"],
     shell:
         """
-        exec > {log}.{resources.attempt} 2>&1
+        try_log={log}.try{resources.attempt}
+        exec > "$try_log" 2>&1
         debug "assembly_id={wildcards.assembly_id} threads={threads} assembly={input.assembly} out_dir={params.out_dir} min_contig_length={params.min_contig_length}"
 
         # Start from an empty folder: REMAG reuses whatever it finds there, and refuses to
@@ -59,7 +60,7 @@ rule eukaryote__remag__filter:
 
         cp {params.out_dir}/{wildcards.assembly_id}.fa_hyenadna_classification.tsv {output.tsv}
 
-        mv {log}.{resources.attempt} {log}
+        mv "$try_log" {log}
         """
 
 
@@ -72,11 +73,11 @@ rule eukaryote__remag__bin:
     the size cutoff then, and REMAG exits with an error when it has (nearly) nothing to bin.
     """
     input:
-        assembly=get_assembly_fasta,
+        assembly=CONTIGS,
         tsv=EUK_REMAG / "{assembly_id}.tsv",
         filtered=EUK_REMAG / "{assembly_id}" / "{assembly_id}.fa_eukaryotic_filtered.fasta",
-        alignments=get_alignments_from_assembly_id,
-        indexes=get_alignment_indexes_from_assembly_id,
+        alignments=assembly_alignments,
+        indexes=assembly_alignment_indexes,
     output:
         bins=directory(EUK_REMAG / "{assembly_id}" / "bins"),
         assignments=EUK_REMAG / "{assembly_id}" / "bins.csv",
@@ -93,7 +94,7 @@ rule eukaryote__remag__bin:
         cpus_per_task=esc("cpus", "eukaryote__remag__bin"),
         slurm_partition=esc("partition", "eukaryote__remag__bin"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'eukaryote__remag__bin')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "eukaryote__remag__bin"),
     retries: len(get_escalation_order("eukaryote__remag__bin"))
     params:
         out_dir=lambda w: EUK_REMAG / w.assembly_id,
@@ -104,7 +105,8 @@ rule eukaryote__remag__bin:
         extra=params["eukaryote"]["remag"]["extra"],
     shell:
         """
-        exec > {log}.{resources.attempt} 2>&1
+        try_log={log}.try{resources.attempt}
+        exec > "$try_log" 2>&1
         debug "assembly_id={wildcards.assembly_id} threads={threads} out_dir={params.out_dir} min_bin_size={params.min_bin_size} coverage={params.coverage}"
 
         # Prints the eukaryotic total, and succeeds only if it is below min_bin_size.
@@ -128,7 +130,7 @@ rule eukaryote__remag__bin:
                 {params.extra}
         fi
 
-        mv {log}.{resources.attempt} {log}
+        mv "$try_log" {log}
         """
 
 

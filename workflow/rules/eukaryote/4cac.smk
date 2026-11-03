@@ -25,13 +25,14 @@ rule eukaryote__4cac__extract_graph:
         cpus_per_task=esc("cpus", "eukaryote__4cac__extract_graph"),
         slurm_partition=esc("partition", "eukaryote__4cac__extract_graph"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'eukaryote__4cac__extract_graph')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "eukaryote__4cac__extract_graph"),
     retries: len(get_escalation_order("eukaryote__4cac__extract_graph"))
     params:
         tmp_dir=lambda w: EUK_4CAC / w.assembly_id / "extract_tmp",
     shell:
         """
-        exec > {log}.{resources.attempt} 2>&1
+        try_log={log}.try{resources.attempt}
+        exec > "$try_log" 2>&1
         debug "assembly_id={wildcards.assembly_id} tarball={input.tarball} tmp_dir={params.tmp_dir}"
         rm --recursive --force {params.tmp_dir}
         mkdir --parents {params.tmp_dir}
@@ -53,7 +54,7 @@ rule eukaryote__4cac__extract_graph:
         mv "$(find {params.tmp_dir} -type f -name assembly_graph_with_scaffolds.gfa)" {output.graph}
         rm --recursive --force {params.tmp_dir}
 
-        mv {log}.{resources.attempt} {log}
+        mv "$try_log" {log}
         """
 
 
@@ -82,7 +83,7 @@ rule eukaryote__4cac__run:
         cpus_per_task=esc("cpus", "eukaryote__4cac__run"),
         slurm_partition=esc("partition", "eukaryote__4cac__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'eukaryote__4cac__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "eukaryote__4cac__run"),
     retries: len(get_escalation_order("eukaryote__4cac__run"))
     params:
         workdir=lambda w: EUK_4CAC / w.assembly_id,
@@ -92,7 +93,8 @@ rule eukaryote__4cac__run:
         script_folder=SCRIPT_FOLDER,
     shell:
         """
-        exec > {log}.{resources.attempt} 2>&1
+        try_log={log}.try{resources.attempt}
+        exec > "$try_log" 2>&1
         debug "assembly_id={wildcards.assembly_id} threads={threads} workdir={params.workdir} install_dir={params.install_dir} phage={params.phage} plasmid={params.plasmid}"
 
         # classify_4CAC.py expects the XGBoost scores under this exact name in --classdir
@@ -124,7 +126,7 @@ rule eukaryote__4cac__run:
             {params.workdir}/scaffolds.fasta.probs_xgb_4class.out \
             {params.workdir}/4CAC_classification.fasta
 
-        mv {log}.{resources.attempt} {log}
+        mv "$try_log" {log}
         """
 
 

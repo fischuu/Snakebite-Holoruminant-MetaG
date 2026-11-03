@@ -1,5 +1,5 @@
 rule helpers__samtools__index_bam:
-    """Index a bam file"""
+    """samtools index of a BAM"""
     input:
         "{prefix}.bam"
     output:
@@ -13,7 +13,7 @@ rule helpers__samtools__index_bam:
         cpus_per_task=esc("cpus", "helpers__samtools__index_bam"),
         slurm_partition=esc("partition", "helpers__samtools__index_bam"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'helpers__samtools__index_bam')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "helpers__samtools__index_bam"),
     retries: len(get_escalation_order("helpers__samtools__index_bam"))
     log:
         "{prefix}.bam.bai.log"
@@ -27,7 +27,7 @@ rule helpers__samtools__index_bam:
   
 
 rule helpers__samtools__index_cram:
-    """Index a cram file"""
+    """samtools index of a CRAM"""
     input:
         "{prefix}.cram"
     output:
@@ -50,7 +50,7 @@ rule helpers__samtools__index_cram:
 
 
 rule helpers__samtools__faidx_fa:
-    """Index a fasta file"""
+    """samtools faidx of a plain FASTA"""
     input:
         "{prefix}.fa"
     output:
@@ -72,7 +72,7 @@ rule helpers__samtools__faidx_fa:
         "samtools faidx {input} 2> {log} 1>&2"
 
 rule helpers__samtools__faidx_fagz:
-    """Index a gzipped fasta file"""
+    """samtools faidx of a bgzipped FASTA"""
     input:
         "{prefix}.fa.gz"
     output:
@@ -96,7 +96,7 @@ rule helpers__samtools__faidx_fagz:
 
 
 rule helpers__samtools__idxstats_cram:
-    """Compute idxstats for a cram"""
+    """samtools idxstats of a CRAM"""
     input:
         cram="{prefix}.cram",
         crai="{prefix}.cram.crai"
@@ -120,7 +120,7 @@ rule helpers__samtools__idxstats_cram:
 
 
 rule helpers__samtools__flagstats_cram:
-    """Compute flagstats for a cram"""
+    """samtools flagstats of a CRAM"""
     input:
         cram="{prefix}.cram",
         crai="{prefix}.cram.crai"

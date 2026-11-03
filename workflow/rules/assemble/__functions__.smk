@@ -1,76 +1,42 @@
-def get_sample_and_library_from_assembly_id(assembly_id):
-    """(sample_id, library_id) pairs whose reads feed into a given assembly_id"""
-    subset = samples.loc[samples["assembly_id"] == assembly_id, ["sample_id", "library_id"]]
-    return list(subset.itertuples(index=False, name=None))
+# Read alignments against an assembly are stored as BAM or CRAM, see params.yaml
+SAMTOOLS_OUTTYPE = params["assemble"]["samtools"]["out_type"].upper()
+assert SAMTOOLS_OUTTYPE in {"BAM", "CRAM"}, "params['assemble']['samtools']['out_type'] must be BAM or CRAM"
+ALIGN_EXT = SAMTOOLS_OUTTYPE.lower()
 
 
-def _reads_for_assembly(wildcards, end):
-    """Per-library read files for one assembly, post host-decontamination if configured"""
-    assert end in (1, 2)
-    pairs = get_sample_and_library_from_assembly_id(wildcards.assembly_id)
-    if HOST_NAMES:
-        return [
-            PRE_BOWTIE2 / "decontaminated_reads" / f"{sample_id}.{library_id}_{end}.fq.gz"
-            for sample_id, library_id in pairs
+def libraries_of_assembly(assembly_id):
+    """(sample_id, library_id) of every library in one assembly"""
+    members = samples[samples["assembly_id"] == assembly_id]
+    return list(zip(members["sample_id"], members["library_id"]))
+
+
+def assembly_reads(end, separator=None):
+    """Function giving the reads of one mate (1 or 2) for all libraries of an assembly
+
+    These are the decontaminated reads, or fastp's if no host is configured. With a separator
+    they come as one string, the way MEGAHIT takes several libraries on its command line.
+    """
+    read_folder = CLEAN_READS if HOST_NAMES else FASTP
+
+    def reads(wildcards):
+        paths = [
+            str(read_folder / f"{sample_id}.{library_id}_{end}.fq.gz")
+            for sample_id, library_id in libraries_of_assembly(wildcards.assembly_id)
         ]
-    return [FASTP / f"{sample_id}.{library_id}_{end}.fq.gz" for sample_id, library_id in pairs]
+        return separator.join(paths) if separator else paths
+
+    return reads
 
 
-def get_forwards_from_assembly_id(wildcards):
-    """Forward read files contributing to one assembly"""
-    return _reads_for_assembly(wildcards, end=1)
-
-
-def get_reverses_from_assembly_id(wildcards):
-    """Reverse read files contributing to one assembly"""
-    return _reads_for_assembly(wildcards, end=2)
-
-
-def _join_reads(wildcards, end, sep):
-    return sep.join(str(path) for path in _reads_for_assembly(wildcards, end=end))
-
-
-def aggregate_forwards_for_megahit(wildcards):
-    """Forward reads, comma-joined as megahit expects for multiple libraries"""
-    return _join_reads(wildcards, end=1, sep=",")
-
-
-def aggregate_reverses_for_megahit(wildcards):
-    """Reverse reads, comma-joined as megahit expects for multiple libraries"""
-    return _join_reads(wildcards, end=2, sep=",")
-
-
-def aggregate_forwards_for_metaspades(wildcards):
-    """Forward reads, space-joined as metaspades expects for multiple libraries"""
-    return _join_reads(wildcards, end=1, sep=" ")
-
-
-def aggregate_reverses_for_metaspades(wildcards):
-    """Reverse reads, space-joined as metaspades expects for multiple libraries"""
-    return _join_reads(wildcards, end=2, sep=" ")
-
-
-# The binners (CONCOCT, MetaBAT2, MaxBin2) work off read alignments to the assembly,
-# not the raw reads themselves.
-def get_alignments_from_assembly_id(wildcards):
-    """BAM/CRAM alignment file for every library that makes up one assembly"""
-    pairs = get_sample_and_library_from_assembly_id(wildcards.assembly_id)
+def assembly_alignments(wildcards):
+    """Alignment of every library against one assembly (the input of the binners)"""
     return [
-        ASSEMBLE_BOWTIE2 / f"{wildcards.assembly_id}.{sample_id}.{library_id}.{ALIGN_EXT}"
-        for sample_id, library_id in pairs
+        ASSEMBLY_MAPPING / f"{wildcards.assembly_id}.{sample_id}.{library_id}.{ALIGN_EXT}"
+        for sample_id, library_id in libraries_of_assembly(wildcards.assembly_id)
     ]
 
 
-def get_alignment_indexes_from_assembly_id(wildcards):
-    """Index file (.bai/.crai) matching each alignment file"""
-    index_ext = ".bai" if ALIGN_EXT == "bam" else ".crai"
-    return [f"{aln}{index_ext}" for aln in get_alignments_from_assembly_id(wildcards)]
-
-
-def compose_bams_for_metabat2_run(wildcards):
-    """Per-library BAM paths that metabat2's run rule converts alignments into"""
-    pairs = get_sample_and_library_from_assembly_id(wildcards.assembly_id)
-    return [
-        METABAT2 / f"{wildcards.assembly_id}.{sample_id}.{library_id}.bam"
-        for sample_id, library_id in pairs
-    ]
+def assembly_alignment_indexes(wildcards):
+    """Index (.bai or .crai) of every file from assembly_alignments"""
+    suffix = ".bai" if ALIGN_EXT == "bam" else ".crai"
+    return [f"{alignment}{suffix}" for alignment in assembly_alignments(wildcards)]

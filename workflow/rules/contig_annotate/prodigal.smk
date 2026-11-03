@@ -3,11 +3,7 @@ rule contig_annotate__prodigal__run:
     Predict genes from assemblies (PRODIGAL).
     """
     input:
-        assembly=lambda wildcards: (
-            MEGAHIT / f"{wildcards.assembly_id}.fa.gz" if config["assembler"] == "megahit" else 
-            METASPADES / f"{wildcards.assembly_id}.fa.gz"if config["assembler"] == "metaspades" else 
-            PROVIDED / f"{wildcards.assembly_id}.fa.gz"
-        ),
+        assembly=CONTIGS,
     output:
         fa=CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.prodigal.fa",
         gtf=CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.prodigal.gtf",
@@ -25,7 +21,7 @@ rule contig_annotate__prodigal__run:
         cpus_per_task=esc("cpus", "contig_annotate__prodigal__run"),
         slurm_partition=esc("partition", "contig_annotate__prodigal__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__prodigal__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "contig_annotate__prodigal__run"),
     retries: len(get_escalation_order("contig_annotate__prodigal__run"))
     shell:"""
          exec 2> {log}
@@ -61,7 +57,7 @@ checkpoint contig_annotate__cut_prodigal:
         cpus_per_task=esc("cpus", "contig_annotate__cut_prodigal"),
         slurm_partition=esc("partition", "contig_annotate__cut_prodigal"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__cut_prodigal')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "contig_annotate__cut_prodigal"),
     retries: len(get_escalation_order("contig_annotate__cut_prodigal"))
     container:
         docker["mag_annotate"]

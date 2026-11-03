@@ -4,8 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A Snakemake pipeline (forked from https://github.com/3d-omics/mg_assembly/ and extended for the
-Holoruminant project) for shotgun metagenomics: read QC/host decontamination, read-based taxonomic/
+A Snakemake pipeline (started from a fork of https://github.com/3d-omics/mg_assembly/, since largely
+re-implemented and extended for the Holoruminant project, see "Provenance and acknowledgements" in
+README.md) for shotgun metagenomics: read QC/host decontamination, read-based taxonomic/
 functional annotation, assembly, binning into MAGs, and MAG/contig annotation and quantification. It
 runs on HPC (SLURM) with all tools delivered as Singularity/Apptainer containers (no conda envs are
 actually used despite `__environment__.yml` files present per module — containers are the real
@@ -81,7 +82,7 @@ Everything a user needs to change lives in `config/`, loaded once at the top of 
 - `config/.docker.yml` — one container image per module, referenced in each rule's `container:` directive.
 - `config/profiles/<cluster>/config.yaml` — SLURM executor profile; copy `Puhti/` for a new cluster.
 
-`workflow/Snakefile` parses `samples.tsv` into `SAMPLES`, `SAMPLE_LIBRARY`, `ASSEMBLY_SAMPLE_LIBRARY`, and
+`workflow/Snakefile` parses `samples.tsv` into `SAMPLE_LIBRARY`, `ASSEMBLY_LIBRARIES`, and
 `ASSEMBLIES` globals used throughout the rule files, and builds `HOST_NAMES` from `features["hosts"]`.
 `validate_samples()` runs first, on the raw sheet, and rejects duplicate `(sample_id, library_id)` pairs
 or a FASTQ path repeated anywhere across `forward_filename`/`reverse_filename`: every per-library output
@@ -117,7 +118,7 @@ ordered list of resource-set names, then indexes into that list by `attempt` (cl
 `workflow/Snakefile` a loop over `workflow.rules` forces `r.retries = 0` for any rule whose escalation list
 has ≤1 entry (so only rules with real multi-tier escalation configured actually retry). When adding a new
 rule, follow the existing pattern: `threads: esc("cpus", "<rule_name>")`,
-`resources: runtime=esc("runtime", ...), mem_mb=esc("mem_mb", ...), ..., attempt=get_attempt`, `retries:
+`resources: runtime=esc("runtime", ...), mem_mb=esc("mem_mb", ...), ..., attempt=esc("attempt", ...)`, `retries:
 len(get_escalation_order("<rule_name>"))`, and add an entry to `escalation.yaml` if it needs more than the
 default 3-tier escalation (or a single-entry line to disable retries).
 

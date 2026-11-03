@@ -1,12 +1,12 @@
 rule quantify__coverm__genome__run:
-    """Compute genome-level coverage for one library against the dereplicated genome set"""
+    """CoverM values of the MAGs in one library, for one method"""
     input:
-        cram=QUANT_BOWTIE2 / "{sample_id}.{library_id}.cram",
-        crai=QUANT_BOWTIE2 / "{sample_id}.{library_id}.cram.crai",
-        reference=DREP / "dereplicated_genomes.fa.gz",
-        fai=DREP / "dereplicated_genomes.fa.gz.fai",
+        alignment=MAG_CRAM,
+        index=MAG_CRAI,
+        catalogue=MAG_CATALOGUE,
+        fai=MAG_CATALOGUE_FAI,
     output:
-        tsv=COVERM / "genome" / "{method}" / "{sample_id}.{library_id}.tsv",
+        COVERM / "genome" / "{method}" / f"{LIBRARY}.tsv",
     container:
         docker["quantify"]
     threads: esc("cpus", "quantify__coverm__genome__run")
@@ -16,38 +16,33 @@ rule quantify__coverm__genome__run:
         cpus_per_task=esc("cpus", "quantify__coverm__genome__run"),
         slurm_partition=esc("partition", "quantify__coverm__genome__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__coverm__genome__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "quantify__coverm__genome__run"),
     retries: len(get_escalation_order("quantify__coverm__genome__run"))
     log:
-        COVERM / "genome" / "{method}" / "{sample_id}.{library_id}.log",
+        COVERM / "genome" / "{method}" / f"{LIBRARY}.log",
     benchmark:
-        COVERM / "genome" / "{method}" / "benchmark" / "{sample_id}.{library_id}.tsv",
+        COVERM / "genome" / "{method}" / "benchmark" / f"{LIBRARY}.tsv",
     params:
-        method="{method}",
-        min_covered_fraction=params["quantify"]["coverm"]["genome"][
-            "min_covered_fraction"
-        ],
-        separator=params["quantify"]["coverm"]["genome"]["separator"],
+        settings=params["quantify"]["coverm"]["genome"],
     shell:
         """
         exec 2> {log}
-        debug "sample_id={wildcards.sample_id} library_id={wildcards.library_id} method={params.method} separator={params.separator} min_covered_fraction={params.min_covered_fraction}"
-        samtools view --exclude-flags 4 --reference {input.reference} --fast {input.cram} \
-            | coverm genome \
-                --bam-files /dev/stdin \
-                --methods {params.method} \
-                --separator {params.separator} \
-                --min-covered-fraction {params.min_covered_fraction} \
-            > {output.tsv}
+        debug "library={wildcards.sample_id}.{wildcards.library_id} method={wildcards.method} separator={params.settings[separator]} min_covered_fraction={params.settings[min_covered_fraction]}"
+
+        # The separator splits a contig id into genome and contig
+        samtools view -1 -F 4 -T {input.catalogue} {input.alignment} \
+            | coverm genome -b /dev/stdin -m {wildcards.method} -s {params.settings[separator]} \
+                --min-covered-fraction {params.settings[min_covered_fraction]} \
+            > {output}
         """
 
 
 rule quantify__coverm__genome_aggregate:
-    """Merge per-library genome-coverage TSVs for one CoverM method into one table"""
+    """Join the genome-level tables of all libraries for one method"""
     input:
-        get_tsvs_for_dereplicate_coverm_genome,
+        coverm_library_tables("genome"),
     output:
-        tsv=COVERM / "genome.{method}.tsv",
+        COVERM / "genome.{method}.tsv",
     log:
         COVERM / "genome.{method}.log",
     benchmark:
@@ -55,7 +50,6 @@ rule quantify__coverm__genome_aggregate:
     container:
         docker["quantify"]
     params:
-        input_dir=lambda w: COVERM / "genome" / w.method,
         script_folder=SCRIPT_FOLDER,
     threads: esc("cpus", "quantify__coverm__genome_aggregate")
     resources:
@@ -64,37 +58,31 @@ rule quantify__coverm__genome_aggregate:
         cpus_per_task=esc("cpus", "quantify__coverm__genome_aggregate"),
         slurm_partition=esc("partition", "quantify__coverm__genome_aggregate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__coverm__genome_aggregate')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "quantify__coverm__genome_aggregate"),
     retries: len(get_escalation_order("quantify__coverm__genome_aggregate"))
     shell:
         """
         exec > {log} 2>&1
-        debug "method={wildcards.method} input_dir={params.input_dir} output={output}"
-        Rscript --vanilla {params.script_folder}/aggregate_coverm.R \
-            --input-folder {params.input_dir} \
-            --output-file {output}
+        debug "method={wildcards.method} output={output}"
+        Rscript --vanilla {params.script_folder}/coverm_wide_table.R {COVERM}/genome/{wildcards.method} {output}
         """
 
 
 rule quantify__coverm__genome:
     """Run genome-level CoverM for every configured method"""
     input:
-        [
-            COVERM / f"genome.{method}.tsv"
-            for method in params["quantify"]["coverm"]["genome"]["methods"]
-        ],
+        expand(COVERM / "genome.{method}.tsv", method=params["quantify"]["coverm"]["genome"]["methods"]),
 
 
-# coverm contig ----
 rule quantify__coverm__contig_one:
-    """Compute contig-level coverage for one library against the dereplicated genome set"""
+    """CoverM values of the catalogue's contigs in one library, for one method"""
     input:
-        cram=QUANT_BOWTIE2 / "{sample_id}.{library_id}.cram",
-        crai=QUANT_BOWTIE2 / "{sample_id}.{library_id}.cram.crai",
-        reference=DREP / "dereplicated_genomes.fa.gz",
-        fai=DREP / "dereplicated_genomes.fa.gz.fai",
+        alignment=MAG_CRAM,
+        index=MAG_CRAI,
+        catalogue=MAG_CATALOGUE,
+        fai=MAG_CATALOGUE_FAI,
     output:
-        tsv=COVERM / "contig" / "{method}" / "{sample_id}.{library_id}.tsv",
+        COVERM / "contig" / "{method}" / f"{LIBRARY}.tsv",
     container:
         docker["quantify"]
     threads: esc("cpus", "quantify__coverm__contig_one")
@@ -104,30 +92,28 @@ rule quantify__coverm__contig_one:
         cpus_per_task=esc("cpus", "quantify__coverm__contig_one"),
         slurm_partition=esc("partition", "quantify__coverm__contig_one"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__coverm__contig_one')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "quantify__coverm__contig_one"),
     retries: len(get_escalation_order("quantify__coverm__contig_one"))
     log:
-        COVERM / "contig" / "{method}" / "{sample_id}.{library_id}.log",
+        COVERM / "contig" / "{method}" / f"{LIBRARY}.log",
     benchmark:
-        COVERM / "contig" / "{method}" / "benchmark" / "{sample_id}.{library_id}.tsv",
-    params:
-        method="{method}",
+        COVERM / "contig" / "{method}" / "benchmark" / f"{LIBRARY}.tsv",
     shell:
         """
         exec 2> {log}
-        debug "sample_id={wildcards.sample_id} library_id={wildcards.library_id} method={params.method}"
-        samtools view --exclude-flags 4 --reference {input.reference} --fast {input.cram} \
-            | coverm contig --bam-files /dev/stdin --methods {params.method} --proper-pairs-only \
-            > {output.tsv}
+        debug "library={wildcards.sample_id}.{wildcards.library_id} method={wildcards.method}"
+        samtools view -1 -F 4 -T {input.catalogue} {input.alignment} \
+            | coverm contig -b /dev/stdin -m {wildcards.method} --proper-pairs-only \
+            > {output}
         """
 
 
 rule quantify__coverm__contig_aggregate:
-    """Merge per-library contig-coverage TSVs for one CoverM method into one table"""
+    """Join the contig-level tables of all libraries for one method"""
     input:
-        get_tsvs_for_dereplicate_coverm_contig,
+        coverm_library_tables("contig"),
     output:
-        tsv=COVERM / "contig.{method}.tsv",
+        COVERM / "contig.{method}.tsv",
     log:
         COVERM / "contig.{method}.log",
     benchmark:
@@ -135,7 +121,6 @@ rule quantify__coverm__contig_aggregate:
     container:
         docker["quantify"]
     params:
-        input_dir=lambda w: COVERM / "contig" / w.method,
         script_folder=SCRIPT_FOLDER,
     threads: esc("cpus", "quantify__coverm__contig_aggregate")
     resources:
@@ -144,25 +129,20 @@ rule quantify__coverm__contig_aggregate:
         cpus_per_task=esc("cpus", "quantify__coverm__contig_aggregate"),
         slurm_partition=esc("partition", "quantify__coverm__contig_aggregate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__coverm__contig_aggregate')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "quantify__coverm__contig_aggregate"),
     retries: len(get_escalation_order("quantify__coverm__contig_aggregate"))
     shell:
         """
         exec > {log} 2>&1
-        debug "method={wildcards.method} input_dir={params.input_dir} output={output}"
-        Rscript --vanilla {params.script_folder}/aggregate_coverm.R \
-            --input-folder {params.input_dir} \
-            --output-file {output}
+        debug "method={wildcards.method} output={output}"
+        Rscript --vanilla {params.script_folder}/coverm_wide_table.R {COVERM}/contig/{wildcards.method} {output}
         """
 
 
 rule quantify__coverm__contig:
     """Run contig-level CoverM for every configured method"""
     input:
-        [
-            COVERM / f"contig.{method}.tsv"
-            for method in params["quantify"]["coverm"]["contig"]["methods"]
-        ],
+        expand(COVERM / "contig.{method}.tsv", method=params["quantify"]["coverm"]["contig"]["methods"]),
 
 
 rule quantify__coverm:

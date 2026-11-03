@@ -1,7 +1,7 @@
 rule mag_annotate__bakta:
     """Run Bakta over the dereplicated mags"""
     input:
-        contigs=DREP / "dereplicated_genomes.fa.gz",
+        contigs=MAG_CATALOGUE,
     output:
         tsv=BAKTA / "bakta.tsv",
         faa=BAKTA / "bakta.faa",
@@ -22,7 +22,7 @@ rule mag_annotate__bakta:
         cpus_per_task=esc("cpus", "mag_annotate__bakta"),
         slurm_partition=esc("partition", "mag_annotate__bakta"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__bakta')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "mag_annotate__bakta"),
     retries: len(get_escalation_order("mag_annotate__bakta"))
     shell:
         """
@@ -79,7 +79,7 @@ rule mag_annotate__bakta_mags__run:
         cpus_per_task=esc("cpus", "mag_annotate__bakta_mags__run"),
         slurm_partition=esc("partition", "mag_annotate__bakta_mags__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__bakta_mags__run')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "mag_annotate__bakta_mags__run"),
     retries: len(get_escalation_order("mag_annotate__bakta_mags__run"))
     shell:
         """

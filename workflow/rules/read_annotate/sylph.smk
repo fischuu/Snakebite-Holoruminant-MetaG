@@ -1,8 +1,8 @@
 rule read_annotate__sylph_profile:
     """Run Sylph profiler"""
     input:
-        forwards=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_1.fq.gz",
-        reverses=PRE_BOWTIE2 / "decontaminated_reads" / "{sample_id}.{library_id}_2.fq.gz",
+        forwards=CLEAN_FORWARD,
+        reverses=CLEAN_REVERSE,
         db=features["databases"]["sylph"],
     output:
         PRE_SYLPH / "{sample_id}.{library_id}.profiling.tsv",
@@ -20,7 +20,7 @@ rule read_annotate__sylph_profile:
         slurm_partition=esc("partition", "read_annotate__sylph_profile"),
         #gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__sylph_profile')['nvme']}",
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__sylph_profile')['nvme']}",
-        attempt=get_attempt,
+        attempt=esc("attempt", "read_annotate__sylph_profile"),
     retries: len(get_escalation_order("read_annotate__sylph_profile"))
     shell:
         """

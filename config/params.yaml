@@ -4,18 +4,13 @@ preprocess:
   fastp:
     length_required: 25  # nonpareil requires at least 25bp
     extra: "--trim_poly_g --trim_poly_x"
-  bowtie2-build:
-    memory_gb: 8
   bowtie2:
-    memory_gb: 64
     samtools:
       mem_per_thread: 1G
 
 read_annotate:
   diamond:
     max-target-seqs: 1    # Max. number of hits per query
-  kraken2:
-    memory_gb: 32
   nonpareil:
     X: 100    #Default: 1000, smaller for testing!!!
   humann:
@@ -28,7 +23,6 @@ assemble:
     kmax: 141 # (complex, set to 127)
     kstep: 10
     min_contig_len: 1500 # (make is short for complex, 500)
-    memory_gb: 32
     additional_options: ""  # For deep sequenced samples (e.g. > 30x, add --no-mercy for a less noisy graph)
   metaspades:
     kmer_size: "21,33,55"
@@ -37,10 +31,6 @@ assemble:
     min_contig_len: 1500 # (make is short for complex, 500)
   maxbin:
     min_contig_len: 1500 # (make is short for complex, 500)
-  bowtie2-build:
-    memory_gb: 16
-  bowtie2:
-    memory_gb: 32
   samtools:
     mem: 8G   # Take care that there is enough memory reserved for the bowtie map rule, the memory is per thread! Or reduce that value
     out_type: "cram"  # Change this to 'bam' in case the rule assemble__bowtie2__map throws an error that the cram header is too long
@@ -56,10 +46,6 @@ assemble:
     threshold : "0.5" # Scoring minimum completeness threshold [default=0.5]"
 
 quantify:
-  bowtie2-build:
-    memory_gb: 32
-  bowtie2:
-    memory_gb: 32
   samtools:
     mem: 1G
   coverm:
