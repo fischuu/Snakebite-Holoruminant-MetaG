@@ -88,9 +88,32 @@ Quantification:
 - [`Subread/featureCounts`](https://sourceforge.net/projects/subread/)
 
 
-# Acknowledgements
-This pipeline is a fork from the Snakemake workflow
+# Provenance and acknowledgements
 
-https://github.com/3d-omics/mg_assembly/
+This pipeline did not start from scratch. Its development for the Holoruminant project began in 2024
+from a fork of [`mg_assembly`](https://github.com/3d-omics/mg_assembly), a Snakemake workflow for
+genome-resolved metagenomics from the 3D'omics project, written mainly by Jorge Langa with
+contributions from Raphael Eisenhofer and Amalia Toffano. We gratefully acknowledge their work.
 
-and tailored and extended to the needs of the Holoruminant project.
+- **The fork.** We forked `mg_assembly` at commit
+  [`ae01c0d`](https://github.com/3d-omics/mg_assembly/commit/ae01c0d) (January 2024). That fork, with
+  its full commit history, is still available at
+  [`fischuu/holoruminant_mg_pipe`](https://github.com/fischuu/holoruminant_mg_pipe). This repository
+  was started separately in May 2024, so its own history does not show the original authors' commits.
+- **Versions up to 0.4.63** (branch [`old`](https://github.com/fischuu/Snakebite-Holoruminant-MetaG/tree/old))
+  contain code taken directly from `mg_assembly`.
+- **The re-implementation.** Between August and November 2026 (starting with commit
+  [`d3e207f`](https://github.com/fischuu/Snakebite-Holoruminant-MetaG/commit/d3e207f)) we re-implemented
+  that code. This was not a clean-room rewrite: it was done by a developer who knew the earlier code,
+  with AI assistance (Claude Code). The overall flow of the pipeline and the choice and order of tools
+  for assembly, binning and dereplication still follow the design of `mg_assembly`, and some rule names,
+  file names, result paths, the contig id format and individual lines remain the same or similar.
+- **Shared with `mg_quant`.** The module layout, the rule naming scheme and some helper code are shared
+  with [`mg_quant`](https://github.com/3d-omics/mg_quant), another 3D'omics workflow published under
+  the MIT licence. Its notice is reproduced in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- **Added since the fork.** metaSPAdes; the read-based tools HUMAnN, MetaPhlAn, phyloFlash, Sylph, Krona,
+  DIAMOND and NCyc; the contig annotation module; MAG annotation with Bakta, CAMPER, eggNOG-mapper,
+  PhyloPhlAn and Proteinortho; the eukaryote module; per-rule resource escalation; and the PDF reports.
+
+Naming these projects does not imply that their authors have reviewed or endorsed this pipeline. If
+this pipeline is useful to you, please also credit `mg_assembly`.
