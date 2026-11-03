@@ -11,7 +11,8 @@ central place.
 This makes it straight forward and as user-friendly as it can get.
 
 The pipeline is organised in modules, which can run one-by-one. Further, the user can also choose to
-run individual tools, giving full flexibility on how to use and run the pipeline.
+run individual tools, giving full flexibility on how to use and run the pipeline. An opt-in module
+separates eukaryotic from prokaryotic contigs and bins the eukaryotic ones.
 
 ![Flow diagram of the pipeline](https://github.com/fischuu/Pipeline-Holoruminant-Meta/blob/main/flowchart/flowchart.png?raw=true)
 
@@ -86,6 +87,11 @@ MAG and contig annotation:
 Quantification:
 - [`CoverM`](https://github.com/wwood/CoverM)
 - [`Subread/featureCounts`](https://sourceforge.net/projects/subread/)
+
+Eukaryotic contigs (opt-in):
+- [`Tiara`](https://github.com/ibe-uw/tiara)
+- [`4CAC`](https://github.com/Shamir-Lab/4CAC)
+- [`REMAG`](https://github.com/danielzmbp/remag)
 
 
 # Provenance and acknowledgements

@@ -8,6 +8,7 @@
 - The [`contig_annotate`](#contig_annotate) module
 - The [`mag_annotate`](#mag_annotate) module
 - The [`quantify`](#quantify) module
+- The [`eukaryote`](#eukaryote) module (opt-in)
 
 # Usage
 
@@ -205,3 +206,44 @@ Usage:
 ```
 bash run_Snakebite-Holoruminant-MetaG.sh quantify
 ```
+
+Back to [Table of contents](#toc)
+
+<a name="eukaryote"></a>
+## 'eukaryote'-module
+
+This module labels the contigs of every assembly as eukaryotic or prokaryotic with Tiara, 4CAC and REMAG,
+and REMAG also bins the eukaryotic contigs. It is meant for samples with a relevant eukaryotic share, such
+as soil. The binning in the `assemble` module scores bins with bacterial and archaeal marker genes, so
+eukaryotic bins don't come out of it.
+
+The module is not part of a complete pipeline run, so you have to call it explicitly. No databases are needed.
+
+Usage:
+
+```
+bash run_Snakebite-Holoruminant-MetaG.sh eukaryote
+```
+
+Usage for individual tools:
+
+```
+bash run_Snakebite-Holoruminant-MetaG.sh eukaryote__4cac
+bash run_Snakebite-Holoruminant-MetaG.sh eukaryote__remag
+bash run_Snakebite-Holoruminant-MetaG.sh eukaryote__tiara
+```
+
+4CAC reads the assembly graph of metaSPAdes, so it only runs with `assembler: "metaspades"`. With MEGAHIT or
+self-provided assemblies, the `eukaryote__4cac` target does nothing and the other two tools still run.
+
+The settings are in the `eukaryote` section of `config/params.yaml`. The output files are described in the
+[module details](06-Details.md#eukaryote-module).
+
+For a project folder created before version 0.4.66, first copy these entries from the pipeline's `config/`
+folder into the project's own:
+
+- the `eukaryote` section of `params.yaml`
+- the `4cac`, `remag` and `tiara` lines of `.docker.yml`
+- the `eukaryote__` lines of `escalation.yaml`
+
+Back to [Table of contents](#toc)

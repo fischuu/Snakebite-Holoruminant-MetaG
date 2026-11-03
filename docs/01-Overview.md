@@ -8,7 +8,8 @@ central place.
 This makes it straight forward and as user-friendly as it can get.
 
 The pipeline is organised in modules, which can run one-by-one. Further, the user can also choose to
-run individual tools, giving full flexibility on how to use and run the pipeline.
+run individual tools, giving full flexibility on how to use and run the pipeline. An opt-in module
+separates eukaryotic from prokaryotic contigs and bins the eukaryotic ones.
 
 ![Flow diagram of the pipeline](https://github.com/fischuu/Snakebite-Holoruminant-MetaG/blob/main/flowchart/flowchart.png?raw=true)
 
