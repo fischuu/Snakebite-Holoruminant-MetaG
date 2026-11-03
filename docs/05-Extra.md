@@ -4,6 +4,9 @@ There are a few additional tools that are not included into the standard module 
 and which need to be called individually. They will be clustered in the `_extra` modules
 for joint running.
 
+The opt-in `eukaryote` module, which separates eukaryotic from prokaryotic contigs, is described in
+the [usage guide](04-Usage.md#eukaryote).
+
 ## read_annotate_extra
 
 ### NCyc

@@ -75,7 +75,12 @@ graph <- grViz("
     quantify_bowtie2 [label = 'Bowtie2, v2.5.1']
     quantify_coverm [label = 'CoverM, v0.6.1']
     quantify_samtools [label = 'Samtools, v1.18']
-    
+
+    # Define the eukaryote nodes
+    euk_tiara [label = 'Tiara, v1.0.3 \n Contig labels']
+    euk_4cac [label = '4CAC, image 1.0 \n Contig labels \n metaSPAdes only']
+    euk_remag_filter [label = 'REMAG, v0.5.1 \n Contig labels']
+    euk_remag_bin [label = 'REMAG, v0.5.1 \n Eukaryotic bins']
 
     # Define a representative node for the user input boxes
     pre_host [label = 'Host genomes', style=dotted, color=gray]
@@ -157,7 +162,14 @@ graph <- grViz("
     
     # Define the edges for contig annotate extra
     contig_annotate_prodigal -> contig_annotate_ncyc
-    
+
+    # Define the edges for eukaryote
+    ass_assembly -> euk_tiara
+    ass_metaspades -> euk_4cac
+    ass_assembly -> euk_remag_filter
+    euk_remag_filter -> euk_remag_bin
+    ass_bowtie2 -> euk_remag_bin
+
     # Define edges between nodes and the representative node
     ass_assembler_rep -> ass_megahit
     ass_assembler_rep -> ass_metaspades
@@ -292,6 +304,19 @@ graph <- grViz("
         
           contig_annotate_ncyc
           }
+    }
+
+    # Define a subgraph to group eukaryote nodes
+    subgraph cluster_eukaryote {
+      label = 'Eukaryote (opt-in)'
+      labelloc = b
+      style = dashed
+      color = lightgray
+
+      euk_tiara
+      euk_4cac
+      euk_remag_filter
+      euk_remag_bin
     }
 
     # Define a subgraph to group annotation nodes
