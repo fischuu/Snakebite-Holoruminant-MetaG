@@ -1,0 +1,6 @@
+# Settings a user changes without touching the rules
+samples:
+  - sampleA
+  - sampleB
+filter:
+  min_length: 50

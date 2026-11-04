@@ -1,0 +1,58 @@
+$ sinfo
+PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST
+small*       up 3-00:00:00      1   idle localhost
+large        up 3-00:00:00      1   idle localhost
+
+$ sbatch first_job.sh
+Submitted batch job 1
+
+$ sleep 4
+  sacct -X --format=JobID,JobName,Partition,State,ExitCode,Elapsed,AllocCPUS,ReqMem | tail -n 1
+1             first_job      small  COMPLETED      0:0   00:00:00          2       500M
+
+$ cat first_job_*.out
+Running on localhost
+Job 1 has 2 CPUs
+160
+
+$ sbatch array_job.sh
+Submitted batch job 2
+
+$ sleep 4
+  cat array_*.out
+Task 0 works on sampleA: 160 lines
+Task 1 works on sampleB: 240 lines
+Task 2 works on sampleC: 100 lines
+
+$ sacct -X --format=JobID%14,JobName,State,ExitCode | tail -n 3
+           2_0  array_job  COMPLETED      0:0 
+           2_1  array_job  COMPLETED      0:0 
+           2_2  array_job  COMPLETED      0:0
+
+$ JOB=$(sbatch --parsable --wrap "sleep 120" --account=project_demo --job-name=waiting --time=00:05:00)
+  sleep 2
+  squeue --format="%.8i %.10P %.10j %.2t %.8M %.6D %R"
+  scontrol show job $JOB | grep -E 'JobName|JobState|Partition=|NumCPUs|TimeLimit' | cut -c1-70
+  scancel $JOB
+  sleep 2
+  sacct -j $JOB -X --format=JobID,JobName,State,ExitCode
+   JOBID  PARTITION       NAME ST     TIME  NODES NODELIST(REASON)
+       5      small    waiting PD     0:00      1 (None)
+JobId=5 JobName=waiting
+   JobState=PENDING Reason=None Dependency=(null)
+   RunTime=00:00:00 TimeLimit=00:05:00 TimeMin=N/A
+   Partition=small AllocNode:Sid=localhost:298
+   NumNodes=1 NumCPUs=1 NumTasks=1 CPUs/Task=1 ReqB:S:C:T=0:0:*:*
+JobID           JobName      State ExitCode 
+------------ ---------- ---------- -------- 
+5               waiting CANCELLED+      0:0
+
+$ sbatch too_little_time.sh
+Submitted batch job 6
+
+$ sleep 75
+  sacct -X --name=too_long --format=JobID,JobName,State,ExitCode,Elapsed,Timelimit
+JobID           JobName      State ExitCode    Elapsed  Timelimit 
+------------ ---------- ---------- -------- ---------- ---------- 
+6              too_long    TIMEOUT      0:0   00:01:04   00:01:00
+

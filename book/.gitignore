@@ -1,0 +1,8 @@
+_build/
+.quarto/
+*_files/
+examples/**/.snakemake/
+examples/**/results/
+examples/**/logs/
+
+/.quarto/

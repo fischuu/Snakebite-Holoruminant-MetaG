@@ -1,0 +1,34 @@
+import pandas as pd
+from pathlib import Path
+
+RESULTS = Path("results")
+
+samples = pd.read_table("samples.tsv")
+samples["assembly_id"] = samples["assembly_ids"].map(lambda cell: cell.replace(" ", "").split(","))
+samples = samples.explode("assembly_id")
+ASSEMBLIES = samples["assembly_id"].unique().tolist()
+
+
+def forward_reads(wildcards):
+    """The forward read files of all samples in one assembly"""
+    return samples.loc[samples["assembly_id"] == wildcards.assembly_id, "forward"].tolist()
+
+
+rule all:
+    input:
+        [RESULTS / f"{assembly_id}.fastq.gz" for assembly_id in ASSEMBLIES],
+
+
+rule pool_reads:
+    """Pool the reads of all samples that belong to one assembly"""
+    input:
+        forward_reads,
+    output:
+        RESULTS / "{assembly_id}.fastq.gz",
+    params:
+        n_files=lambda wildcards, input: len(input),
+    shell:
+        """
+        echo "{wildcards.assembly_id}: pooling {params.n_files} file(s)"
+        cat {input} > {output}
+        """

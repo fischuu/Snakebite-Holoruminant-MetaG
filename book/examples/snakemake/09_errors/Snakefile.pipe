@@ -1,0 +1,7 @@
+rule first_lines:
+    input:
+        "data/sampleA_R1.fastq.gz",
+    output:
+        "results/head.txt",
+    shell:
+        "zcat {input} | head -n 1 > {output}"

@@ -1,0 +1,12 @@
+# This replaces Snakemake's default prefix, and with it the strict mode
+shell.prefix('debug() {{ echo "[DEBUG] $*" >&2; }}; ')
+
+
+rule silent_failure:
+    output:
+        "results/silent.txt",
+    shell:
+        """
+        false | cat > {output}
+        echo "The first line failed, and this still runs" >> {output}
+        """

@@ -1,0 +1,17 @@
+# Find the samples from the file names instead of listing them
+SAMPLES = glob_wildcards("data/{sample}_R1.fastq.gz").sample
+print("Found samples:", SAMPLES)
+
+
+rule all:
+    input:
+        expand("results/{sample}.txt", sample=SAMPLES),
+
+
+rule count:
+    input:
+        "data/{sample}_R1.fastq.gz",
+    output:
+        "results/{sample}.txt",
+    shell:
+        "zcat {input} | wc -l > {output}"

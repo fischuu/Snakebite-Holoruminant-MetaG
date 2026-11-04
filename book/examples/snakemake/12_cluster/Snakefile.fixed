@@ -1,0 +1,6 @@
+include: "Snakefile.retries"
+
+# Inside a running SLURM job, Snakemake must not retry: the job has its resources already
+if workflow.remote_exec:
+    for rule_object in workflow.rules:
+        rule_object.restart_times = 0

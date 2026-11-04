@@ -1,0 +1,100 @@
+project:
+  type: book
+  output-dir: _build
+
+book:
+  title: "Snakebite-Holoruminant-MetaG"
+  subtitle: "A handbook of the pipeline, its tools and the workflow system behind it"
+  author: "Daniel Fischer"
+  date: today
+  chapters:
+    - index.md
+    - part: "Part I: Foundations"
+      chapters:
+        - part1/01-linux-on-a-cluster.md
+        - part1/02-slurm.md
+        - part1/03-containers.md
+        - part1/04-why-snakemake.md
+        - part1/05-first-rule.md
+        - part1/06-wildcards.md
+        - part1/07-chaining.md
+        - part1/08-targets.md
+        - part1/09-python.md
+        - part1/10-config.md
+        - part1/11-logs-resources.md
+        - part1/12-file-flags.md
+        - part1/13-debugging.md
+        - part1/14-structure.md
+        - part1/15-cluster.md
+        - part1/16-checkpoints.md
+        - part1/17-pipeline-patterns.md
+        - part1/18-testing.md
+    - part: "Part II: The tools"
+      chapters:
+        - part2/00-overview.md
+        - part2/01-fastqc.md
+        - part2/02-fastp.md
+        - part2/03-bowtie2.md
+        - part2/04-samtools.md
+        - part2/05-kraken2.md
+        - part2/06-krona.md
+        - part2/07-singlem.md
+        - part2/08-sylph.md
+        - part2/09-metaphlan.md
+        - part2/10-humann.md
+        - part2/11-phyloflash.md
+        - part2/12-diamond.md
+        - part2/13-ncyc.md
+        - part2/14-nonpareil.md
+        - part2/15-assemblers.md
+        - part2/16-binners.md
+        - part2/17-prodigal-hmmer.md
+        - part2/18-magscot-drep.md
+        - part2/19-counting.md
+        - part2/20-quality-taxonomy.md
+        - part2/21-function.md
+        - part2/22-eukaryote-tools.md
+    - part: "Part III: The modules"
+      chapters:
+        - part3/01-setup.md
+        - part3/02-reads-reference.md
+        - part3/03-preprocess.md
+        - part3/04-read-annotate.md
+        - part3/05-assemble.md
+        - part3/06-quantify.md
+        - part3/07-mag-annotate.md
+        - part3/08-contig-annotate.md
+        - part3/09-eukaryote.md
+        - part3/10-report-helpers.md
+        - part3/11-troubleshooting.md
+    - part: "Part IV: Tutorial"
+      chapters:
+        - part4/01-tutorial.md
+        - part4/02-tests.md
+  appendices:
+    - appendix/rule-reference.md
+
+engine: markdown
+
+number-sections: true
+number-depth: 3
+toc-depth: 3
+
+format:
+  pdf:
+    documentclass: scrbook
+    classoption: [oneside, 11pt]
+    papersize: a4
+    pdf-engine: xelatex
+    toc: true
+    colorlinks: true
+    code-block-bg: "#f5f5f5"
+    code-block-border-left: "#4a7fa5"
+    highlight-style: tango
+    keep-tex: false
+    include-in-header:
+      text: |
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,breakanywhere,commandchars=\\\{\}}
+        \fvset{breaklines=true,breakanywhere=true}
+        \sloppy

@@ -1,0 +1,48 @@
+rule all:
+    input:
+        "results/final.txt",
+        "results/bins",
+        "results/checkpoint.done",
+
+
+rule unpack_reads:
+    """An intermediate file: Snakemake deletes it when nothing needs it any more"""
+    input:
+        "data/sampleA_R1.fastq.gz",
+    output:
+        temp("results/sampleA.fastq"),
+    shell:
+        "zcat {input} > {output}"
+
+
+rule final_result:
+    """A protected file: it becomes read-only, so it cannot be deleted by accident"""
+    input:
+        "results/sampleA.fastq",
+    output:
+        protected("results/final.txt"),
+    shell:
+        "wc -l {input} > {output}"
+
+
+rule make_bins:
+    """A tool that writes an unknown number of files into one folder"""
+    input:
+        "data/sampleB_R1.fastq.gz",
+    output:
+        directory("results/bins"),
+    shell:
+        """
+        mkdir -p {output}
+        zcat {input} | split -l 100 - {output}/bin_
+        """
+
+
+rule mark_done:
+    """A tool without a useful output file of its own: touch() creates an empty one on success"""
+    input:
+        "results/bins",
+    output:
+        touch("results/checkpoint.done"),
+    shell:
+        "ls {input} | wc -l"

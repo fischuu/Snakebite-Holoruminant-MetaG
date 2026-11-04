@@ -21,5 +21,7 @@ jobs:
           VALIDATE_ALL_CODEBASE: false
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The examples of the book are teaching material, and some are unformatted on purpose
+          FILTER_REGEX_EXCLUDE: .*book/examples/.*
 
           VALIDATE_SNAKEMAKE_SNAKEFMT: true

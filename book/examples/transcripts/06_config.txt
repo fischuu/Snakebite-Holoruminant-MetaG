@@ -1,0 +1,105 @@
+$ snakemake --cores 1 --quiet rules
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job stats:
+job             count
+------------  -------
+all                 1
+filter_reads        2
+total               3
+
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 1 (Rule: filter_reads)
+1 of 3 steps (33%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 2 (Rule: filter_reads)
+2 of 3 steps (67%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: all)
+3 of 3 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/06_config/.snakemake/log/<date>.snakemake.log
+
+$ zcat results/sampleA.fastq.gz | wc -l
+112
+
+$ snakemake --cores 1 --dry-run
+host: localhost
+Building DAG of jobs...
+Nothing to be done (all requested files are present and up to date).
+
+$ snakemake --cores 1 --dry-run --quiet rules --config filter='{min_length: 80}'
+Config file config/config.yaml is extended by additional config specified via the command line.
+host: localhost
+Building DAG of jobs...
+Job stats:
+job             count
+------------  -------
+all                 1
+filter_reads        2
+total               3
+
+Job stats:
+job             count
+------------  -------
+all                 1
+filter_reads        2
+total               3
+
+Reasons:
+    (check individual jobs above for details)
+    input files updated by another job:
+        all
+    params have changed since last execution:
+        filter_reads
+Some jobs were triggered by provenance information, see 'reason' section in the rule displays above.
+If you prefer that only modification time is used to determine whether a job shall be executed, use the command line option '--rerun-triggers mtime' (also see --help).
+If you are sure that a change for a certain output file (say, <outfile>) won't change the result (e.g. because you just changed the formatting of a script or environment definition), you can also wipe its metadata to skip such a trigger via 'snakemake --cleanup-metadata <outfile>'. 
+Rules with provenance triggered jobs: filter_reads
+
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+
+$ snakemake --cores 1 --quiet rules --config filter='{min_length: 80}'
+Config file config/config.yaml is extended by additional config specified via the command line.
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job stats:
+job             count
+------------  -------
+all                 1
+filter_reads        2
+total               3
+
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 1 (Rule: filter_reads)
+1 of 3 steps (33%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 2 (Rule: filter_reads)
+2 of 3 steps (67%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: all)
+3 of 3 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/06_config/.snakemake/log/<date>.snakemake.log
+
+$ zcat results/sampleA.fastq.gz | wc -l
+48
+

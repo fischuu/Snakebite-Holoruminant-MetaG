@@ -1,0 +1,107 @@
+$ pwd
+/scratch/project_demo/examples/00_linux
+
+$ ls data
+sampleA_R1.fastq.gz
+sampleA_R2.fastq.gz
+sampleB_R1.fastq.gz
+sampleB_R2.fastq.gz
+sampleC_R1.fastq.gz
+sampleC_R2.fastq.gz
+
+$ ls -lh data | head -n 4
+total 24K
+-rw-r--r-- 1 root root 1.3K Nov  3 17:24 sampleA_R1.fastq.gz
+-rw-r--r-- 1 root root 1.2K Nov  3 17:24 sampleA_R2.fastq.gz
+-rw-r--r-- 1 root root 1.9K Nov  3 17:24 sampleB_R1.fastq.gz
+
+$ mkdir -p project/reads
+  cp data/sampleA_R1.fastq.gz project/reads/
+  ls project/reads
+sampleA_R1.fastq.gz
+
+$ ln -s "$PWD/data/sampleB_R1.fastq.gz" project/reads/sampleB.fastq.gz
+  ls -l project/reads | cut -c1-10,42-
+total 8
+-rw-r--r--sampleA_R1.fastq.gz
+lrwxrwxrwxsampleB.fastq.gz -> /scratch/project_demo/examples/00_linux/data/sampleB_R1.fastq.gz
+
+$ zcat data/sampleA_R1.fastq.gz | head -n 4
+@sampleA.0/1
+AGCCCAATAAACCACTCTGACTGGCCGAATAGGGATATAGGCAA
++
+IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+
+$ zcat data/sampleA_R1.fastq.gz | wc -l
+160
+
+$ zcat data/sampleA_R1.fastq.gz | awk 'NR % 4 == 2' | head -n 2 | cut -c1-40
+AGCCCAATAAACCACTCTGACTGGCCGAATAGGGATATAG
+GACATGTGCGGCGACCCTTGCGACAGTGACGCTTTCGCCG
+
+$ zcat data/sampleA_R1.fastq.gz | awk 'NR % 4 == 2 { print length($0) }' | sort -n | tail -n 1
+100
+
+$ zcat data/sampleA_R1.fastq.gz | grep -c '^@sampleA'
+40
+
+$ zcat data/sampleA_R1.fastq.gz > sampleA.fastq
+  gzip sampleA.fastq
+  ls sampleA*
+sampleA.fastq.gz
+
+$ zcat data/sampleA_R1.fastq.gz | wc -l > lines.txt
+  cat lines.txt
+160
+
+$ ls data/does_not_exist.gz > listing.txt 2> errors.txt; echo "exit code of ls: $?"
+  cat errors.txt
+exit code of ls: 2
+ls: cannot access 'data/does_not_exist.gz': No such file or directory
+
+$ true; echo "true gives $?"; false; echo "false gives $?"
+true gives 0
+false gives 1
+
+$ false | true; echo "without pipefail: $?"
+without pipefail: 0
+
+$ set -o pipefail; false | true; echo "with pipefail: $?"
+with pipefail: 1
+
+$ SAMPLE=sampleA
+  echo "The sample is $SAMPLE and its file is data/${SAMPLE}_R1.fastq.gz"
+The sample is sampleA and its file is data/sampleA_R1.fastq.gz
+
+$ export MY_SETTING=42
+  bash -c 'echo "A new program sees MY_SETTING=$MY_SETTING and YOUR_SETTING=$YOUR_SETTING"'
+A new program sees MY_SETTING=42 and YOUR_SETTING=
+
+$ for file in data/*_R1.fastq.gz; do
+      echo "$(basename "$file" _R1.fastq.gz): $(zcat "$file" | wc -l) lines"
+  done
+sampleA: 160 lines
+sampleB: 240 lines
+sampleC: 100 lines
+
+$ files=(data/sampleA_R1.fastq.gz data/sampleB_R1.fastq.gz)
+  echo "${#files[@]} files, the first is ${files[0]}"
+2 files, the first is data/sampleA_R1.fastq.gz
+
+$ paste <(zcat data/sampleA_R1.fastq.gz | head -n 1) <(zcat data/sampleB_R1.fastq.gz | head -n 1)
+@sampleA.0/1	@sampleB.0/1
+
+$ mkdir -p archive/inner
+  echo "hello" > archive/inner/file.txt
+  tar -czf archive.tar.gz archive
+  tar -tzf archive.tar.gz
+archive/
+archive/inner/
+archive/inner/file.txt
+
+$ du -sh data
+28K	data
+
+$ df -h /scratch | tail -n 1 | awk '{print "free space:", $4}'
+free space: 44G
+

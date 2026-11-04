@@ -1,0 +1,4 @@
+sample_id	library_id	forward	reverse	assembly_ids
+sampleA	L001	data/sampleA_R1.fastq.gz	data/sampleA_R2.fastq.gz	asm1, combined
+sampleB	L001	data/sampleB_R1.fastq.gz	data/sampleB_R2.fastq.gz	asm2, combined
+sampleC	L001	data/sampleC_R1.fastq.gz	data/sampleC_R2.fastq.gz	asm3

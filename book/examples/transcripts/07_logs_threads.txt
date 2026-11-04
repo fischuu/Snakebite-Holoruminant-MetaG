@@ -1,0 +1,95 @@
+$ snakemake --cores 4 --quiet rules
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 4
+Rules claiming more threads will be scaled down.
+Job stats:
+job           count
+----------  -------
+all               1
+sort_reads        2
+total             3
+
+Select jobs to execute...
+Execute 2 jobs...
+[date]
+Finished jobid: 1 (Rule: sort_reads)
+1 of 3 steps (33%) done
+[date]
+Finished jobid: 2 (Rule: sort_reads)
+2 of 3 steps (67%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: all)
+3 of 3 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/07_logs_threads/.snakemake/log/<date>.snakemake.log
+
+$ cat logs/sampleA.log
+Sorting sampleA with 2 threads and 500 MB
+Done
+
+$ cut -f 1,2,3,10 benchmarks/sampleA.tsv
+s	h:m:s	max_rss	cpu_time
+2.0031	0:00:02	4.63	0.00
+
+$ snakemake --cores 1 --forceall --dry-run --quiet rules
+host: localhost
+Building DAG of jobs...
+Job stats:
+job           count
+----------  -------
+all               1
+sort_reads        2
+total             3
+
+Job stats:
+job           count
+----------  -------
+all               1
+sort_reads        2
+total             3
+
+Reasons:
+    (check individual jobs above for details)
+    forced:
+        all, sort_reads
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+
+$ snakemake --cores 1 --forceall --quiet rules
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job stats:
+job           count
+----------  -------
+all               1
+sort_reads        2
+total             3
+
+Select jobs to execute...
+Execute 1 jobs...
+Select jobs to execute...
+[date]
+Finished jobid: 1 (Rule: sort_reads)
+1 of 3 steps (33%) done
+Execute 1 jobs...
+[date]
+Finished jobid: 2 (Rule: sort_reads)
+2 of 3 steps (67%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: all)
+3 of 3 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/07_logs_threads/.snakemake/log/<date>.snakemake.log
+
+$ snakemake results/sampleA.txt --cores 4 --forceall --dry-run --set-threads sort_reads=4 | grep -E 'threads|resources'
+    threads: 4
+    resources: tmpdir=<TBD>, mem_mb=500, mem_mib=477, runtime=10
+

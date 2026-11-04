@@ -12,6 +12,13 @@ runs on HPC (SLURM) with all tools delivered as Singularity/Apptainer containers
 actually used despite `__environment__.yml` files present per module — containers are the real
 dependency mechanism, see `config/.docker.yml`).
 
+## The book
+
+`book/` holds the handbook of this pipeline (Markdown chapters, PDF, examples), and it is a living document: **any change to
+`workflow/` or `config/` has to update the book too.** Update the affected tool and module chapters, then run
+`python3 book/tools/rule_reference.py`, `python3 book/tools/check_sync.py` and `python3 book/tools/check_transcripts.py`, and rebuild
+the PDF with `bash book/build.sh`. Terminal output in a chapter must come from a real run: see `book/README.md`.
+
 ## Running the pipeline
 
 There is no build step and no test suite (`.github/workflows/linters.yml` only runs `snakefmt` via

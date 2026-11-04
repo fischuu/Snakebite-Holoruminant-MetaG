@@ -1,0 +1,418 @@
+### The input
+$ cat config/samples.tsv | cut -f 1,2,3,7
+sample_id	library_id	forward_filename	assembly_ids
+ERR2019410	lib1	reads/ERR2019410_1.fastq.gz	ERR2019410, coasm
+ERR2019412	lib1	reads/ERR2019412_1.fastq.gz	coasm
+ERR2019415	lib1	reads/ERR2019415_1.fastq.gz	coasm
+
+$ gzip -dc reads/ERR2019410_1.fastq.gz | head -n 4
+@ERR2019410.1 HWI-1KL157:190:C7RW0ACXX:3:1101:1438:1968/1
+NTTTTGCTTAAATGCCTTTTTTGTATGATATGTTTTACTCATTGTTTTATTTCAGTATTGTAATAATTGGGGTTTAGGTAATCTACTACTTTTTCTTAAAC
++
+#0<FFFFFFFFFFIIIIIIIIIIFIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIFFIIFIIIIIIFIIIIBFFFFFBFFFFFFFFFFFFFFFFFFBFBB
+
+### reads and reference
+$ ls results/reads | head -n 2
+ERR2019410.lib1.log
+ERR2019410.lib1_1.fq.gz
+
+$ ls results/reference/hosts
+benchmark
+phix.fa.gz
+phix.fa.gz.fai
+phix.fa.gz.gzi
+phix.fa.gz.log
+phix.log
+
+$ gzip -dc results/reference/hosts/phix.fa.gz | head -n 2
+>ENA|J02482|J02482.1 Coliphage phi-X174, complete genome.
+GAGTTTTATCGCTTCCATGACGCAGAAGTTAACACTTTCGGATATTTCTGATGAGTCGAA
+
+### preprocess: fastp
+$ sed -n '/^Read1 before filtering/,/^$/p' results/preprocess/fastp/ERR2019410.lib1.log
+Read1 before filtering:
+total reads: 1000000
+total bases: 101000000
+Q20 bases: 100008538(99.0184%)
+Q30 bases: 98147857(97.1761%)
+
+
+$ sed -n '/^Read1 after filtering/,/^$/p' results/preprocess/fastp/ERR2019410.lib1.log
+Read1 after filtering:
+total reads: 935567
+total bases: 94418098
+Q20 bases: 93982480(99.5386%)
+Q30 bases: 92470684(97.9375%)
+
+
+$ sed -n '/^Filtering result/,/^Insert size/p' results/preprocess/fastp/ERR2019410.lib1.log
+Filtering result:
+reads passed filter: 1871134
+reads failed due to low quality: 125202
+reads failed due to too many N: 2908
+reads failed due to too short: 756
+reads with adapter trimmed: 8757
+bases trimmed due to adapters: 204920
+reads with polyX in 3' end: 17840
+bases trimmed in polyX tail: 387161
+
+Duplication rate: 0.0513%
+
+Insert size peak (evaluated by paired-end reads): 169
+
+$ grep -E '^reads passed filter|^reads failed due to low' results/preprocess/fastp/ERR2019410.lib1.log
+reads passed filter: 1871134
+reads failed due to low quality: 125202
+
+$ grep -E '^reads passed filter|^reads failed due to low' results/preprocess/fastp/ERR2019412.lib1.log
+reads passed filter: 1900732
+reads failed due to low quality: 96792
+
+$ grep -E '^reads passed filter|^reads failed due to low' results/preprocess/fastp/ERR2019415.lib1.log
+reads passed filter: 1910824
+reads failed due to low quality: 83680
+
+### preprocess: host removal
+$ cat results/preprocess/bowtie2/phix/ERR2019410.lib1.log | grep -v bam_sort
+935567 reads; of these:
+  935567 (100.00%) were paired; of these:
+    933569 (99.79%) aligned concordantly 0 times
+    1998 (0.21%) aligned concordantly exactly 1 time
+    0 (0.00%) aligned concordantly >1 times
+    ----
+    933569 pairs aligned concordantly 0 times; of these:
+      70 (0.01%) aligned discordantly 1 time
+    ----
+    933499 pairs aligned 0 times concordantly or discordantly; of these:
+      1866998 mates make up the pairs; of these:
+        1866947 (100.00%) aligned 0 times
+        51 (0.00%) aligned exactly 1 time
+        0 (0.00%) aligned >1 times
+0.22% overall alignment rate
+
+$ cat results/preprocess/bowtie2/phix/ERR2019410.lib1.flagstats.txt | head -n 8
+1871134 + 0 in total (QC-passed reads + QC-failed reads)
+1871134 + 0 primary
+0 + 0 secondary
+0 + 0 supplementary
+0 + 0 duplicates
+0 + 0 primary duplicates
+4187 + 0 mapped (0.22% : N/A)
+4187 + 0 primary mapped (0.22% : N/A)
+
+$ cat results/preprocess/quantification/phix/ERR2019410.lib1.chr_alignment_counts.tsv
+ENA|J02482|J02482.1 4187
+* 0
+
+$ grep ^SN results/preprocess/bowtie2/phix/ERR2019410.lib1.stats.txt | cut -f 2,3 | head -n 9
+raw total sequences:	1871134
+filtered sequences:	0
+sequences:	1871134
+is sorted:	1
+1st fragments:	935567
+last fragments:	935567
+reads mapped:	4187
+reads mapped and paired:	4136
+reads unmapped:	1866947
+
+### preprocess: the clean reads
+$ ls results/preprocess/bowtie2/decontaminated_reads | grep -v -E 'log|benchmark'
+ERR2019410.lib1_1.fq.gz
+ERR2019410.lib1_2.fq.gz
+ERR2019412.lib1_1.fq.gz
+ERR2019412.lib1_2.fq.gz
+ERR2019415.lib1_1.fq.gz
+ERR2019415.lib1_2.fq.gz
+
+$ gzip -t results/preprocess/bowtie2/decontaminated_reads/*.gz && echo all complete
+all complete
+
+$ gzip -dc results/preprocess/bowtie2/decontaminated_reads/ERR2019410.lib1_1.fq.gz | wc -l
+ 3733792
+
+$ gzip -dc results/preprocess/bowtie2/decontaminated_reads/ERR2019410.lib1_1.fq.gz | head -n 1
+@ERR2019410.1/1
+
+### read_annotate: Nonpareil
+$ cat results/read_annotate/nonpareil/nonpareil.tsv
+sample_id	kappa	C	LR	modelR	LRstar	diversity
+ERR2019410.lib1	0.13006	0.15496064380054214	94204505.60799976	0.9991269048010931	17344018571.196674	20.112522154756906
+ERR2019412.lib1	0.04249	0.05573011944627605	95719612.90200004	NA	NA	0
+ERR2019415.lib1	0.07556	0.09432453034231177	96251992.69799998	NA	NA	0
+
+### assemble: MEGAHIT
+$ grep -h 'k list' results/assemble/megahit/coasm.log | cut -d ' ' -f 4-
+k list: 21,31,41,51,61,71,81,91,101,111,121,131,141 
+
+$ grep -h 'contigs, total' results/assemble/megahit/ERR2019410.log | cut -d ' ' -f 4-
+549 contigs, total 1370369 bp, min 1500 bp, max 9706 bp, avg 2496 bp, N50 2415 bp
+
+$ grep -h 'contigs, total' results/assemble/megahit/coasm.log | cut -d ' ' -f 4-
+900 contigs, total 2480429 bp, min 1500 bp, max 24283 bp, avg 2756 bp, N50 2858 bp
+
+$ gzip -dc results/assemble/megahit/coasm.fa.gz | head -n 1
+>coasm:bin_NA@contig_00000001
+
+### assemble: mapping
+$ grep 'overall alignment' results/assemble/bowtie2/coasm.ERR2019410.lib1.log
+6.51% overall alignment rate
+
+$ grep 'overall alignment' results/assemble/bowtie2/coasm.ERR2019412.lib1.log
+2.31% overall alignment rate
+
+$ grep 'overall alignment' results/assemble/bowtie2/coasm.ERR2019415.lib1.log
+1.34% overall alignment rate
+
+$ grep -m 1 'Failed to build reference' results/assemble/bowtie2/coasm.ERR2019410.lib1.log
+[W::cram_encode_container] Failed to build reference, switching to non-ref mode
+
+### assemble: binners
+$ tail -n 3 results/assemble/metabat2/ERR2019410.log
+[00:00:02] 61.78% (846568 bases) of large (>=1500) and 0.00% (0 bases) of small (<1500) contigs were binned.
+2 bins (846568 bases in total) formed.
+[00:00:02] Finished
+
+$ tail -n 3 results/assemble/metabat2/coasm.log
+[00:00:04] 50.61% (1254393 bases) of large (>=1500) and 0.00% (0 bases) of small (<1500) contigs were binned.
+1 bins (1254393 bases in total) formed.
+[00:00:04] Finished
+
+$ grep -E 'Bin files' results/assemble/maxbin2/coasm.log
+Bin files: results/assemble/maxbin2/coasm/maxbin2.001.fasta - results/assemble/maxbin2/coasm/maxbin2.002.fasta
+
+$ ls results/assemble/concoct/coasm | wc -l
+      21
+
+$ ls results/assemble/maxbin2/coasm results/assemble/metabat2/coasm
+results/assemble/maxbin2/coasm:
+maxbin2.001.fa.gz
+maxbin2.002.fa.gz
+
+results/assemble/metabat2/coasm:
+bin.1.fa.gz
+
+### assemble: MAGScoT
+$ wc -l results/assemble/magscot/coasm/prodigal.faa results/assemble/magscot/coasm/hmm.tblout results/assemble/magscot/coasm/contigs_to_bin.tsv | head -n 3
+   16099 results/assemble/magscot/coasm/prodigal.faa
+      84 results/assemble/magscot/coasm/hmm.tblout
+    2161 results/assemble/magscot/coasm/contigs_to_bin.tsv
+
+$ head -n 3 results/assemble/magscot/coasm/hmm.tblout
+coasm:bin_NA@contig_00000809_1	TIGR00029	2.7e-11
+coasm:bin_NA@contig_00000758_1	TIGR00054	1.6e-63
+coasm:bin_NA@contig_00000218_3	TIGR00059	1.6e-40
+
+$ head -n 2 results/assemble/magscot/coasm/contigs_to_bin.tsv
+bin_20.fa.gz	coasm:bin_NA@contig_00000002	concoct
+bin_3.fa.gz	coasm:bin_NA@contig_00000003	concoct
+
+$ cut -f 1,2,3,4,7,8,10,13,14 results/assemble/magscot/coasm/magscot.scores.out
+bin	set	uniqueSCGs	multipleSCGs	n_contigs	Completeness	Contamination	score	bintool
+bin_11.fa.gz	gtdb_rel207_bac120	69	2	554	0.575	0.028985507246376812	0.5605072463768116	concoct
+MAGScoT_1_1	gtdb_rel207_bac120	69	2	565	0.575	0.028985507246376812	0.5605072463768116	MAGScoT_1
+MAGScoT_1_2	gtdb_rel207_bac120	69	2	612	0.575	0.028985507246376812	0.5605072463768116	MAGScoT_1
+MAGScoT_1_3	gtdb_rel207_bac120	68	2	536	0.5666666666666667	0.029411764705882353	0.5519607843137255	MAGScoT_1
+bin_bin.1.fa.gz	gtdb_rel207_bac120	67	2	409	0.5583333333333333	0.029850746268656716	0.543407960199005	metabat2
+bin_maxbin2.001.fa.gz	gtdb_rel207_bac120	52	1	483	0.43333333333333335	0.019230769230769232	0.4237179487179487	maxbin2
+bin_3.fa.gz	gtdb_rel207_ar53	1	0	171	0.018867924528301886	0	0.018867924528301886	concoct
+bin_5.fa.gz	gtdb_rel207_bac120	1	0	7	0.008333333333333333	0	0.008333333333333333	concoct
+bin_maxbin2.002.fa.gz	gtdb_rel207_bac120	20	6	369	0.16666666666666666	0.3	0.008333333333333331	maxbin2
+
+$ cut -f 1,2,3,4,7,8,10,13,14 results/assemble/magscot/coasm/magscot.refined.out
+bin	set	uniqueSCGs	multipleSCGs	n_contigs	Completeness	Contamination	score	bintool
+bin_11.fa.gz	gtdb_rel207_bac120	69	2	554	0.575	0.028985507246376812	0.5605072463768116	concoct
+
+$ cut -f 1,2,3,4,7,8,10,13,14 results/assemble/magscot/ERR2019410/magscot.refined.out
+bin	set	uniqueSCGs	multipleSCGs	n_contigs	Completeness	Contamination	score	bintool
+bin_0.fa.gz	gtdb_rel207_bac120	51	2	450	0.425	0.0392156862745098	0.4053921568627451	concoct
+
+$ grep -E 'Refinement lead|no viable|continuing without' results/assemble/magscot/ERR2019410/magscot.log results/assemble/magscot/coasm/magscot.log
+results/assemble/magscot/ERR2019410/magscot.log:Refinement lead to a total of 1  bins with a score >= 0.2 
+results/assemble/magscot/coasm/magscot.log:Refinement lead to a total of 1  bins with a score >= 0.2 
+
+$ gzip -dc results/assemble/magscot/coasm.fa.gz | head -n 1
+>coasm:bin_000001@contig_00000001
+
+### assemble: dRep
+$ ls results/assemble/drep/separated_bins results/assemble/drep/dereplicated_genomes | grep -v timestamp
+results/assemble/drep/dereplicated_genomes:
+coasm:bin_000001.fa.gz
+
+results/assemble/drep/separated_bins:
+ERR2019410:bin_000001.fa
+coasm:bin_000001.fa
+
+$ grep -E 'genomes were input|passed length|Running' results/assemble/drep/log/logger.log | cut -d ' ' -f 3- | cut -c 1-90 | head -n 8
+INFO     2 genomes were input to dRep
+INFO     100.00% of genomes passed length filtering
+INFO     Running primary clustering
+INFO     Running pair-wise MASH clustering
+INFO     Running secondary clustering
+INFO     Running 4 fastANI comparisons- should take ~ 0.4 min
+
+$ gzip -dc results/assemble/drep/dereplicated_genomes.fa.gz | grep -c '>'
+554
+
+$ gzip -dc results/assemble/drep/dereplicated_genomes.fa.gz | grep -v '>' | tr -d '\n' | wc -c
+ 1647187
+
+### quantify
+$ grep 'overall alignment' results/quantify/bowtie2/ERR2019410.lib1.log
+4.77% overall alignment rate
+
+$ cat results/quantify/bowtie2/ERR2019410.lib1.flagstats.txt | head -n 8
+1866896 + 0 in total (QC-passed reads + QC-failed reads)
+1866896 + 0 primary
+0 + 0 secondary
+0 + 0 supplementary
+0 + 0 duplicates
+0 + 0 primary duplicates
+89007 + 0 mapped (4.77% : N/A)
+89007 + 0 primary mapped (4.77% : N/A)
+
+$ cat results/quantify/coverm/genome.count.tsv
+sequence_id	ERR2019410.lib1	ERR2019412.lib1	ERR2019415.lib1
+coasm:bin_000001	89007	23170	5028
+
+$ cat results/quantify/coverm/genome.covered_bases.tsv
+sequence_id	ERR2019410.lib1	ERR2019412.lib1	ERR2019415.lib1
+coasm:bin_000001	1630044	1035667	412130
+
+$ cat results/quantify/coverm/genome.length.tsv
+sequence_id	ERR2019410.lib1	ERR2019412.lib1	ERR2019415.lib1
+coasm:bin_000001	1647187	1647187	1647187
+
+$ cat results/quantify/coverm/genome.tpm.tsv
+sequence_id	ERR2019410.lib1	ERR2019412.lib1	ERR2019415.lib1
+coasm:bin_000001	1000000	1000000	1000000
+
+$ head -n 3 results/quantify/coverm/contig.count.tsv
+sequence_id	ERR2019410.lib1	ERR2019412.lib1	ERR2019415.lib1
+coasm:bin_000001@contig_00000001	78	10	2
+coasm:bin_000001@contig_00000005	184	28	10
+
+$ wc -l results/quantify/coverm/contig.count.tsv
+     555 results/quantify/coverm/contig.count.tsv
+
+### contig_annotate
+$ grep -c '>' results/contig_annotate/prodigal/coasm/coasm.prodigal.fa
+2828
+
+$ grep '>' results/contig_annotate/prodigal/coasm/coasm.prodigal.fa | head -n 2
+>coasm:bin_NA@contig_00000001_1 # 3 # 2132 # 1 # ID=1_1;partial=11;start_type=Edge;rbs_motif=None;rbs_spacer=None;gc_cont=0.596
+>coasm:bin_NA@contig_00000002_1 # 3 # 212 # -1 # ID=2_1;partial=10;start_type=ATG;rbs_motif=AGGTG;rbs_spacer=5bp;gc_cont=0.567
+
+$ head -n 2 results/contig_annotate/prodigal/coasm/coasm.prodigal_plain.gtf
+coasm:bin_NA@contig_00000001	Prodigal_v2.6.3	CDS	3	2132	322.7	+	0	ID=1_1;partial=11;start_type=Edge;rbs_motif=None;rbs_spacer=None;gc_cont=0.596;conf=99.99;score=322.67;cscore=321.06;sscore=1.61;rscore=0.00;uscore=0.00;tscore=1.61;
+coasm:bin_NA@contig_00000002	Prodigal_v2.6.3	CDS	3	212	39.2	-	0	ID=2_1;partial=10;start_type=ATG;rbs_motif=AGGTG;rbs_spacer=5bp;gc_cont=0.567;conf=99.99;score=39.23;cscore=22.75;sscore=16.48;rscore=11.98;uscore=0.82;tscore=3.68;
+
+$ sed -n 2,4p results/contig_annotate/featurecounts/coasm/coasm_ERR2019410.lib1.prodigal_fc.txt
+Geneid	Chr	Start	End	Strand	Length	results/assemble/bowtie2/coasm.ERR2019410.lib1.bam
+1_1	coasm:bin_NA@contig_00000001	3	2132	+	2130	52
+2_1	coasm:bin_NA@contig_00000002	3	212	-	210	35
+
+$ grep -v -E '\s0$' results/contig_annotate/featurecounts/coasm/coasm_ERR2019410.lib1.prodigal_fc.txt.summary
+Status	results/assemble/bowtie2/coasm.ERR2019410.lib1.bam
+Assigned	54908
+Unassigned_Unmapped	866638
+Unassigned_NoFeatures	3772
+Unassigned_Ambiguity	8130
+
+$ grep -v -c '^#' results/contig_annotate/hmmer/fe/coasm.tblout.tsv
+0
+
+$ grep -v -c '^#' results/contig_annotate/hmmer/fefe/coasm.tblout.tsv
+0
+
+$ grep -v -c '^#' results/contig_annotate/hmmer/nife/coasm.tblout.tsv
+2
+
+$ grep -v '^#' results/contig_annotate/hmmer/nife/coasm.tblout.tsv | awk '{print $1, $3, $5, $6}'
+coasm:bin_NA@contig_00000421_2 NiFe 0.0068 12.4
+coasm:bin_NA@contig_00000178_2 NiFe 0.056 9.4
+
+$ grep -v -c '^#' results/contig_annotate/hmmer/nife/coasm.domains-tblout.tsv
+0
+
+$ cut -f 1,3 results/contig_annotate/camper/coasm/annotations.tsv | awk -F '\t' 'NR > 1 && $2 != ""' | wc -l
+       4
+
+$ wc -l results/contig_annotate/camper/coasm/annotations.tsv results/contig_annotate/camper/coasm/distillate.tsv | head -n 2
+    2829 results/contig_annotate/camper/coasm/annotations.tsv
+     370 results/contig_annotate/camper/coasm/distillate.tsv
+
+### mag_annotate: QUAST
+$ ls results/mag_annotate/quast | grep -v -E 'benchmark|quast.log|basic_stats|icarus'
+report.html
+report.pdf
+report.tex
+report.tsv
+report.txt
+transposed_report.tex
+transposed_report.tsv
+transposed_report.txt
+
+$ cut -f 1,2 results/mag_annotate/quast/report.tsv | head -n 20
+Assembly	dereplicated_genomes
+# contigs (>= 0 bp)	554
+# contigs (>= 1000 bp)	554
+# contigs (>= 5000 bp)	56
+# contigs (>= 10000 bp)	6
+# contigs (>= 25000 bp)	0
+# contigs (>= 50000 bp)	0
+Total length (>= 0 bp)	1647187
+Total length (>= 1000 bp)	1647187
+Total length (>= 5000 bp)	401728
+Total length (>= 10000 bp)	79168
+Total length (>= 25000 bp)	0
+Total length (>= 50000 bp)	0
+# contigs	554
+Largest contig	24283
+Total length	1647187
+GC (%)	56.88
+N50	3208
+N90	1726
+auN	4161.0
+
+### nCycDB
+$ cut -f 1-4 results/read_annotate/ncyc/ncyc_results.tsv | head -n 6
+#random sampling: 933448
+Gene	ERR2019410.lib1_1	ERR2019410.lib1_2	ERR2019415.lib1_1
+ansB	28	29	16
+asnB	297	292	267
+gdh_K00260	1	2	0
+gdh_K00261	25	24	20
+
+$ wc -l results/read_annotate/ncyc/ncyc_results.tsv results/contig_annotate/ncyc/ncyc_results.tsv
+      45 results/read_annotate/ncyc/ncyc_results.tsv
+      12 results/contig_annotate/ncyc/ncyc_results.tsv
+      57 total
+
+$ cut -f 1-3 results/contig_annotate/ncyc/ncyc_results.tsv | head -n 4
+#random sampling: 1578
+Gene	coasm.prodigal	ERR2019410.prodigal
+asnB	0	0
+gdh_K00262	0	1
+
+### eukaryote
+$ cat results/eukaryote/tiara/log_coasm.tsv | head -n 7
+First iteration statistics:
+	archaea: 110
+	bacteria: 723
+	eukarya: 40
+	prokarya: 22
+	unknown: 5
+
+
+$ cut -f 2 results/eukaryote/tiara/coasm.tsv | tail -n +2 | sort | uniq -c | sort -rn
+ 723 bacteria
+ 110 archaea
+  40 eukarya
+  22 prokarya
+   5 unknown
+
+$ cut -f 1,2,3 results/eukaryote/tiara/coasm.tsv | head -n 3
+sequence_id	class_fst_stage	class_snd_stage
+coasm:bin_NA@contig_00000001	bacteria	n/a
+coasm:bin_NA@contig_00000002	bacteria	n/a
+

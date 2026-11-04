@@ -1,0 +1,25 @@
+# The first attempt fails on purpose, as if the job ran out of memory. Each retry asks for more.
+def more_memory(wildcards, attempt):
+    return 200 * attempt
+
+
+rule all:
+    input:
+        "results/retried.txt",
+
+
+rule needs_more_memory:
+    output:
+        "results/retried.txt",
+    resources:
+        mem_mb=more_memory,
+        attempt=lambda wildcards, attempt: attempt,
+    shell:
+        """
+        echo "Attempt {resources.attempt} with {resources.mem_mb} MB"
+        if [ {resources.mem_mb} -lt 400 ]; then
+            echo "Not enough memory" >&2
+            exit 1
+        fi
+        echo "Succeeded with {resources.mem_mb} MB" > {output}
+        """

@@ -1,0 +1,41 @@
+rule all:
+    input:
+        "results/report.txt",
+
+
+checkpoint make_bins:
+    """How many bins this produces is only known after it has run"""
+    input:
+        "data/sampleA_R1.fastq.gz",
+    output:
+        directory("results/bins"),
+    shell:
+        """
+        mkdir -p {output}
+        zcat {input} | split -l 40 -a 2 -d --additional-suffix=.fastq - {output}/bin_
+        """
+
+
+rule annotate_bin:
+    input:
+        "results/bins/{bin}.fastq",
+    output:
+        "results/annotated/{bin}.txt",
+    shell:
+        "wc -l < {input} > {output}"
+
+
+def all_annotated_bins(wildcards):
+    """Runs again after the checkpoint is done, when the bins can be listed"""
+    folder = checkpoints.make_bins.get().output[0]
+    bins = glob_wildcards(f"{folder}/{{bin}}.fastq").bin
+    return expand("results/annotated/{bin}.txt", bin=sorted(bins))
+
+
+rule report:
+    input:
+        all_annotated_bins,
+    output:
+        "results/report.txt",
+    shell:
+        "cat {input} | wc -l > {output}"

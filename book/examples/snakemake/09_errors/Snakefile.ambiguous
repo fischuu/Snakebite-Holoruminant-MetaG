@@ -1,0 +1,21 @@
+rule all:
+    input:
+        "results/sampleA.txt",
+
+
+rule from_forward:
+    input:
+        "data/{sample}_R1.fastq.gz",
+    output:
+        "results/{sample}.txt",
+    shell:
+        "zcat {input} > {output}"
+
+
+rule from_reverse:
+    input:
+        "data/{sample}_R2.fastq.gz",
+    output:
+        "results/{sample}.txt",
+    shell:
+        "zcat {input} > {output}"

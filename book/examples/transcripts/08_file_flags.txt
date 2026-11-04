@@ -1,0 +1,129 @@
+$ snakemake --cores 1
+3
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job stats:
+job             count
+------------  -------
+all                 1
+final_result        1
+make_bins           1
+mark_done           1
+unpack_reads        1
+total               5
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule make_bins:
+    input: data/sampleB_R1.fastq.gz
+    output: results/bins
+    jobid: 3
+    reason: Missing output files: results/bins
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 3 (Rule: make_bins)
+1 of 5 steps (20%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule mark_done:
+    input: results/bins
+    output: results/checkpoint.done
+    jobid: 4
+    reason: Missing output files: results/checkpoint.done; Input files updated by another job: results/bins
+    resources: tmpdir=/tmp
+Touching output file results/checkpoint.done.
+[date]
+Finished jobid: 4 (Rule: mark_done)
+2 of 5 steps (40%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule unpack_reads:
+    input: data/sampleA_R1.fastq.gz
+    output: results/sampleA.fastq
+    jobid: 2
+    reason: Missing output files: results/sampleA.fastq
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 2 (Rule: unpack_reads)
+3 of 5 steps (60%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule final_result:
+    input: results/sampleA.fastq
+    output: results/final.txt
+    jobid: 1
+    reason: Missing output files: results/final.txt; Input files updated by another job: results/sampleA.fastq
+    resources: tmpdir=/tmp
+Write-protecting output file results/final.txt.
+[date]
+Finished jobid: 1 (Rule: final_result)
+4 of 5 steps (80%) done
+Removing temporary output results/sampleA.fastq.
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule all:
+    input: results/final.txt, results/bins, results/checkpoint.done
+    jobid: 0
+    reason: Input files updated by another job: results/final.txt, results/bins, results/checkpoint.done
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 0 (Rule: all)
+5 of 5 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/08_file_flags/.snakemake/log/<date>.snakemake.log
+
+$ ls -l results | cut -c1-11,25-
+total 8
+drwxr-xr-x 096 Nov  3 17:25 bins
+-rw-r--r--   0 Nov  3 17:25 checkpoint.done
+-r--r--r--  26 Nov  3 17:25 final.txt
+
+$ ls results/bins
+bin_aa
+bin_ab
+bin_ac
+
+$ rm results/final.txt
+
+$ snakemake --cores 1 --forceall --dry-run --quiet rules
+host: localhost
+Building DAG of jobs...
+Job stats:
+job             count
+------------  -------
+all                 1
+final_result        1
+make_bins           1
+mark_done           1
+unpack_reads        1
+total               5
+
+Job stats:
+job             count
+------------  -------
+all                 1
+final_result        1
+make_bins           1
+mark_done           1
+unpack_reads        1
+total               5
+
+Reasons:
+    (check individual jobs above for details)
+    forced:
+        all, final_result, make_bins, mark_done, unpack_reads
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+

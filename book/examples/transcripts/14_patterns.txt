@@ -1,0 +1,113 @@
+$ tree -a config workflow
+config
+├── config.yaml
+├── escalation.yaml
+├── features.yaml
+├── params.yaml
+├── profiles
+│   └── minicluster
+│       └── config.yaml
+└── samples.tsv
+workflow
+├── Snakefile
+└── rules
+    └── qc
+        ├── __main__.smk
+        ├── filter.smk
+        └── fragile.smk
+
+6 directories, 10 files
+
+$ PIPELINE_DEBUG=1 bash run_pipeline.sh qc -n --quiet rules
+[DEBUG] Samples: ['sampleA', 'sampleB']
+host: localhost
+Building DAG of jobs...
+Job stats:
+job                 count
+----------------  -------
+qc                      1
+qc__filter__run         2
+qc__fragile__run        1
+total                   4
+
+Job stats:
+job                 count
+----------------  -------
+qc                      1
+qc__filter__run         2
+qc__fragile__run        1
+total                   4
+
+Reasons:
+    (check individual jobs above for details)
+    input files updated by another job:
+        qc
+    output files have to be generated:
+        qc__filter__run, qc__fragile__run
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+Using profile config/profiles/minicluster for setting default command line arguments.
+
+$ bash run_pipeline.sh qc --quiet rules
+Using profile config/profiles/minicluster for setting default command line arguments.
+host: localhost
+Building DAG of jobs...
+SLURM run ID: 7b17823a-bff5-4cef-95b3-bc91f1634cd2
+Using shell: /usr/bin/bash
+Provided remote nodes: 10
+Job stats:
+job                 count
+----------------  -------
+qc                      1
+qc__filter__run         2
+qc__fragile__run        1
+total                   4
+
+Select jobs to execute...
+Execute 3 jobs...
+Job 2 has been submitted with SLURM jobid 1 (log: /scratch/project_demo/examples/14_patterns/.snakemake/slurm_logs/rule_qc__filter__run/sampleB/1.log).
+Job 1 has been submitted with SLURM jobid 2 (log: /scratch/project_demo/examples/14_patterns/.snakemake/slurm_logs/rule_qc__filter__run/sampleA/2.log).
+Job 3 has been submitted with SLURM jobid 3 (log: /scratch/project_demo/examples/14_patterns/.snakemake/slurm_logs/rule_qc__fragile__run/3.log).
+[date]
+Finished jobid: 2 (Rule: qc__filter__run)
+1 of 4 steps (25%) done
+[date]
+Finished jobid: 1 (Rule: qc__filter__run)
+2 of 4 steps (50%) done
+Trying to restart job 3.
+Select jobs to execute...
+Execute 1 jobs...
+Job 3 has been submitted with SLURM jobid 4 (log: /scratch/project_demo/examples/14_patterns/.snakemake/slurm_logs/rule_qc__fragile__run/4.log).
+[date]
+Finished jobid: 3 (Rule: qc__fragile__run)
+3 of 4 steps (75%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: qc)
+4 of 4 steps (100%) done
+Cleaning up SLURM log files older than 10 day(s).
+Complete log(s): /scratch/project_demo/examples/14_patterns/.snakemake/log/<date>.snakemake.log
+Cleaning up SLURM log files older than 10 day(s).
+
+$ ls results/qc
+fragile.log
+fragile.log.try1
+fragile.txt
+sampleA.fastq.gz
+sampleA.log
+sampleB.fastq.gz
+sampleB.log
+
+$ cat results/qc/fragile.log.try1
+attempt 1: 200 MB, 1 CPUs, partition small
+Pretending to run out of memory
+
+$ cat results/qc/fragile.log
+attempt 2: 500 MB, 2 CPUs, partition small
+
+$ sacct -X --format=JobID,Comment%24,Partition,AllocCPUS,ReqMem,State | tail -n 4
+1            rule_qc__filter__run_wi+      small          1       200M  COMPLETED 
+2            rule_qc__filter__run_wi+      small          1       200M  COMPLETED 
+3               rule_qc__fragile__run      small          1       200M     FAILED 
+4               rule_qc__fragile__run      small          2       500M  COMPLETED
+

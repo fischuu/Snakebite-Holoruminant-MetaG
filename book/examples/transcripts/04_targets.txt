@@ -1,0 +1,123 @@
+$ snakemake --cores 2 --quiet rules
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 2
+Rules claiming more threads will be scaled down.
+Job stats:
+job            count
+-----------  -------
+all                1
+count_reads        6
+summary            1
+total              8
+
+Select jobs to execute...
+Execute 2 jobs...
+[date]
+Finished jobid: 6 (Rule: count_reads)
+1 of 8 steps (12%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 3 (Rule: count_reads)
+2 of 8 steps (25%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 5 (Rule: count_reads)
+3 of 8 steps (38%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 4 (Rule: count_reads)
+4 of 8 steps (50%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 7 (Rule: count_reads)
+5 of 8 steps (62%) done
+[date]
+Finished jobid: 2 (Rule: count_reads)
+6 of 8 steps (75%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 1 (Rule: summary)
+7 of 8 steps (88%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: all)
+8 of 8 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/04_targets/.snakemake/log/<date>.snakemake.log
+
+$ cat results/summary.tsv
+sampleA_R1	40
+sampleA_R2	40
+sampleB_R1	60
+sampleB_R2	60
+sampleC_R1	25
+sampleC_R2	25
+
+$ snakemake counts --cores 1 --dry-run --forceall --quiet rules
+host: localhost
+Building DAG of jobs...
+Job stats:
+job            count
+-----------  -------
+count_reads        3
+counts             1
+total              4
+
+Job stats:
+job            count
+-----------  -------
+count_reads        3
+counts             1
+total              4
+
+Reasons:
+    (check individual jobs above for details)
+    forced:
+        count_reads, counts
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+
+$ snakemake --snakefile Snakefile.glob --cores 1 --dry-run --quiet rules
+Found samples: ['sampleB', 'sampleA', 'sampleC']
+host: localhost
+Building DAG of jobs...
+Job stats:
+job      count
+-----  -------
+all          1
+count        3
+total        4
+
+Job stats:
+job      count
+-----  -------
+all          1
+count        3
+total        4
+
+Reasons:
+    (check individual jobs above for details)
+    input files updated by another job:
+        all
+    output files have to be generated:
+        count
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+
+$ snakemake --list-rules
+all (What a run without any target name produces)
+count_reads
+counts (A target rule: it runs nothing and only asks for files)
+summary (One table with a line per read file)
+
+$ snakemake --list-target-rules
+all (What a run without any target name produces)
+counts (A target rule: it runs nothing and only asks for files)
+summary (One table with a line per read file)
+

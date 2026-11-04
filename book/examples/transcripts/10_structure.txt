@@ -1,0 +1,90 @@
+$ tree workflow config
+workflow
+├── Snakefile
+└── rules
+    ├── folders.smk
+    ├── qc
+    │   ├── __main__.smk
+    │   └── filter.smk
+    └── stats
+        ├── __main__.smk
+        └── count.smk
+config
+└── config.yaml
+
+5 directories, 7 files
+
+$ snakemake --list-rules
+all
+qc (Run the whole qc module)
+qc__filter
+stats (Run the whole stats module)
+stats__count
+
+$ snakemake qc --cores 2 --quiet rules
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 2
+Rules claiming more threads will be scaled down.
+Job stats:
+job           count
+----------  -------
+qc                1
+qc__filter        2
+total             3
+
+Select jobs to execute...
+Execute 2 jobs...
+[date]
+Finished jobid: 1 (Rule: qc__filter)
+1 of 3 steps (33%) done
+[date]
+Finished jobid: 2 (Rule: qc__filter)
+2 of 3 steps (67%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: qc)
+3 of 3 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/10_structure/.snakemake/log/<date>.snakemake.log
+
+$ snakemake stats --cores 2 --quiet rules
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 2
+Rules claiming more threads will be scaled down.
+Job stats:
+job             count
+------------  -------
+stats               1
+stats__count        2
+total               3
+
+Select jobs to execute...
+Execute 2 jobs...
+[date]
+Finished jobid: 1 (Rule: stats__count)
+1 of 3 steps (33%) done
+[date]
+Finished jobid: 3 (Rule: stats__count)
+2 of 3 steps (67%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: stats)
+3 of 3 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/10_structure/.snakemake/log/<date>.snakemake.log
+
+$ snakemake --cores 2 --quiet rules
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Nothing to be done (all requested files are present and up to date).
+
+$ cat results/stats/sampleA.txt
+28
+

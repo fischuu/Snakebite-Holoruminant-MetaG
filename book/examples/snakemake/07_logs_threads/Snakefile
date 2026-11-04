@@ -1,0 +1,27 @@
+rule all:
+    input:
+        expand("results/{sample}.txt", sample=["sampleA", "sampleB"]),
+
+
+rule sort_reads:
+    """Sort the reads by sequence, in parallel"""
+    input:
+        "data/{sample}_R1.fastq.gz",
+    output:
+        "results/{sample}.txt",
+    log:
+        "logs/{sample}.log",
+    benchmark:
+        "benchmarks/{sample}.tsv",
+    threads: 2
+    resources:
+        mem_mb=500,
+        runtime=10,
+    shell:
+        """
+        exec > {log} 2>&1
+        echo "Sorting {wildcards.sample} with {threads} threads and {resources.mem_mb} MB"
+        zcat {input} | paste - - - - | sort --parallel={threads} -S {resources.mem_mb}M -k 2 > {output}
+        sleep 2
+        echo "Done"
+        """

@@ -1,0 +1,88 @@
+$ snakemake --cores 1 --dry-run --quiet rules
+host: localhost
+Building DAG of jobs...
+Job stats:
+job          count
+---------  -------
+all              1
+make_bins        1
+report           1
+total            3
+
+DAG of jobs will be updated after completion.
+Job stats:
+job          count
+---------  -------
+all              1
+make_bins        1
+report           1
+total            3
+
+Reasons:
+    (check individual jobs above for details)
+    input files updated by another job:
+        all, report
+    output files have to be generated:
+        make_bins, report
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+The run involves checkpoint jobs, which will result in alteration of the DAG of jobs (e.g. adding more jobs) after their completion.
+
+$ snakemake --cores 2 --quiet rules
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 2
+Rules claiming more threads will be scaled down.
+Job stats:
+job          count
+---------  -------
+all              1
+make_bins        1
+report           1
+total            3
+
+Select jobs to execute...
+Execute 1 jobs...
+DAG of jobs will be updated after completion.
+[date]
+Finished jobid: 2 (Rule: make_bins)
+1 of 3 steps (33%) done
+Updating checkpoint dependencies.
+Select jobs to execute...
+Execute 3 jobs...
+[date]
+Finished jobid: 5 (Rule: annotate_bin)
+2 of 7 steps (29%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 6 (Rule: annotate_bin)
+3 of 7 steps (43%) done
+[date]
+Finished jobid: 8 (Rule: annotate_bin)
+4 of 7 steps (57%) done
+[date]
+Finished jobid: 7 (Rule: annotate_bin)
+5 of 7 steps (71%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 1 (Rule: report)
+6 of 7 steps (86%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: all)
+7 of 7 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/13_checkpoints/.snakemake/log/<date>.snakemake.log
+
+$ ls results/annotated
+bin_00.txt
+bin_01.txt
+bin_02.txt
+bin_03.txt
+
+$ cat results/report.txt
+4
+

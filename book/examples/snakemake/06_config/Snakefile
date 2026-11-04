@@ -1,0 +1,23 @@
+configfile: "config/config.yaml"
+
+
+rule all:
+    input:
+        expand("results/{sample}.fastq.gz", sample=config["samples"]),
+
+
+rule filter_reads:
+    input:
+        "data/{sample}_R1.fastq.gz",
+    output:
+        "results/{sample}.fastq.gz",
+    params:
+        min_length=config["filter"]["min_length"],
+    shell:
+        """
+        zcat {input} \
+            | paste - - - - \
+            | awk -F '\\t' -v min={params.min_length} 'length($2) >= min' \
+            | tr '\\t' '\\n' \
+            | gzip > {output}
+        """

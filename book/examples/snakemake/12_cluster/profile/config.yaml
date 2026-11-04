@@ -1,0 +1,9 @@
+executor: slurm
+jobs: 10
+latency-wait: 5
+default-resources:
+    slurm_account: "project_demo"
+    slurm_partition: "small"
+    runtime: 10
+    mem_mb: 200
+    cpus_per_task: 1
