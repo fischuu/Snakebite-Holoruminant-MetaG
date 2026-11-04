@@ -1,98 +1,425 @@
 ---
-title: "Snakebite - Holoruminant - MetaG"
-subtitle: "preprocess module - report"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    fig_caption: true
+title: "Snakebite-Holoruminant-MetaG"
+subtitle: "Module report: preprocess"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+geometry: margin=2cm
+fontsize: 10pt
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                       fig.align = "center", fig.width = 7, fig.height = 4)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = "asis")
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"), local = knitr::knit_global())
+report_start("preprocess")
 
-if (!exists("project_folder")) {
-  project_folder <- getwd()
-  pipeline_folder <- getwd()
-  features_file <- "config/features.yaml"
-  sample_file <- "config/samples.tsv"
-}
+host_names <- names(ctx$features$hosts)
+fastp_dir <- p("results", "preprocess", "fastp")
+fastp_json <- setNames(file.path(fastp_dir, paste0(libraries(), "_fastp.json")), libraries())
+fastp_json <- fastp_json[file.exists(fastp_json)]
+fastp <- map(fastp_json, jsonlite::fromJSON)
 
-source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
-samples <- read.delim(file.path(project_folder, sample_file), comment.char = "#")
-features <- yaml::read_yaml(file.path(project_folder, features_file))
-host_names <- names(features$hosts)
-```
-
-# Adapter/quality trimming (fastp)
-
-```{r fastp-summary}
-fastp_dir <- file.path(project_folder, "results", "preprocess", "fastp")
-json_files <- file.path(fastp_dir, paste0(samples$sample_id, ".", samples$library_id, "_fastp.json"))
-
-fastp_df <- purrr::map2_dfr(json_files, paste(samples$sample_id, samples$library_id, sep = "."), function(f, lib) {
-  row <- parse_fastp_json(f)
-  if (nrow(row) == 0) return(NULL)
-  dplyr::bind_cols(library = lib, row)
+fastp_table <- map_dfr(names(fastp), function(library) {
+  j <- fastp[[library]]
+  before <- j$summary$before_filtering
+  after <- j$summary$after_filtering
+  filtered <- j$filtering_result
+  tibble(
+    library = library,
+    raw_reads = before$total_reads,
+    raw_bases = before$total_bases,
+    kept_reads = after$total_reads,
+    kept_bases = after$total_bases,
+    low_quality_reads = filtered$low_quality_reads %||% 0,
+    too_many_n_reads = filtered$too_many_N_reads %||% 0,
+    too_short_reads = filtered$too_short_reads %||% 0,
+    too_long_reads = filtered$too_long_reads %||% 0,
+    adapter_trimmed_reads = j$adapter_cutting$adapter_trimmed_reads %||% NA_real_,
+    adapter_trimmed_bases = j$adapter_cutting$adapter_trimmed_bases %||% NA_real_,
+    q20_before = 100 * before$q20_rate,
+    q30_before = 100 * before$q30_rate,
+    q20_after = 100 * after$q20_rate,
+    q30_after = 100 * after$q30_rate,
+    gc_before = 100 * before$gc_content,
+    gc_after = 100 * after$gc_content,
+    length_before = before$read1_mean_length,
+    length_after = after$read1_mean_length,
+    duplication_pct = 100 * (j$duplication$rate %||% NA_real_),
+    insert_peak = j$insert_size$peak %||% NA_real_
+  )
 })
 
-if (nrow(fastp_df) == 0) {
-  cat("_No fastp output found yet._\n")
+# Pairs at each step. A pair is removed if at least one of its reads maps, since the rule keeps pairs
+# with both reads unmapped (samtools view -f 12). "reads mapped and paired" counts reads with both
+# mates mapped, so these reads make up half as many pairs.
+host_table <- map_dfr(host_names, function(host) {
+  map_dfr(libraries(), function(library) {
+    file <- p("results", "preprocess", "bowtie2", host, paste0(library, ".stats.txt"))
+    if (!file.exists(file)) return(NULL)
+    stats <- read_samstats(file)
+    both <- stats[["reads mapped and paired"]]
+    tibble(
+      host = host,
+      library = library,
+      reads_in = stats[["raw total sequences"]],
+      reads_mapped = stats[["reads mapped"]],
+      pairs_in = reads_in / 2,
+      pairs_removed = reads_mapped - both / 2,
+      pairs_out = pairs_in - pairs_removed,
+      mapped_pct = 100 * reads_mapped / reads_in
+    )
+  })
+})
+
+fates <- if (nrow(fastp_table) > 0) {
+  fates <- fastp_table %>% transmute(library, raw_pairs = raw_reads / 2, after_fastp = kept_reads / 2)
+  if (nrow(host_table) > 0) {
+    removed <- host_table %>%
+      select(library, host, pairs_removed) %>%
+      pivot_wider(names_from = host, values_from = pairs_removed, names_prefix = "removed_")
+    last <- host_table %>%
+      mutate(position = match(host, host_names)) %>%
+      group_by(library) %>%
+      slice_max(position, n = 1) %>%
+      ungroup() %>%
+      transmute(library, clean_pairs = pairs_out)
+    fates <- fates %>% left_join(removed, by = "library") %>% left_join(last, by = "library")
+  } else {
+    fates$clean_pairs <- fates$after_fastp
+  }
+  mutate(fates, kept_pct = 100 * clean_pairs / raw_pairs)
 } else {
-  preview_table(fastp_df, n = nrow(fastp_df), caption = "fastp: reads before/after filtering, Q30 rate, duplication")
+  tibble()
 }
 ```
 
-# Host decontamination
+```{r brief}
+section("Results in brief", {
+  if (nrow(fates) == 0) {
+    no_output("fastp", "results/preprocess/fastp/")
+  } else {
+    para(
+      "From **", fmt_int(sum(fates$raw_pairs)), " raw read pairs**, preprocessing kept **", fmt_int(sum(fates$clean_pairs, na.rm = TRUE)),
+      " clean pairs** (", fmt_pct(100 * sum(fates$clean_pairs, na.rm = TRUE) / sum(fates$raw_pairs)), "). Per library, between ",
+      fmt_pct(min(fates$kept_pct, na.rm = TRUE)), " and ", fmt_pct(max(fates$kept_pct, na.rm = TRUE)), " were kept, and a mean of ",
+      fmt_int(mean(fates$clean_pairs, na.rm = TRUE)), " pairs per library remains for the next modules."
+    )
+    para(
+      "fastp raised the share of bases of at least Q30 from ", fmt_pct(mean(fastp_table$q30_before)), " to ",
+      fmt_pct(mean(fastp_table$q30_after)), ", and trimmed adapter from ", fmt_pct(100 * sum(fastp_table$adapter_trimmed_reads, na.rm = TRUE) / sum(fastp_table$raw_reads)),
+      " of the reads."
+    )
+    if (nrow(host_table) > 0) {
+      by_host <- host_table %>%
+        group_by(host) %>%
+        summarise(pct = 100 * sum(reads_mapped) / sum(reads_in), .groups = "drop")
+      para("Reads mapping to the hosts: ", paste0(by_host$host, " ", fmt_pct(by_host$pct, 2), collapse = ", "), ".")
+    }
+    low <- filter(fates, kept_pct < 0.8 * median(kept_pct, na.rm = TRUE))
+    if (nrow(low) > 0) {
+      para("**Check these libraries:** ", paste0("`", low$library, "`", collapse = ", "), " lost clearly more reads than the others.")
+    }
+  }
+})
+```
 
-Each configured host is mapped against sequentially; the percentage below is
-the share of that library's reads still present (i.e. not yet removed as
-host) at each step.
+```{r fates}
+section("What happened to the reads", {
+  if (nrow(fates) > 0) {
+    display <- fates %>% transmute(Library = library, `Raw pairs` = fmt_int(raw_pairs), `After fastp` = fmt_int(after_fastp))
+    for (host in host_names) {
+      column <- paste0("removed_", host)
+      if (column %in% names(fates)) display[[paste0("Removed: ", host)]] <- fmt_int(fates[[column]])
+    }
+    display$`Clean pairs` <- fmt_int(fates$clean_pairs)
+    display$Kept <- fmt_pct(fates$kept_pct)
+    show_table(display, "Read pairs after each step of preprocessing", "read_pairs_per_step", export = fates, max_rows = 60)
 
-```{r host-decontam-summary}
-if (length(host_names) == 0) {
-  cat("_No hosts configured -- reads pass straight from fastp into read_annotate/assemble._\n")
-} else {
-  bowtie2_dir <- file.path(project_folder, "results", "preprocess", "bowtie2")
+    stacked <- fastp_table %>%
+      transmute(library, `Low quality` = low_quality_reads, `Too many N` = too_many_n_reads,
+                `Too short` = too_short_reads + too_long_reads, raw_reads)
+    long <- stacked %>%
+      pivot_longer(c(`Low quality`, `Too many N`, `Too short`), names_to = "fate", values_to = "reads")
+    if (nrow(host_table) > 0) {
+      long <- bind_rows(long, host_table %>%
+        transmute(library, fate = paste0("Host: ", host), reads = 2 * pairs_removed,
+                  raw_reads = fastp_table$raw_reads[match(library, fastp_table$library)]))
+    }
+    long <- bind_rows(long, fates %>%
+      transmute(library, fate = "Clean", reads = 2 * clean_pairs, raw_reads = raw_pairs * 2))
+    long <- long %>%
+      group_by(library) %>%
+      mutate(other = 0) %>%
+      ungroup() %>%
+      mutate(share = 100 * reads / raw_reads, library = factor(library, levels = rev(libraries())))
+    levels_fate <- c("Clean", setdiff(unique(long$fate), "Clean"))
+    long$fate <- factor(long$fate, levels = rev(levels_fate))
+    write_tsv(long, file.path(ctx$tables, "read_fates.tsv"))
+    colours <- setNames(c("#009E73", "#D55E00", "#E69F00", "#F0E442", "#CC79A7", "#56B4E9", "#0072B2", "#999999")[seq_along(levels_fate)], levels_fate)
+    show_figure(
+      ggplot(long, aes(share, library, fill = fate)) +
+        geom_col() +
+        scale_fill_manual(values = colours, name = NULL, guide = guide_legend(reverse = TRUE)) +
+        labs(x = "Share of raw reads (%)", y = NULL) +
+        theme_report() +
+        library_axis(n_distinct(long$library)),
+      "read_fates",
+      "What happened to the raw reads of each library. The rest to 100% are reads that fastp left without a partner.",
+      height = rows_height(n_distinct(long$library))
+    )
+  }
+})
+```
 
-  decontam_df <- purrr::map_dfr(host_names, function(host) {
-    purrr::pmap_dfr(samples[, c("sample_id", "library_id")], function(sample_id, library_id) {
-      f <- file.path(bowtie2_dir, host, paste0(sample_id, ".", library_id, ".chr_alignment_counts.tsv"))
-      if (!file.exists(f)) return(NULL)
-      counts <- read.delim(f, header = FALSE, col.names = c("chr", "mapped_reads"))
-      tibble::tibble(
-        host = host,
-        library = paste(sample_id, library_id, sep = "."),
-        mapped_reads = sum(counts$mapped_reads, na.rm = TRUE)
+```{r fastp}
+section("Trimming and filtering (fastp)", {
+  if (nrow(fastp_table) == 0) {
+    no_output("fastp", "results/preprocess/fastp/")
+  } else {
+    para("The HTML reports of fastp are in `results/preprocess/fastp/*_fastp.html`.")
+    show_table(
+      fastp_table %>% transmute(
+        Library = library,
+        `Raw reads` = fmt_int(raw_reads),
+        `Kept reads` = fmt_int(kept_reads),
+        `Kept bases` = fmt_bp(kept_bases),
+        `Low quality` = fmt_int(low_quality_reads),
+        `Too many N` = fmt_int(too_many_n_reads),
+        `Too short` = fmt_int(too_short_reads),
+        `Adapter trimmed` = fmt_pct(100 * adapter_trimmed_reads / raw_reads)
+      ),
+      "Reads and bases that fastp kept, and why it removed the others",
+      "fastp_filtering",
+      export = fastp_table,
+      max_rows = 60
+    )
+    show_table(
+      fastp_table %>% transmute(
+        Library = library,
+        `Q20 before` = fmt_pct(q20_before), `Q20 after` = fmt_pct(q20_after),
+        `Q30 before` = fmt_pct(q30_before), `Q30 after` = fmt_pct(q30_after),
+        `GC before` = fmt_pct(gc_before), `GC after` = fmt_pct(gc_after),
+        `Length before` = fmt_int(length_before), `Length after` = fmt_int(length_after),
+        Duplicates = fmt_pct(duplication_pct, 2),
+        `Insert peak` = fmt_int(insert_peak)
+      ),
+      "Quality before and after fastp. Q20 and Q30 are shares of bases, the length is the mean of the forward reads, and Duplicates is fastp's estimate",
+      "fastp_quality",
+      export = fastp_table %>% select(library, q20_before:insert_peak),
+      max_rows = 60
+    )
+    adapters <- map_dfr(names(fastp), function(library) {
+      cutting <- fastp[[library]]$adapter_cutting
+      if (is.null(cutting)) return(NULL)
+      tibble(
+        library = library,
+        forward_adapter = cutting$read1_adapter_sequence %||% NA_character_,
+        reverse_adapter = cutting$read2_adapter_sequence %||% NA_character_,
+        trimmed_reads = cutting$adapter_trimmed_reads %||% NA_real_,
+        trimmed_bases = cutting$adapter_trimmed_bases %||% NA_real_
       )
     })
-  })
-
-  if (nrow(decontam_df) == 0) {
-    cat("_No host-mapping output found yet._\n")
-  } else {
-    wide <- tidyr::pivot_wider(decontam_df, names_from = host, values_from = mapped_reads)
-    preview_table(wide, n = nrow(wide),
-                  caption = "Reads mapped to each host, per library (host order = decontamination order)")
+    if (nrow(adapters) > 0) {
+      show_table(
+        adapters %>% transmute(
+          Library = library, `Forward adapter` = forward_adapter, `Reverse adapter` = reverse_adapter,
+          `Trimmed reads` = fmt_int(trimmed_reads), `Trimmed bases` = fmt_int(trimmed_bases)
+        ),
+        "Adapter sequences that fastp used, and how much it trimmed",
+        "adapter_trimming",
+        export = adapters,
+        max_rows = 60
+      )
+      counts <- map_dfr(names(fastp), function(library) {
+        one <- function(name, read) {
+          found <- unlist(fastp[[library]]$adapter_cutting[[name]])
+          if (length(found) == 0) return(NULL)
+          tibble(library = library, read = read, sequence = names(found), count = as.numeric(found))
+        }
+        bind_rows(one("read1_adapter_counts", "Forward reads"), one("read2_adapter_counts", "Reverse reads"))
+      })
+      if (nrow(counts) > 0) {
+        write_tsv(counts, file.path(ctx$tables, "adapter_counts.tsv"))
+        kept <- counts %>%
+          mutate(sequence = substr(sequence, 1, 30), kind = top_n_other(sequence, count, n = 6)) %>%
+          group_by(library, read, kind) %>%
+          summarise(count = sum(count), .groups = "drop") %>%
+          mutate(library = factor(library, levels = rev(libraries())))
+        show_figure(
+          ggplot(kept, aes(count, library, fill = kind)) +
+            geom_col() +
+            scale_fill_manual(values = category_colours(unique(kept$kind)), name = NULL, guide = guide_legend(ncol = 2)) +
+            facet_wrap(~read) +
+            labs(x = "Reads with this sequence trimmed", y = NULL) +
+            theme_report() +
+            library_axis(n_distinct(kept$library)),
+          "adapter_counts",
+          "The sequences that fastp trimmed most often, per library. Others are all remaining sequences.",
+          height = rows_height(n_distinct(kept$library), 0.2, 1.8)
+        )
+      }
+    }
+    q30 <- fastp_table %>%
+      mutate(library = factor(library, levels = rev(library))) %>%
+      select(library, Before = q30_before, After = q30_after) %>%
+      pivot_longer(-library)
+    show_figure(
+      ggplot(q30, aes(value, library, colour = name)) +
+        geom_line(aes(group = library), colour = "grey75") +
+        geom_point(size = 1.8) +
+        scale_colour_manual(values = c(Before = PALETTE[[2]], After = PALETTE[[1]]), name = NULL) +
+        labs(x = "Bases of at least Q30 (%)", y = NULL) +
+        theme_report() +
+        library_axis(nrow(fastp_table)),
+      "q30_before_after",
+      "Share of bases of at least Q30, before and after fastp.",
+      height = rows_height(nrow(fastp_table))
+    )
+    curves <- map_dfr(names(fastp), function(library) {
+      j <- fastp[[library]]
+      one <- function(part, read, stage) {
+        mean_q <- j[[part]]$quality_curves$mean
+        tibble(library = library, read = read, stage = stage, position = seq_along(mean_q), quality = mean_q)
+      }
+      bind_rows(
+        one("read1_before_filtering", "Forward reads", "Before"),
+        one("read1_after_filtering", "Forward reads", "After"),
+        one("read2_before_filtering", "Reverse reads", "Before"),
+        one("read2_after_filtering", "Reverse reads", "After")
+      )
+    })
+    write_tsv(curves, file.path(ctx$tables, "quality_before_after.tsv"))
+    show_figure(
+      ggplot(curves, aes(position, quality, colour = stage, group = interaction(library, stage))) +
+        geom_line(alpha = 0.6, linewidth = 0.3) +
+        scale_colour_manual(values = c(Before = PALETTE[[2]], After = PALETTE[[1]]), name = NULL) +
+        facet_wrap(~read) +
+        labs(x = "Position in read (bp)", y = "Mean base quality (Phred)") +
+        theme_report(),
+      "quality_before_after",
+      "Mean base quality along the reads before and after fastp, one line per library."
+    )
+    inserts <- map_dfr(names(fastp), function(library) {
+      histogram <- fastp[[library]]$insert_size$histogram
+      if (is.null(histogram) || length(histogram) == 0) return(NULL)
+      tibble(library = library, insert = seq_along(histogram) - 1, share = 100 * histogram / sum(histogram))
+    })
+    if (nrow(inserts) > 0) {
+      write_tsv(inserts, file.path(ctx$tables, "insert_sizes.tsv"))
+      show_figure(
+        ggplot(filter(inserts, insert > 0), aes(insert, share, group = library)) +
+          geom_line(colour = PALETTE[[3]], alpha = 0.6, linewidth = 0.3) +
+          labs(x = "Insert size (bp)", y = "Read pairs (%)") +
+          theme_report(),
+        "insert_sizes",
+        "Insert sizes that fastp estimated from overlapping read pairs, one line per library. fastp can't measure inserts longer than the two reads together, and counts those at the right end.",
+        height = 2.8
+      )
+    }
   }
-}
+})
 ```
 
-# Runtime statistics
-
-```{r preprocess-runtime}
-bench <- discover_benchmarks(project_folder, "preprocess")
-runtime_table(bench, caption = "preprocess module: runtime and peak memory per rule")
+```{r hosts}
+section("Host decontamination", {
+  if (length(host_names) == 0) {
+    para("No hosts are configured, so the reads pass from fastp straight to the next modules.")
+  } else if (nrow(host_table) == 0) {
+    no_output("the host mapping", "results/preprocess/bowtie2/")
+  } else {
+    para("Reads are mapped to one host after the other. Pairs with both reads unmapped go on to the next host, and the rest are removed.")
+    show_table(
+      host_table %>% transmute(
+        Host = host, Library = library, `Pairs in` = fmt_int(pairs_in), `Reads mapped` = fmt_int(reads_mapped),
+        Mapped = fmt_pct(mapped_pct, 2), `Pairs removed` = fmt_int(pairs_removed), `Pairs out` = fmt_int(pairs_out)
+      ),
+      "Reads per host and library",
+      "host_mapping",
+      export = host_table,
+      max_rows = 60
+    )
+    show_figure(
+      host_table %>%
+        mutate(library = factor(library, levels = rev(libraries()))) %>%
+        ggplot(aes(mapped_pct, library)) +
+        geom_col(fill = PALETTE[[6]]) +
+        facet_wrap(~host, scales = "free_x") +
+        labs(x = "Reads mapped to the host (%)", y = NULL) +
+        theme_report() +
+        library_axis(n_distinct(host_table$library)),
+      "host_mapping",
+      "Share of reads that mapped to each host, in each library.",
+      height = rows_height(n_distinct(host_table$library))
+    )
+    chromosome_counts <- map_dfr(host_names, function(host) {
+      map_dfr(libraries(), function(library) {
+        file <- p("results", "preprocess", "quantification", host, paste0(library, ".chr_alignment_counts.tsv"))
+        if (!file.exists(file)) return(NULL)
+        table <- read.table(file, col.names = c("sequence", "reads"), comment.char = "", quote = "", stringsAsFactors = FALSE)
+        mutate(table, host = host, library = library)
+      })
+    })
+    if (nrow(chromosome_counts) > 0) {
+      write_tsv(chromosome_counts, file.path(ctx$tables, "host_reads_per_sequence.tsv"))
+      para("The reads per host sequence are in `Rreports/preprocess/tables/host_reads_per_sequence.tsv`, and they can show which ",
+           "part of a host genome attracts the reads.")
+    }
+  }
+})
 ```
 
-```{r preprocess-resource-allocation}
-resource_allocation_table(bench, "preprocess", project_folder,
-                          caption = "preprocess module: allocated vs. actual resource usage (starting tier)")
+```{r fastqc}
+section("Quality checks after each step (FastQC)", {
+  stage_files <- bind_rows(
+    tibble(stage = "Raw", folder = p("results", "reads")),
+    tibble(stage = "After fastp", folder = fastp_dir),
+    map_dfr(host_names, ~ tibble(stage = paste0("After ", .x), folder = p("results", "preprocess", "bowtie2", paste0("non", .x))))
+  )
+  status <- pmap_dfr(stage_files, function(stage, folder) {
+    zips <- file.path(folder, paste0(rep(libraries(), each = 2), "_", 1:2, "_fastqc.zip"))
+    map_dfr(zips[file.exists(zips)], ~ mutate(read_fastqc(.x)$status, stage = stage, file = basename(.x)))
+  })
+  if (nrow(status) == 0) {
+    no_output("FastQC", "results/preprocess/")
+  } else {
+    table <- status %>%
+      count(module, stage, status) %>%
+      group_by(module, stage) %>%
+      summarise(result = paste0(n, " ", status, collapse = ", "), .groups = "drop") %>%
+      pivot_wider(names_from = stage, values_from = result)
+    table <- table[match(unique(status$module), table$module), c("module", intersect(stage_files$stage, names(table)))]
+    show_table(rename(table, Check = module), "Results of FastQC's checks after each step, in numbers of files", "fastqc_per_step", max_rows = 20)
+    write_tsv(status, file.path(ctx$tables, "fastqc_status.tsv"))
+    fastqc_notes()
+  }
+})
 ```
 
-```{r preprocess-runtime-plot, fig.height=3}
-runtime_plot(bench, title = "preprocess module: total runtime per rule")
+```{r methods}
+section("Methods text", {
+  para("You can use or adapt this text for a paper. It describes what the rules of this module did.")
+  settings <- ctx$params$preprocess$fastp
+  para(
+    "> Adapters and low-quality bases were removed with ", tv("fastp"), ", using the adapter sequences of the sample sheet, a minimum read length of ",
+    settings$length_required %||% "?", " bp and the options `", trimws(settings$extra %||% ""), "`.",
+    if (length(host_names) > 0) {
+      paste0(" Host reads were removed by mapping the read pairs with ", tv("Bowtie2"), " to ",
+             paste(host_names, collapse = ", "), ", one after the other, and keeping pairs with both reads unmapped, with ", tv("SAMtools"), ".")
+    } else {
+      ""
+    },
+    " The result of each step was checked with ", tv("FastQC"), "."
+  )
+  if (length(fastp) > 0) {
+    para("fastp ran on the first library with this command:")
+    cat("\n\n```\n", paste(strwrap(fastp[[1]]$command, width = 90, exdent = 4), collapse = "\n"), "\n```\n\n", sep = "")
+  }
+})
+```
+
+```{r end}
+report_end(c(
+  fastp = "Trimmed reads, fastp and FastQC reports",
+  bowtie2 = "Host alignments, statistics, clean reads",
+  quantification = "Reads per host sequence",
+  index = "Bowtie2 indexes of the hosts"
+))
 ```

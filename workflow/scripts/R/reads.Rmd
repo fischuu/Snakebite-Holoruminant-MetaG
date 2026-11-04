@@ -1,79 +1,293 @@
 ---
-title: "Snakebite - Holoruminant - MetaG"
-subtitle: "reads module - report"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    fig_caption: true
+title: "Snakebite-Holoruminant-MetaG"
+subtitle: "Module report: reads"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+geometry: margin=2cm
+fontsize: 10pt
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                       fig.align = "center", fig.width = 7, fig.height = 4)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = "asis")
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"), local = knitr::knit_global())
+report_start("reads")
 
-if (!exists("project_folder")) {
-  project_folder <- getwd()
-  pipeline_folder <- getwd()
-  features_file <- "config/features.yaml"
-  sample_file <- "config/samples.tsv"
-}
+samples <- ctx$samples
+members <- assembly_members()
 
-source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
-samples <- read.delim(file.path(project_folder, sample_file), comment.char = "#")
-```
-
-# Sample summary
-
-```{r sample-summary, results='asis'}
-n_samples <- length(unique(samples$sample_id))
-assembly_ids <- unique(unlist(strsplit(samples$assembly_ids, ",\\s*")))
-
-assembly_summary <- tibble::tibble(
-  assembly_id = assembly_ids,
-  n_samples = sapply(assembly_ids, function(a) sum(grepl(a, samples$assembly_ids))),
-  samples = sapply(assembly_ids, function(a) {
-    paste(samples$sample_id[grepl(a, samples$assembly_ids)], collapse = ", ")
-  })
-)
-
-cat(sprintf("**%d** unique samples, grouped into **%d** assemblies.\n\n", n_samples, length(assembly_ids)))
-preview_table(assembly_summary, n = nrow(assembly_summary), caption = "Samples per assembly")
-```
-
-# Raw read QC (FastQC)
-
-```{r fastqc-summary}
-reads_dir <- file.path(project_folder, "results", "reads")
-zips <- Sys.glob(file.path(reads_dir, "*_fastqc.zip"))
-
-if (length(zips) == 0) {
-  cat("_No FastQC output found yet._\n")
-} else {
-  fastqc_df <- purrr::map_dfr(zips, parse_fastqc_zip)
-  keep_cols <- intersect(
-    c("sample", "Total Sequences", "Sequence length", "%GC"),
-    colnames(fastqc_df)
+fastqc_files <- crossing(library = libraries(), end = 1:2) %>%
+  arrange(match(library, libraries()), end) %>%
+  mutate(
+    file = paste0(library, "_", end),
+    zip = p("results", "reads", paste0(file, "_fastqc.zip")),
+    raw = ifelse(end == 1, samples$forward_filename[match(library, samples$library)],
+                 samples$reverse_filename[match(library, samples$library)]),
+    raw_bytes = file.info(p(raw))$size
   )
-  preview_table(fastqc_df[, keep_cols], n = nrow(fastqc_df),
-                caption = "FastQC basic statistics per raw read file")
+have <- filter(fastqc_files, file.exists(zip))
+qc <- setNames(map(have$zip, read_fastqc), have$file)
+per_file <- map_dfr(names(qc), ~ mutate(fastqc_summary(qc[[.x]]), file = .x))
+if (nrow(per_file) > 0) per_file <- left_join(have, per_file, by = "file")
+per_library <- if (nrow(per_file) > 0) {
+  per_file %>%
+    group_by(library) %>%
+    summarise(
+      read_pairs = reads[end == 1][1],
+      reads_r2 = reads[end == 2][1],
+      bases = sum(bases),
+      read_length = paste(unique(read_length), collapse = ", "),
+      gc_pct = mean(gc_pct),
+      mean_quality = mean(mean_quality),
+      reads_q30_pct = mean(reads_q30_pct),
+      deduplicated_pct = mean(deduplicated_pct),
+      max_adapter_pct = max(max_adapter_pct),
+      raw_bytes = sum(raw_bytes),
+      .groups = "drop"
+    ) %>%
+    arrange(match(library, libraries())) %>%
+    mutate(sample = samples$sample_id[match(library, samples$library)])
+} else {
+  tibble()
 }
 ```
 
-# Runtime statistics
-
-```{r reads-runtime}
-bench <- discover_benchmarks(project_folder, "reads")
-runtime_table(bench, caption = "reads module: runtime and peak memory per rule")
+```{r brief}
+section("Results in brief", {
+  para(
+    "The sample sheet `", sample_file, "` lists **", n_distinct(samples$sample_id), " samples** with **",
+    nrow(samples), " libraries**, which go into **", length(ctx$assemblies), " assemblies**."
+  )
+  if (nrow(per_library) > 0) {
+    para(
+      "Sequencing produced **", fmt_int(sum(per_library$read_pairs)), " read pairs** (",
+      fmt_bp(sum(per_library$bases)), "), on average ", fmt_int(mean(per_library$read_pairs)), " pairs per library (",
+      "range ", fmt_int(min(per_library$read_pairs)), " to ", fmt_int(max(per_library$read_pairs)), ", median ",
+      fmt_int(median(per_library$read_pairs)), "). Reads are ", paste(unique(per_library$read_length), collapse = " and "),
+      " bp long, with a mean GC content of ", fmt_pct(mean(per_library$gc_pct)), ", and a mean read quality of Q",
+      fmt_num(mean(per_library$mean_quality)), "; ", fmt_pct(mean(per_library$reads_q30_pct)),
+      " of the reads have a mean quality of at least Q30."
+    )
+    low <- filter(per_library, read_pairs < 0.5 * median(read_pairs))
+    mismatch <- filter(per_library, read_pairs != reads_r2)
+    bullets(c(
+      if (nrow(low) > 0) {
+        paste0("**Low depth:** ", paste0("`", low$library, "`", collapse = ", "), " has less than half of the median number of read pairs.")
+      } else {
+        "No library has less than half of the median number of read pairs."
+      },
+      if (nrow(mismatch) > 0) {
+        paste0("**Broken pairs:** the two files of ", paste0("`", mismatch$library, "`", collapse = ", "),
+               " have different numbers of reads. Check these files before going on.")
+      } else {
+        "In all libraries, the forward and reverse files have the same number of reads."
+      }
+    ))
+  } else {
+    no_output("FastQC", "results/reads/")
+  }
+})
 ```
 
-```{r reads-resource-allocation}
-resource_allocation_table(bench, "reads", project_folder,
-                          caption = "reads module: allocated vs. actual resource usage (starting tier)")
+```{r design}
+section("Study design", {
+  para("A **sample** is one biological sample. A **library** is one sequencing library of it, and a sample can have several. ",
+       "An **assembly** is made from the libraries assigned to it, so one that uses many libraries is a co-assembly.")
+  design <- samples %>%
+    group_by(sample_id) %>%
+    summarise(libraries = n(), assemblies = paste(unique(trimws(unlist(strsplit(assembly_ids, ",")))), collapse = ", "),
+              .groups = "drop")
+  show_table(
+    design %>% transmute(Sample = sample_id, Libraries = fmt_int(libraries), Assemblies = assemblies),
+    "Samples, their libraries and assemblies",
+    "samples",
+    export = design,
+    max_rows = 40
+  )
+  per_assembly <- members %>%
+    group_by(assembly_id) %>%
+    summarise(libraries = n(), members = paste(library, collapse = ", "), .groups = "drop")
+  show_table(
+    per_assembly %>% transmute(Assembly = assembly_id, Libraries = fmt_int(libraries), Members = members),
+    "Assemblies and the libraries they use",
+    "assemblies",
+    export = per_assembly,
+    max_rows = 40
+  )
+})
 ```
 
-```{r reads-runtime-plot, fig.height=3}
-runtime_plot(bench, title = "reads module: total runtime per rule")
+```{r read-counts}
+section("Reads per library", {
+  if (nrow(per_library) == 0) {
+    no_output("FastQC", "results/reads/")
+  } else {
+    show_table(
+      per_library %>% transmute(
+        Library = library,
+        `Read pairs` = fmt_int(read_pairs),
+        Bases = fmt_bp(bases),
+        `Length (bp)` = read_length,
+        `GC` = fmt_pct(gc_pct, 0),
+        `Mean Q` = fmt_num(mean_quality),
+        `Reads >= Q30` = fmt_pct(reads_q30_pct),
+        Unique = fmt_pct(deduplicated_pct),
+        `Adapter max.` = fmt_pct(max_adapter_pct, 2),
+        `Files` = fmt_bytes(raw_bytes)
+      ),
+      "Sequencing output per library, from FastQC. Mean Q is the mean of the mean quality of reads; Reads >= Q30 counts reads with a mean quality of at least 30; Unique is FastQC's estimate of the reads left after removing duplicates; Adapter max. is the highest share of adapter at any read position",
+      "reads_per_library",
+      export = per_library,
+      max_rows = 60
+    )
+    write_tsv(select(per_file, -zip), file.path(ctx$tables, "fastqc_per_file.tsv"), na = "")
+    n <- nrow(per_library)
+    show_figure(
+      per_library %>%
+        mutate(library = factor(library, levels = rev(library))) %>%
+        ggplot(aes(read_pairs / 1e6, library)) +
+        geom_col(fill = PALETTE[[1]]) +
+        geom_vline(xintercept = median(per_library$read_pairs) / 1e6, linetype = "dashed", colour = "grey40") +
+        labs(x = "Read pairs (million)", y = NULL) +
+        theme_report() +
+        library_axis(n),
+      "reads_per_library",
+      "Read pairs per library. The dashed line is the median.",
+      height = rows_height(n)
+    )
+  }
+})
+```
+
+```{r quality}
+section("Read quality", {
+  if (length(qc) == 0) {
+    no_output("FastQC", "results/reads/")
+  } else {
+    status <- map_dfr(names(qc), ~ mutate(qc[[.x]]$status, file = .x))
+    status$file <- factor(status$file, levels = rev(names(qc)))
+    para("FastQC gives every file a result for each of its checks. The full reports are in `results/reads/*_fastqc.html`.")
+    show_figure(
+      fastqc_status_plot(status),
+      "fastqc_status",
+      "Results of FastQC's checks for each read file.",
+      height = rows_height(length(qc), 0.17, 2.2)
+    )
+    counts <- status %>%
+      count(module, status) %>%
+      pivot_wider(names_from = status, values_from = n, values_fill = 0)
+    for (col in c("pass", "warn", "fail")) if (!col %in% names(counts)) counts[[col]] <- 0L
+    counts <- counts[match(unique(status$module), counts$module), c("module", "pass", "warn", "fail")]
+    show_table(
+      counts %>% transmute(Check = module, Pass = pass, Warn = warn, Fail = fail),
+      paste0("Number of files per result of each FastQC check (", length(qc), " files)"),
+      "fastqc_status_counts",
+      export = counts
+    )
+    write_tsv(status, file.path(ctx$tables, "fastqc_status.tsv"))
+    fastqc_notes()
+
+    position <- function(x) map_dbl(strsplit(x, "-"), ~ mean(as.numeric(.x)))
+    curves <- map_dfr(names(qc), function(name) {
+      table <- qc[[name]]$per_base
+      tibble(file = name, position = position(table$Base), mean_quality = as.numeric(table$Mean),
+             read = ifelse(grepl("_1$", name), "Forward reads", "Reverse reads"))
+    })
+    write_tsv(curves, file.path(ctx$tables, "quality_per_position.tsv"))
+    show_figure(
+      ggplot(curves, aes(position, mean_quality, group = file)) +
+        annotate("rect", xmin = -Inf, xmax = Inf, ymin = 30, ymax = Inf, fill = "#009E73", alpha = 0.08) +
+        geom_line(colour = PALETTE[[1]], alpha = 0.6, linewidth = 0.3) +
+        facet_wrap(~read) +
+        labs(x = "Position in read (bp)", y = "Mean base quality (Phred)") +
+        theme_report(),
+      "quality_per_position",
+      "Mean base quality along the reads, one line per file. The shaded area is Q30 and above."
+    )
+
+    per_sequence <- map_dfr(names(qc), function(name) {
+      table <- qc[[name]]$per_sequence
+      counts <- as.numeric(table$Count)
+      tibble(file = name, quality = as.numeric(table$Quality), share = 100 * counts / sum(counts))
+    })
+    gc_curves <- map_dfr(names(qc), function(name) {
+      table <- qc[[name]]$gc
+      counts <- as.numeric(table[["Count"]])
+      tibble(file = name, gc = as.numeric(table[["GC Content"]]), share = 100 * counts / sum(counts))
+    })
+    write_tsv(per_sequence, file.path(ctx$tables, "quality_per_read.tsv"))
+    write_tsv(gc_curves, file.path(ctx$tables, "gc_per_read.tsv"))
+    show_figure(
+      ggplot(per_sequence, aes(quality, share, group = file)) +
+        geom_line(colour = PALETTE[[1]], alpha = 0.6, linewidth = 0.3) +
+        labs(x = "Mean quality of a read (Phred)", y = "Reads (%)") +
+        theme_report(),
+      "quality_per_read",
+      "Distribution of the mean read quality, one line per file.",
+      height = 2.8
+    )
+    show_figure(
+      ggplot(gc_curves, aes(gc, share, group = file)) +
+        geom_line(colour = PALETTE[[3]], alpha = 0.6, linewidth = 0.3) +
+        labs(x = "GC content of a read (%)", y = "Reads (%)") +
+        theme_report(),
+      "gc_per_read",
+      "Distribution of the GC content of reads, one line per file. Peaks that differ between samples point to a different community, or to a contaminant.",
+      height = 2.8
+    )
+
+    adapters <- map_dfr(names(qc), function(name) {
+      table <- qc[[name]]$adapter
+      if (is.null(table)) return(NULL)
+      values <- as.matrix(mutate(table[, -1], across(everything(), as.numeric)))
+      tibble(file = name, position = position(table$Position), adapter_pct = apply(values, 1, max))
+    })
+    if (nrow(adapters) > 0) {
+      write_tsv(adapters, file.path(ctx$tables, "adapter_per_position.tsv"))
+      show_figure(
+        ggplot(adapters, aes(position, adapter_pct, group = file)) +
+          geom_line(colour = PALETTE[[6]], alpha = 0.6, linewidth = 0.3) +
+          labs(x = "Position in read (bp)", y = "Reads with adapter (%)") +
+          theme_report(),
+        "adapter_per_position",
+        "Share of reads with adapter sequence up to each position, for the most frequent adapter of each file.",
+        height = 2.8
+      )
+    }
+
+    over <- map_dfr(names(qc), function(name) {
+      table <- qc[[name]]$overrepresented
+      if (is.null(table)) return(NULL)
+      mutate(table, file = name, Percentage = as.numeric(Percentage), Count = as.numeric(Count))
+    })
+    if (nrow(over) > 0) {
+      top <- over %>%
+        group_by(Sequence, source = `Possible Source`) %>%
+        summarise(files = n(), max_pct = max(Percentage), .groups = "drop") %>%
+        arrange(desc(max_pct))
+      show_table(
+        top %>% transmute(Sequence = substr(Sequence, 1, 50), Source = source, Files = fmt_int(files), `Highest share` = fmt_pct(max_pct, 2)),
+        "Overrepresented sequences, from all files",
+        "overrepresented_sequences",
+        export = top,
+        max_rows = 15
+      )
+    } else {
+      para("FastQC found no overrepresented sequences.")
+    }
+  }
+})
+```
+
+```{r methods}
+section("Methods text", {
+  para("You can use or adapt this text for a paper. It describes what the rules of this module did.")
+  para(
+    "> Paired-end reads of ", nrow(samples), " libraries from ", n_distinct(samples$sample_id), " samples were processed with ",
+    "Snakebite-Holoruminant-MetaG (version ", pipeline_version, "), a Snakemake workflow (version ", snakemake_version,
+    "). The quality of the raw reads was assessed with ", tv("FastQC"), "."
+  )
+})
+```
+
+```{r end}
+report_end(c("(this folder)" = "Links to the raw reads, FastQC reports and logs", benchmark = "Run time and memory of each job"))
 ```

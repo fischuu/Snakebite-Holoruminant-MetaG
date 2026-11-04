@@ -19,6 +19,7 @@ preprocess: "docker://fischuu/hrp_preprocess:0.8"
 quantify: "docker://fischuu/hrp_quantify:0.2"
 reads: "docker://fischuu/hrp_reads:0.2"
 reference: "docker://fischuu/hrp_reference:0.1"
+report: "docker://rocker/verse:4.4.2"  # third-party image with R, the tidyverse and LaTeX, for the module reports
 remag: "docker://quay.io/biocontainers/remag:0.5.1--pyhdfd78af_0"
 r_report: "docker://fischuu/r-gbs:4.2.1-0.7"
 subread: "docker://fischuu/subread:2.0.1-0.1"

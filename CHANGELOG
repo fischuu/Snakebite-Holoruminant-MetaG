@@ -3,6 +3,13 @@
 
 Version 0.4.*:
 -----------
+71: Every module has a useful report now, also the new one for the module eukaryote, and the rule all makes them.
+    The former reports could not be built on a cluster, as their container has no LaTeX, and some of their numbers
+    were wrong, or their sections always empty. Each report has the results of its tools as tables and figures, a
+    methods text with versions and settings, the data written per folder, the resources requested and used per rule,
+    and suggestions for config/escalation.yaml. The reads report has the samples, reads per sample and read quality.
+    New container rocker/verse, key report in config/.docker.yml. New test tests/reports/run_test.sh.
+    Versions 69 and 70 are still on the branch real-run-kit.
 68: Restored the strict mode of the rules, which got lost with the debug messages in September 2026
     (shell.prefix replaces Snakemake's "set -euo pipefail"), so a failing command inside a rule went
     unnoticed unless it was the last one. Please read RELEASE_NOTES if you ran such a version.
