@@ -8,7 +8,7 @@ rule assemble__concoct__run:
     log:
         CONCOCT / "{assembly_id}.log",
     benchmark:
-        CONCOCT / "benchmark/{assembly_id}.tsv",
+        CONCOCT / "benchmark/{assembly_id}.tsv"
     container:
         docker["concoct"]
     threads: esc("cpus", "assemble__concoct__run")

@@ -3,11 +3,11 @@ rule mag_annotate__eggnog:
     input:
         contigs=MAG_CATALOGUE,
     output:
-        directory(EGGNOG) ,
+        directory(EGGNOG),
     log:
         protected(EGGNOG / "eggnog.log"),
     benchmark:
-        EGGNOG / "benchmark.tsv",
+        EGGNOG / "benchmark.tsv"
     container:
         docker["eggnog"]
     params:

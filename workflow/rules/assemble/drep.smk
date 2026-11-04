@@ -10,7 +10,7 @@ rule assemble__drep__split_bins:
     log:
         DREP / "separate_bins.log",
     benchmark:
-        DREP / "benchmark/separate_bins.tsv",
+        DREP / "benchmark/separate_bins.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__drep__split_bins")
@@ -41,7 +41,7 @@ rule assemble__drep__run:
     log:
         DREP / "drep.log",
     benchmark:
-        DREP / "benchmark/drep_run.tsv",
+        DREP / "benchmark/drep_run.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__drep__run")
@@ -87,7 +87,7 @@ rule assemble__drep__catalogue:
     log:
         DREP / "dereplicated_genomes.log",
     benchmark:
-        DREP / "benchmark/join_genomes.tsv",
+        DREP / "benchmark/join_genomes.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__drep__catalogue")

@@ -7,7 +7,7 @@ rule mag_annotate__quast:
     log:
         QUAST / "quast.log",
     benchmark:
-        QUAST / "benchmark.tsv",
+        QUAST / "benchmark.tsv"
     container:
         docker["mag_annotate"]
     threads: esc("cpus", "mag_annotate__quast")

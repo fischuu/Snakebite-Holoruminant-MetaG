@@ -29,8 +29,8 @@ rule read_annotate__kraken2__assign:
     log:
         KRAKEN2 / "{kraken_db}.log",
     benchmark:
-        KRAKEN2 / "benchmark/{kraken_db}.tsv",
-    threads: esc("cpus", "read_annotate__kraken2__assign"),
+        KRAKEN2 / "benchmark/{kraken_db}.tsv"
+    threads: esc("cpus", "read_annotate__kraken2__assign")
     resources:
         runtime=esc("runtime", "read_annotate__kraken2__assign"),
         mem_mb=esc("mem_mb", "read_annotate__kraken2__assign"),
@@ -50,8 +50,9 @@ rule read_annotate__kraken2__assign:
         db_shm=lambda w: os.path.join(KRAKEN2SHM, w.kraken_db),
         db_nvme=lambda w: os.path.join(KRAKEN2NVME, w.kraken_db),
     container:
-        docker["preprocess"],
-    shell: """
+        docker["preprocess"]
+    shell:
+        """
         exec > {log} 2>&1
         set +u
         echo "[attempt {resources.attempt}] starting kraken2 assign for {wildcards.kraken_db}"

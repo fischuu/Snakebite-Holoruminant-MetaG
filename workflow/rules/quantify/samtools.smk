@@ -10,7 +10,7 @@ rule quantify__samtools__stats_cram:
     log:
         MAG_MAPPING / f"{LIBRARY}.stats.log",
     benchmark:
-        MAG_MAPPING / f"benchmark/{LIBRARY}.stats.tsv",
+        MAG_MAPPING / f"benchmark/{LIBRARY}.stats.tsv"
     container:
         docker["quantify"]
     threads: esc("cpus", "quantify__samtools__stats_cram")

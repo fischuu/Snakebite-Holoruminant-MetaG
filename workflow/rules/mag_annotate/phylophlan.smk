@@ -6,11 +6,11 @@ rule mag_annotate__phylophlan:
         MAG_GENOMES,
     output:
         folder=directory(PHYLOPHLAN / "SGB"),
-        result= PHYLOPHLAN / "SGB" / "SGB.tsv",
+        result=PHYLOPHLAN / "SGB" / "SGB.tsv",
     log:
         PHYLOPHLAN / "phylophlan_sgb.log",
     benchmark:
-        PHYLOPHLAN / "benchmark/phylophlan_sgb.tsv",
+        PHYLOPHLAN / "benchmark/phylophlan_sgb.tsv"
     threads: esc("cpus", "mag_annotate__phylophlan")
     resources:
         runtime=esc("runtime", "mag_annotate__phylophlan"),
@@ -22,7 +22,7 @@ rule mag_annotate__phylophlan:
     container:
         docker["mag_annotate"]
     params:
-        result= PHYLOPHLAN / "SGB" / "SGB",
+        result=PHYLOPHLAN / "SGB" / "SGB",
     shell:
         # NOTE: the SGB release name and database folder are hardcoded rather
         # than read from config/features.yaml's "phylophlan" entries, which

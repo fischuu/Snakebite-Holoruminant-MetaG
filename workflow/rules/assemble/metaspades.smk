@@ -15,7 +15,7 @@ rule assemble__metaspades__run:
     log:
         METASPADES / "{assembly_id}.log",
     benchmark:
-        METASPADES / "benchmark/{assembly_id}.tsv",
+        METASPADES / "benchmark/{assembly_id}.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__metaspades__run")

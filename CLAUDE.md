@@ -48,7 +48,9 @@ Running a submodule automatically triggers its upstream dependencies. A `report_
 for most modules but the reporting module is still under development and may not produce usable output.
 
 Formatting: `snakefmt` (config in `.github/linters/.snakefmt.toml`, which sets `skip_string_normalization
-= true` for the underlying black formatter) is what CI lints with.
+= true` for the underlying black formatter) is what CI lints with. It checks the Snakemake files a pull
+request changes, using snakefmt 0.8.0 with black 22.12.0 (pinned by super-linter v4.10.0), so format with
+those versions.
 
 ### Debug messages
 

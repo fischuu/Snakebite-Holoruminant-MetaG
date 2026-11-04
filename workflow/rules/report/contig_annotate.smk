@@ -7,7 +7,7 @@ rule report__contig_annotate:
     log:
         PIPELINE_REPORT / "contig_annotate.log",
     benchmark:
-        PIPELINE_REPORT / "contig_annotate_benchmark.tsv",
+        PIPELINE_REPORT / "contig_annotate_benchmark.tsv"
     container:
         docker["r_report"]
     params:

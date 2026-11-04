@@ -17,12 +17,12 @@ rule read_annotate__nonpareil__run:
     log:
         NONPAREIL / f"{LIBRARY}.log",
     benchmark:
-        NONPAREIL / f"benchmark/{LIBRARY}.tsv",
+        NONPAREIL / f"benchmark/{LIBRARY}.tsv"
     container:
         docker["preprocess"]
     params:
         X=params["read_annotate"]["nonpareil"]["X"],
-        tmp = config["tmp_storage"]
+        tmp=config["tmp_storage"],
     threads: esc("cpus", "read_annotate__nonpareil__run")
     resources:
         runtime=esc("runtime", "read_annotate__nonpareil__run"),
@@ -47,13 +47,16 @@ rule read_annotate__nonpareil__run:
 rule read_annotate__nonpareil__aggregate:
     """Aggregate all the nonpareil results into a single table"""
     input:
-        [f"{NONPAREIL}/{sample_id}.{library_id}.npo" for sample_id, library_id in SAMPLE_LIBRARY],
+        [
+            f"{NONPAREIL}/{sample_id}.{library_id}.npo"
+            for sample_id, library_id in SAMPLE_LIBRARY
+        ],
     output:
         NONPAREIL / "nonpareil.tsv",
     log:
         NONPAREIL / "nonpareil.log",
     benchmark:
-        NONPAREIL / "benchmark/nonpareil.tsv",
+        NONPAREIL / "benchmark/nonpareil.tsv"
     container:
         docker["preprocess"]
     threads: esc("cpus", "read_annotate__nonpareil__aggregate")

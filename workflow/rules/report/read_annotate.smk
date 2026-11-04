@@ -7,7 +7,7 @@ rule report__read_annotate:
     log:
         PIPELINE_REPORT / "read_annotate.log",
     benchmark:
-        PIPELINE_REPORT / "read_annotate_benchmark.tsv",
+        PIPELINE_REPORT / "read_annotate_benchmark.tsv"
     container:
         docker["r_report"]
     params:

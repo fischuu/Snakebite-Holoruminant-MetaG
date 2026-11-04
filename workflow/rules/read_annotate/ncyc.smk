@@ -14,9 +14,9 @@ rule read_annotate__ncyc__prepare_input:
     log:
         NCYC / "log" / "ncyc_samples.log",
     benchmark:
-        NCYC / "benchmark" / "ncyc_samples.tsv",
+        NCYC / "benchmark" / "ncyc_samples.tsv"
     container:
-        docker["mag_annotate"],
+        docker["mag_annotate"]
     threads: esc("cpus", "read_annotate__ncyc__prepare_input")
     resources:
         runtime=esc("runtime", "read_annotate__ncyc__prepare_input"),
@@ -39,6 +39,7 @@ rule read_annotate__ncyc__prepare_input:
         echo "=== Finished read_annotate__ncyc__prepare_input ===" >> {log} 2>&1
         """
 
+
 rule read_annotate__ncyc__run:
     """Run NCycDB Perl wrapper on all samples"""
     input:
@@ -48,7 +49,7 @@ rule read_annotate__ncyc__run:
     log:
         NCYC / "log" / "ncyc_run.log",
     benchmark:
-        NCYC / "benchmark" / "ncyc_run.tsv",
+        NCYC / "benchmark" / "ncyc_run.tsv"
     container:
         docker["mag_annotate"]
     threads: esc("cpus", "read_annotate__ncyc__run")
@@ -62,7 +63,7 @@ rule read_annotate__ncyc__run:
     params:
         folder=config["pipeline_folder"],
         outdir=NCYC,
-        reads_dir=CLEAN_READS ,
+        reads_dir=CLEAN_READS,
         faa=features["databases"]["ncyc"],
     shell:
         """
@@ -85,6 +86,7 @@ rule read_annotate__ncyc__run:
         echo "=== Finished read_annotate__ncyc__run ===" >> {log} 2>&1
         """
 
+
 rule read_annotate__ncyc:
     input:
-        rules.read_annotate__ncyc__run.output
+        rules.read_annotate__ncyc__run.output,

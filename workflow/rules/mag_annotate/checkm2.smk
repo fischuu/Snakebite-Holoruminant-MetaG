@@ -8,7 +8,7 @@ rule mag_annotate__checkm2__predict:
     log:
         CHECKM2 / "quality_report.log",
     benchmark:
-        CHECKM2 / "benchmark.tsv",
+        CHECKM2 / "benchmark.tsv"
     container:
         docker["checkm2"]
     threads: esc("cpus", "mag_annotate__checkm2__predict")

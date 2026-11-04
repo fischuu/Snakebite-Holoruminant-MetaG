@@ -13,7 +13,7 @@ rule assemble__magscot__prodigal:
     log:
         _MAGSCOT_RUN / "prodigal.log",
     benchmark:
-        _MAGSCOT_RUN / "benchmark_prodigal.tsv",
+        _MAGSCOT_RUN / "benchmark_prodigal.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__prodigal")
@@ -61,7 +61,7 @@ rule assemble__magscot__hmmsearch:
     log:
         _MAGSCOT_RUN / "{marker_set}.log",
     benchmark:
-        _MAGSCOT_RUN / "benchmark_hmmsearch_{marker_set}.tsv",
+        _MAGSCOT_RUN / "benchmark_hmmsearch_{marker_set}.tsv"
     wildcard_constraints:
         marker_set="pfam|tigr",
     container:
@@ -96,7 +96,7 @@ rule assemble__magscot__marker_table:
     log:
         _MAGSCOT_RUN / "hmm.log",
     benchmark:
-        _MAGSCOT_RUN / "benchmark_join_hmms.tsv",
+        _MAGSCOT_RUN / "benchmark_join_hmms.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__marker_table")
@@ -132,7 +132,7 @@ rule assemble__magscot__merge_contig_to_bin:
     log:
         _MAGSCOT_RUN / "contigs_to_bin.log",
     benchmark:
-        _MAGSCOT_RUN / "benchmark_merge_contig_to_bin.tsv",
+        _MAGSCOT_RUN / "benchmark_merge_contig_to_bin.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__merge_contig_to_bin")
@@ -181,7 +181,7 @@ rule assemble__magscot__run:
     log:
         _MAGSCOT_RUN / "magscot.log",
     benchmark:
-        _MAGSCOT_RUN / "benchmark_run.tsv",
+        _MAGSCOT_RUN / "benchmark_run.tsv"
     container:
         docker["assemble"]
     params:
@@ -221,7 +221,7 @@ rule assemble__magscot__label_contigs:
     log:
         _MAGSCOT_RUN / "magscot.rename.log",
     benchmark:
-        _MAGSCOT_RUN / "benchmark_rename.tsv",
+        _MAGSCOT_RUN / "benchmark_rename.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__label_contigs")

@@ -8,8 +8,8 @@ rule contig_annotate__diamond__assign:
     log:
         CONTIG_DIAMOND / "{diamond_db}_{assembly_id}.log",
     benchmark:
-        CONTIG_DIAMOND / "benchmark/{diamond_db}_{assembly_id}.tsv",
-    threads: esc("cpus", "contig_annotate__diamond__assign"),
+        CONTIG_DIAMOND / "benchmark/{diamond_db}_{assembly_id}.tsv"
+    threads: esc("cpus", "contig_annotate__diamond__assign")
     resources:
         runtime=esc("runtime", "contig_annotate__diamond__assign"),
         mem_mb=esc("mem_mb", "contig_annotate__diamond__assign"),
@@ -26,10 +26,12 @@ rule contig_annotate__diamond__assign:
         diamond_shm=DIAMONDSHM,
         diamond_nvme=DIAMONDNVME,
         diamond_db_shm=lambda w: os.path.join(DIAMONDSHM, w.diamond_db),
-        diamond_path=lambda w: os.path.basename(features["databases"]["diamond_contig_protein"][w.diamond_db]),
+        diamond_path=lambda w: os.path.basename(
+            features["databases"]["diamond_contig_protein"][w.diamond_db]
+        ),
         diamond_db_nvme=lambda w: os.path.join(DIAMONDNVME, w.diamond_db),
     container:
-        docker["mag_annotate"],
+        docker["mag_annotate"]
     shell:
         r"""
         try_log={log}.try{resources.attempt}
@@ -131,12 +133,12 @@ rule contig_annotate__diamond__summarise:
         lambda w: [
             CONTIG_DIAMOND / w.diamond_db / f"{assembly_id}.out"
             for assembly_id in ASSEMBLIES
-        ]
+        ],
     output:
         CONTIG_DIAMOND / "{diamond_db}" / "summary_a.tsv",
-        CONTIG_DIAMOND / "{diamond_db}" / "summary_b.tsv"
+        CONTIG_DIAMOND / "{diamond_db}" / "summary_b.tsv",
     log:
-        CONTIG_DIAMOND / "{diamond_db}" / "contig_annotate__diamond__summarise.log"
+        CONTIG_DIAMOND / "{diamond_db}" / "contig_annotate__diamond__summarise.log",
     benchmark:
         CONTIG_DIAMOND / "{diamond_db}" / "benchmark_summarise.tsv"
     threads: esc("cpus", "contig_annotate__diamond__summarise")
@@ -148,7 +150,10 @@ rule contig_annotate__diamond__summarise:
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__diamond__summarise')['nvme']}",
         attempt=esc("attempt", "contig_annotate__diamond__summarise"),
     params:
-        script=lambda w: config["pipeline_folder"] + "workflow/scripts/downstream_scripts/create_featuretable_diamond_" + w.diamond_db + ".R",
+        script=lambda w: config["pipeline_folder"]
+        + "workflow/scripts/downstream_scripts/create_featuretable_diamond_"
+        + w.diamond_db
+        + ".R",
         project_folder=WD,
         database=lambda w: w.diamond_db,
     container:
@@ -158,6 +163,7 @@ rule contig_annotate__diamond__summarise:
         R -e "project_folder <- '{params.project_folder}'; result_folder <- 'results/contig_annotate/diamond/{params.database}'; source('{params.script}')" &> {log}
         """
 
+
 rule contig_annotate__diamond:
     """Run all Diamond steps"""
     input:
@@ -165,4 +171,4 @@ rule contig_annotate__diamond:
             CONTIG_DIAMOND / diamond_db / f"{assembly_id}.out"
             for assembly_id in ASSEMBLIES
             for diamond_db in features["databases"]["diamond_contig_protein"]
-        ] 
+        ],

@@ -9,7 +9,7 @@ rule assemble__metabat2__run:
     log:
         METABAT2 / "{assembly_id}.log",
     benchmark:
-        METABAT2 / "benchmark/{assembly_id}.tsv",
+        METABAT2 / "benchmark/{assembly_id}.tsv"
     container:
         docker["assemble"]
     params:

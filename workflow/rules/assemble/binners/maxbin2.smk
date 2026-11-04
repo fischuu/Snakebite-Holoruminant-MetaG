@@ -8,7 +8,7 @@ rule assemble__maxbin2__run:
     log:
         MAXBIN2 / "{assembly_id}.log",
     benchmark:
-        MAXBIN2 / "benchmark/{assembly_id}.tsv",
+        MAXBIN2 / "benchmark/{assembly_id}.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__maxbin2__run")

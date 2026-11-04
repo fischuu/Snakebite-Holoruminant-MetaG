@@ -1,5 +1,5 @@
 # Main entrypoint of the workflow.
-# Please follow best practices: 
+# Please follow best practices:
 # https://snakemake.readthedocs.io/en/stable/snakefiles/best_practices.html
 
 import pandas as pd
@@ -13,6 +13,7 @@ import os
 DEBUG = os.environ.get("PIPELINE_DEBUG", "0") == "1"
 
 import re
+
 
 def get_version_from_changelog(default="XX.XX"):
     try:
@@ -39,14 +40,15 @@ def get_version_from_changelog(default="XX.XX"):
         )
         return default
 
+
 # set the pipeline version
 version = get_version_from_changelog()
-
 
 
 def debug(msg):
     if DEBUG:
         print(f"[DEBUG] {msg}")
+
 
 debug("Starting workflow setup...")
 debug(f"Workflow version: {version}")
@@ -94,7 +96,9 @@ def validate_samples(samples, sample_file):
 
     # Across both columns, so a file listed as forward on one row and reverse on another (or
     # as both forward and reverse of one row) is caught too.
-    paths = samples[read_columns].apply(lambda col: col.map(os.path.normpath, na_action="ignore"))
+    paths = samples[read_columns].apply(
+        lambda col: col.map(os.path.normpath, na_action="ignore")
+    )
     all_paths = pd.concat([paths[col] for col in read_columns]).dropna()
     dup_path = paths.isin(all_paths[all_paths.duplicated()].tolist()).any(axis=1)
     if dup_path.any():
@@ -124,7 +128,9 @@ def split_assembly_ids(cell):
 
 # One row per library and assembly it goes into, so a library can appear several times
 samples["assembly_id"] = samples["assembly_ids"].map(split_assembly_ids)
-samples = samples.explode("assembly_id").sort_values(["assembly_id", "sample_id", "library_id"])
+samples = samples.explode("assembly_id").sort_values(
+    ["assembly_id", "sample_id", "library_id"]
+)
 
 debug("Generating global variables from sample metadata...")
 
@@ -132,7 +138,9 @@ SAMPLE_LIBRARY = samples[["sample_id", "library_id"]].values.tolist()
 debug(f"Generated sample-library pairs: {len(SAMPLE_LIBRARY)}")
 
 in_assembly = samples.dropna(subset=["assembly_id"])
-ASSEMBLY_LIBRARIES = in_assembly[["assembly_id", "sample_id", "library_id"]].values.tolist()
+ASSEMBLY_LIBRARIES = in_assembly[
+    ["assembly_id", "sample_id", "library_id"]
+].values.tolist()
 debug(f"Generated assembly-sample-library triplets: {len(ASSEMBLY_LIBRARIES)}")
 
 ASSEMBLIES = in_assembly["assembly_id"].unique().tolist()
@@ -140,6 +148,7 @@ debug(f"Total assemblies: {len(ASSEMBLIES)}")
 
 # Load paths and features
 debug("Loading pipeline-specific paths and feature settings...")
+
 
 def choose_temp(primary, fallback1=None, fallback2=None):
     """Choose a temporary storage path with fallbacks based on non-empty strings."""
@@ -150,11 +159,17 @@ def choose_temp(primary, fallback1=None, fallback2=None):
 
 
 # Fallback chain: shm -> nvme -> tmp
-KRAKEN2SHM = choose_temp(config["shm_storage"], config["nvme_storage"], config["tmp_storage"])
+KRAKEN2SHM = choose_temp(
+    config["shm_storage"], config["nvme_storage"], config["tmp_storage"]
+)
 KRAKEN2NVME = config["nvme_storage"]
-DIAMONDSHM = choose_temp(config["shm_storage"], config["nvme_storage"], config["tmp_storage"])
+DIAMONDSHM = choose_temp(
+    config["shm_storage"], config["nvme_storage"], config["tmp_storage"]
+)
 DIAMONDNVME = config["nvme_storage"]
-EGGNOGSHM = choose_temp(config["shm_storage"], config["nvme_storage"], config["tmp_storage"])
+EGGNOGSHM = choose_temp(
+    config["shm_storage"], config["nvme_storage"], config["tmp_storage"]
+)
 EGGNOGNVME = config["nvme_storage"]
 
 METAPHLAN_DBS = features["databases"]["metaphlan4"]
@@ -171,16 +186,26 @@ debug(f"EGGNOG fall-back temp storage: {EGGNOGNVME}")
 debug(f"Host names: {HOST_NAMES}, last host: {LAST_HOST}")
 
 config["pipeline_folder"] = config["pipeline_folder"].rstrip('/') + '/'
-debug(f"Used pipeline folder: " + config["pipeline_folder"]  )
+debug(f"Used pipeline folder: " + config["pipeline_folder"])
 
 ASSEMBLE_R = os.path.join(config["pipeline_folder"], "workflow/scripts/R/assemble.Rmd")
-CONTIG_ANNOTATE_R = os.path.join(config["pipeline_folder"], "workflow/scripts/R/contig_annotate.Rmd")
-MAG_ANNOTATE_R = os.path.join(config["pipeline_folder"], "workflow/scripts/R/mag_annotate.Rmd")
-PREPROCESS_R = os.path.join(config["pipeline_folder"], "workflow/scripts/R/preprocess.Rmd")
+CONTIG_ANNOTATE_R = os.path.join(
+    config["pipeline_folder"], "workflow/scripts/R/contig_annotate.Rmd"
+)
+MAG_ANNOTATE_R = os.path.join(
+    config["pipeline_folder"], "workflow/scripts/R/mag_annotate.Rmd"
+)
+PREPROCESS_R = os.path.join(
+    config["pipeline_folder"], "workflow/scripts/R/preprocess.Rmd"
+)
 QUANTIFY_R = os.path.join(config["pipeline_folder"], "workflow/scripts/R/quantify.Rmd")
-READ_ANNOTATE_R = os.path.join(config["pipeline_folder"], "workflow/scripts/R/read_annotate.Rmd")
+READ_ANNOTATE_R = os.path.join(
+    config["pipeline_folder"], "workflow/scripts/R/read_annotate.Rmd"
+)
 READS_R = os.path.join(config["pipeline_folder"], "workflow/scripts/R/reads.Rmd")
-REFERENCE_R = os.path.join(config["pipeline_folder"], "workflow/scripts/R/reference.Rmd")
+REFERENCE_R = os.path.join(
+    config["pipeline_folder"], "workflow/scripts/R/reference.Rmd"
+)
 
 debug(f"R script for reads: {READS_R}")
 debug(f"R script for preprocessing: {PREPROCESS_R}")
@@ -215,6 +240,7 @@ shell.prefix(
 # Import subworkflows
 debug("Including subworkflows...")
 
+
 include: "rules/folders.smk"
 include: "rules/helpers/__main__.smk"
 include: "rules/reads/__main__.smk"
@@ -229,7 +255,9 @@ include: "rules/eukaryote/__main__.smk"
 include: "rules/report/__main__.smk"
 include: "rules/devel/throw_error.smk"
 
+
 debug("Subworkflows included. Ready to run.")
+
 
 rule all:
     """Run the entire pipeline"""
@@ -241,7 +269,9 @@ rule all:
         rules.mag_annotate.input,
         rules.contig_annotate.input,
         rules.quantify.input,
-  #      rules.report.input,
+
+
+#      rules.report.input,
 
 
 # ------------------------------------------------------------------------------

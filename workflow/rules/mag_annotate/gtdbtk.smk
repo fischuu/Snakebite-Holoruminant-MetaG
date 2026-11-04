@@ -5,11 +5,13 @@ rule mag_annotate__gtdbtk__classify:
         reference_data=features["databases"]["gtdbtk"],
     output:
         merged_summary=GTDBTK / "gtdbtk.summary.tsv",
-        archives=expand(GTDBTK / "{part}.tar.gz", part=("align", "classify", "identify")),
+        archives=expand(
+            GTDBTK / "{part}.tar.gz", part=("align", "classify", "identify")
+        ),
     log:
         GTDBTK / "gtdbtk_classify.log",
     benchmark:
-        GTDBTK / "benchmark.tsv",
+        GTDBTK / "benchmark.tsv"
     container:
         docker["gtdbtk"]
     threads: esc("cpus", "mag_annotate__gtdbtk__classify")

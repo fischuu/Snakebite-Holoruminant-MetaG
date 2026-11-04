@@ -131,4 +131,6 @@ rule eukaryote__4cac__run:
 rule eukaryote__4cac:
     """Run 4CAC on every assembly (metaSPAdes assemblies only, see FOURCAC_SUPPORTED)"""
     input:
-        [EUK_4CAC / f"{assembly_id}.tsv" for assembly_id in ASSEMBLIES] if FOURCAC_SUPPORTED else [],
+        [EUK_4CAC / f"{assembly_id}.tsv" for assembly_id in ASSEMBLIES]
+        if FOURCAC_SUPPORTED
+        else [],

@@ -7,7 +7,7 @@ rule report__reads:
     log:
         PIPELINE_REPORT / "reads.log",
     benchmark:
-        PIPELINE_REPORT / "reads_benchmark.tsv",
+        PIPELINE_REPORT / "reads_benchmark.tsv"
     container:
         docker["r_report"]
     params:

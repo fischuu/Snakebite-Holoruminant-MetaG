@@ -10,7 +10,7 @@ rule preprocess__samtools__stats_cram:
     log:
         HOST_MAPPING / "{genome}" / f"{LIBRARY}.stats.log",
     benchmark:
-        HOST_MAPPING / "benchmark/{genome}" / f"{LIBRARY}.stats.tsv",
+        HOST_MAPPING / "benchmark/{genome}" / f"{LIBRARY}.stats.tsv"
     container:
         docker["preprocess"]
     threads: esc("cpus", "preprocess__samtools__stats_cram")

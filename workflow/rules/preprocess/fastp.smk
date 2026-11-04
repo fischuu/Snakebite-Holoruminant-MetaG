@@ -14,16 +14,16 @@ rule preprocess__fastp__run:
     log:
         FASTP / "{sample_id}.{library_id}.log",
     benchmark:
-        FASTP / "benchmark/{sample_id}.{library_id}.tsv",
+        FASTP / "benchmark/{sample_id}.{library_id}.tsv"
     container:
-        docker["preprocess"],
+        docker["preprocess"]
     params:
         adapter_forward=get_forward_adapter,
         adapter_reverse=get_reverse_adapter,
         extra=params["preprocess"]["fastp"]["extra"],
         length_required=params["preprocess"]["fastp"]["length_required"],
         work_prefix=lambda w: FASTP / f"{w.sample_id}.{w.library_id}_tmp",
-    threads: esc("cpus", "preprocess__fastp__run"),
+    threads: esc("cpus", "preprocess__fastp__run")
     resources:
         runtime=esc("runtime", "preprocess__fastp__run"),
         mem_mb=esc("mem_mb", "preprocess__fastp__run"),
@@ -31,7 +31,8 @@ rule preprocess__fastp__run:
         slurm_partition=esc("partition", "preprocess__fastp__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'preprocess__fastp__run')['nvme']}",
         attempt=esc("attempt", "preprocess__fastp__run"),
-    shell: """
+    shell:
+        """
         try_log={log}.try{resources.attempt}
         exec > "$try_log" 2>&1
         debug "sample={wildcards.sample_id} library={wildcards.library_id} threads={threads} length_required={params.length_required} adapter_forward={params.adapter_forward} adapter_reverse={params.adapter_reverse}"
@@ -70,6 +71,7 @@ rule preprocess__fastp__run:
         mv "$try_log" {log}
     """
 
+
 # ---------- preprocess__fastp ----------
 rule preprocess__fastp:
     """Aggregate all fastp outputs"""
@@ -82,4 +84,4 @@ rule preprocess__fastp:
         json=[
             FASTP / f"{sample_id}.{library_id}_fastp.json"
             for sample_id, library_id in SAMPLE_LIBRARY
-        ]
+        ],

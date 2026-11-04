@@ -9,7 +9,7 @@ rule read_annotate__krona__visualize:
     log:
         KRONA / "{kraken_db}_{sample_id}.{library_id}.log",
     benchmark:
-        KRONA / "benchmark/{kraken_db}_{sample_id}.{library_id}bsk.tsv",
+        KRONA / "benchmark/{kraken_db}_{sample_id}.{library_id}bsk.tsv"
     threads: esc("cpus", "read_annotate__krona__visualize")
     resources:
         runtime=esc("runtime", "read_annotate__krona__visualize"),
@@ -21,12 +21,13 @@ rule read_annotate__krona__visualize:
     container:
         docker["krona"]
     params:
-        krona_db = features["databases"]["krona"],
+        krona_db=features["databases"]["krona"],
     shell:
         """
         debug "input={input} output={output} krona_db={params.krona_db}" 2> {log}
         ktImportTaxonomy -q 2 -t 3 {input} -o {output} --tax {params.krona_db} 2>> {log} 1>&2
         """
+
 
 rule read_annotate__krona:
     """Run krona for the kraken output"""

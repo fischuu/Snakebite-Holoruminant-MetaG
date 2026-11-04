@@ -11,7 +11,7 @@ rule assemble__bowtie2__build__run:
     log:
         ASSEMBLY_INDEX / "{assembly_id}.log",
     benchmark:
-        ASSEMBLY_INDEX / "benchmark/{assembly_id}.tsv",
+        ASSEMBLY_INDEX / "benchmark/{assembly_id}.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__bowtie2__build")
@@ -51,7 +51,7 @@ rule assemble__bowtie2__map:
     log:
         ASSEMBLY_MAPPING / f"{_LIBRARY_ON_ASSEMBLY}.log",
     benchmark:
-        ASSEMBLY_MAPPING / f"benchmark/{_LIBRARY_ON_ASSEMBLY}.tsv",
+        ASSEMBLY_MAPPING / f"benchmark/{_LIBRARY_ON_ASSEMBLY}.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__bowtie2__map")

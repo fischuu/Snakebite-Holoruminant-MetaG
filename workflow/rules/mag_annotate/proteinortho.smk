@@ -7,7 +7,7 @@ rule mag_annotate__proteinortho:
     log:
         PROTEINORTHO / "proteinortho.log",
     benchmark:
-        PROTEINORTHO / "benchmark.tsv",
+        PROTEINORTHO / "benchmark.tsv"
     container:
         docker["mag_annotate"]
     threads: esc("cpus", "mag_annotate__proteinortho")
@@ -19,7 +19,7 @@ rule mag_annotate__proteinortho:
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__proteinortho')['nvme']}",
         attempt=esc("attempt", "mag_annotate__proteinortho"),
     params:
-        outdir=PROTEINORTHO
+        outdir=PROTEINORTHO,
     shell:
         """
         debug "threads={threads} outdir={params.outdir} faa_count=$(echo {input.faa} | wc -w)" 2>> {log}

@@ -14,7 +14,9 @@ rule eukaryote__remag__filter:
         assembly=CONTIGS,
     output:
         tsv=EUK_REMAG / "{assembly_id}.tsv",
-        filtered=EUK_REMAG / "{assembly_id}" / "{assembly_id}.fa_eukaryotic_filtered.fasta",
+        filtered=EUK_REMAG
+        / "{assembly_id}"
+        / "{assembly_id}.fa_eukaryotic_filtered.fasta",
     log:
         EUK_REMAG / "{assembly_id}.filter.log",
     benchmark:
@@ -74,7 +76,9 @@ rule eukaryote__remag__bin:
     input:
         assembly=CONTIGS,
         tsv=EUK_REMAG / "{assembly_id}.tsv",
-        filtered=EUK_REMAG / "{assembly_id}" / "{assembly_id}.fa_eukaryotic_filtered.fasta",
+        filtered=EUK_REMAG
+        / "{assembly_id}"
+        / "{assembly_id}.fa_eukaryotic_filtered.fasta",
         alignments=assembly_alignments,
         indexes=assembly_alignment_indexes,
     output:

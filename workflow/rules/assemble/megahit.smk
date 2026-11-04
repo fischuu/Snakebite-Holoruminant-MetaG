@@ -13,7 +13,7 @@ rule assemble__megahit__run:
     log:
         MEGAHIT / "{assembly_id}.log",
     benchmark:
-        MEGAHIT / "benchmark/{assembly_id}.tsv",
+        MEGAHIT / "benchmark/{assembly_id}.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__megahit__run")

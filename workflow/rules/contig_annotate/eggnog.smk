@@ -1,24 +1,26 @@
 from glob import glob
 from os.path import join
 
+
 rule contig_annotate__eggnog_find_homology:
     """
     Find homolog genes in data (EGGNOG).
     """
     input:
-        folder = CONTIG_PRODIGAL / "{assembly_id}/Chunks/",
-        files = CONTIG_PRODIGAL / "{assembly_id}/Chunks/prodigal.chunk.{i}"
+        folder=CONTIG_PRODIGAL / "{assembly_id}/Chunks/",
+        files=CONTIG_PRODIGAL / "{assembly_id}/Chunks/prodigal.chunk.{i}",
     output:
-        file=CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.seed_orthologs"
+        file=CONTIG_EGGNOG
+        / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.seed_orthologs",
     log:
-        CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.log"
+        CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.log",
     benchmark:
         CONTIG_EGGNOG / "{assembly_id}/Chunks/benchmark_homology.{i}.tsv"
     params:
-        folder = lambda wildcards: CONTIG_EGGNOG / f"{wildcards.assembly_id}/Chunks/",
+        folder=lambda wildcards: CONTIG_EGGNOG / f"{wildcards.assembly_id}/Chunks/",
         tmp=config["nvme_storage"],
         out="prodigal.chunk.{i}",
-        fa=features["databases"]["eggnog"]
+        fa=features["databases"]["eggnog"],
     threads: esc("cpus", "contig_annotate__eggnog_find_homology")
     resources:
         runtime=esc("runtime", "contig_annotate__eggnog_find_homology"),
@@ -29,7 +31,8 @@ rule contig_annotate__eggnog_find_homology:
         attempt=esc("attempt", "contig_annotate__eggnog_find_homology"),
     container:
         docker["mag_annotate"]
-    shell:""" 
+    shell:
+        """ 
         DATA_DIR="{params.tmp}"
 
         # If no nvme_storage tmp dir is configured, run emapper straight against
@@ -44,19 +47,24 @@ rule contig_annotate__eggnog_find_homology:
 
          emapper.py -m diamond --data_dir $DATA_DIR --override --no_annot --no_file_comments --cpu {threads} -i {input.files} --output_dir {params.folder} -o {params.out}  2>> {log} 1>&2;
     """
-    
+
+
 rule contig_annotate__eggnog_orthology_chunk:
     """
     Annotate eggnog hits table per chunk (EGGNOG) using /dev/shm for speed,
     with usage counter to ensure DB is only deleted once all jobs are finished.
     """
     input:
-        seed=CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.seed_orthologs"
+        seed=CONTIG_EGGNOG
+        / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.seed_orthologs",
     output:
-        annotation=CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.annotations",
-        done = CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.annotations.done"
+        annotation=CONTIG_EGGNOG
+        / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.annotations",
+        done=CONTIG_EGGNOG
+        / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.annotations.done",
     log:
-        CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.annotations.log"
+        CONTIG_EGGNOG
+        / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.annotations.log",
     benchmark:
         CONTIG_EGGNOG / "{assembly_id}/Chunks/benchmark_orthology.{i}.tsv"
     threads: esc("cpus", "contig_annotate__eggnog_orthology_chunk")
@@ -70,14 +78,15 @@ rule contig_annotate__eggnog_orthology_chunk:
     container:
         docker["mag_annotate"]
     params:
-        fa = features["databases"]["eggnog"],
-        out = lambda wc: f"prodigal.chunk.{wc.i}",
-        outdir = lambda wc: CONTIG_EGGNOG / f"{wc.assembly_id}/Chunks",
+        fa=features["databases"]["eggnog"],
+        out=lambda wc: f"prodigal.chunk.{wc.i}",
+        outdir=lambda wc: CONTIG_EGGNOG / f"{wc.assembly_id}/Chunks",
         run_in_shm=config["eggnog_shm"],
         copy_dbs=config["copy_dbs"],
         shm=config["shm_storage"],
         nvme=config["nvme_storage"],
-    shell: """
+    shell:
+        """
       debug "assembly_id={wildcards.assembly_id} chunk={wildcards.i} threads={threads} copy_dbs={params.copy_dbs} run_in_shm={params.run_in_shm}" 2>> {log}
 
       # check if dbs should be copied, otherwise use the original location
@@ -165,17 +174,18 @@ rule contig_annotate__eggnog_orthology_chunk:
         touch {output.done}
     """
 
-    
+
 rule contig_annotate__eggnog_merge_annotations:
     input:
         contig_annotate_aggregate_annotations_eggnog_search,
     output:
-        CONTIG_EGGNOG / "{assembly_id}/eggnog_output.emapper.annotations"
+        CONTIG_EGGNOG / "{assembly_id}/eggnog_output.emapper.annotations",
     log:
-        CONTIG_EGGNOG / "{assembly_id}/eggnog_output.emapper.annotations.log"
+        CONTIG_EGGNOG / "{assembly_id}/eggnog_output.emapper.annotations.log",
     benchmark:
         CONTIG_EGGNOG / "{assembly_id}/benchmark_merge_annotations.tsv"
-    shell:"""
+    shell:
+        """
        cat {input} > {output} 2> {log}
     """
 
@@ -183,4 +193,7 @@ rule contig_annotate__eggnog_merge_annotations:
 rule contig_annotate__eggnog:
     """Run eggnog on all assemblies"""
     input:
-        [CONTIG_EGGNOG / f"{assembly_id}/eggnog_output.emapper.annotations" for assembly_id in ASSEMBLIES],
+        [
+            CONTIG_EGGNOG / f"{assembly_id}/eggnog_output.emapper.annotations"
+            for assembly_id in ASSEMBLIES
+        ],

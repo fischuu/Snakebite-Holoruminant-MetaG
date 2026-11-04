@@ -7,7 +7,7 @@ rule report__preprocess:
     log:
         PIPELINE_REPORT / "preprocess.log",
     benchmark:
-        PIPELINE_REPORT / "preprocess_benchmark.tsv",
+        PIPELINE_REPORT / "preprocess_benchmark.tsv"
     container:
         docker["r_report"]
     params:

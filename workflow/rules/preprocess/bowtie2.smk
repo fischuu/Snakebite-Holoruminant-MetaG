@@ -8,7 +8,7 @@ rule preprocess__bowtie2__build:
     log:
         HOST_INDEX / "{genome}.log",
     benchmark:
-        HOST_INDEX / "benchmark/{genome}.tsv",
+        HOST_INDEX / "benchmark/{genome}.tsv"
     container:
         docker["bowtie2"]
     threads: esc("cpus", "preprocess__bowtie2__build")
@@ -43,7 +43,7 @@ rule preprocess__bowtie2__map:
     log:
         HOST_MAPPING / "{genome}" / f"{LIBRARY}.log",
     benchmark:
-        HOST_MAPPING / "benchmark/{genome}" / f"{LIBRARY}.tsv",
+        HOST_MAPPING / "benchmark/{genome}" / f"{LIBRARY}.tsv"
     params:
         sort_memory=params["preprocess"]["bowtie2"]["samtools"]["mem_per_thread"],
         rg_id=compose_rg_id,
@@ -91,7 +91,7 @@ rule preprocess__bowtie2__extract_nonhost__run:
     log:
         HOST_MAPPING / "non{genome}" / f"{LIBRARY}.log",
     benchmark:
-        HOST_MAPPING / "benchmark/non{genome}" / f"{LIBRARY}.tsv",
+        HOST_MAPPING / "benchmark/non{genome}" / f"{LIBRARY}.tsv"
     container:
         docker["bowtie2"]
     params:
@@ -130,7 +130,7 @@ rule preprocess__store_final_fastq:
     log:
         CLEAN_READS / "log" / f"{LIBRARY}.log",
     benchmark:
-        CLEAN_READS / "benchmark" / f"{LIBRARY}.tsv",
+        CLEAN_READS / "benchmark" / f"{LIBRARY}.tsv"
     container:
         docker["bowtie2"]
     threads: esc("cpus", "preprocess__store_final_fastq")
@@ -155,10 +155,10 @@ rule preprocess__bowtie2__extract_nonhost:
             CLEAN_READS / f"{sample_id}.{library_id}_{end}.fq.gz"
             for sample_id, library_id in SAMPLE_LIBRARY
             for end in (1, 2)
-        ]
+        ],
 
 
 rule preprocess__bowtie2:
     """Run the full host-decontamination chain (index, map, extract, store) for every host"""
     input:
-        rules.preprocess__bowtie2__extract_nonhost.input
+        rules.preprocess__bowtie2__extract_nonhost.input,

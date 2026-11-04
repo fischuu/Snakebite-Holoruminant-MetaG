@@ -8,7 +8,7 @@ rule mag_annotate__bakta:
     log:
         BAKTA / "bakta.log",
     benchmark:
-        BAKTA / "benchmark.tsv",
+        BAKTA / "benchmark.tsv"
     container:
         docker["mag_annotate"]
     params:
@@ -54,6 +54,7 @@ rule mag_annotate__bakta:
         debug "db={params.db} out_dir={params.out_dir} threads={threads} contigs={input.contigs} tmp_dir=$tmp_dir" 2>> {log}
         """
 
+
 rule mag_annotate__bakta_mags__run:
     """Run Bakta over the dereplicated mags"""
     input:
@@ -64,7 +65,7 @@ rule mag_annotate__bakta_mags__run:
     log:
         BAKTAMAG / "bakta_{assembly_id}.log",
     benchmark:
-        BAKTAMAG / "benchmark_{assembly_id}.tsv",
+        BAKTAMAG / "benchmark_{assembly_id}.tsv"
     container:
         docker["mag_annotate"]
     params:
@@ -104,8 +105,8 @@ rule mag_annotate__bakta_mags__run:
         debug "assembly_id={wildcards.assembly_id} db={params.db} out_dir={params.out_dir} threads={threads} tmp_dir=$tmp_dir" 2>> {log}
         """
 
+
 rule mag_annotate__bakta_mags:
     """Run Bakta over the dereplicated mags"""
     input:
         expand(BAKTAMAG / "bakta_{assembly_id}.faa", assembly_id=ASSEMBLIES),
-

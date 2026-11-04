@@ -10,8 +10,8 @@ rule read_annotate__diamond__assign:
     log:
         DIAMOND / "{diamond_db}_{sample_id}_{library_id}.log",
     benchmark:
-        DIAMOND / "benchmark/{diamond_db}_{sample_id}_{library_id}.tsv",
-    threads: esc("cpus", "read_annotate__diamond__assign"),
+        DIAMOND / "benchmark/{diamond_db}_{sample_id}_{library_id}.tsv"
+    threads: esc("cpus", "read_annotate__diamond__assign")
     resources:
         runtime=esc("runtime", "read_annotate__diamond__assign"),
         mem_mb=esc("mem_mb", "read_annotate__diamond__assign"),
@@ -29,10 +29,12 @@ rule read_annotate__diamond__assign:
         diamond_shm=DIAMONDSHM,
         diamond_nvme=DIAMONDNVME,
         diamond_db_shm=lambda w: os.path.join(DIAMONDSHM, w.diamond_db),
-        diamond_path=lambda w: os.path.basename(features["databases"]["diamond"][w.diamond_db]),
+        diamond_path=lambda w: os.path.basename(
+            features["databases"]["diamond"][w.diamond_db]
+        ),
         diamond_db_nvme=lambda w: os.path.join(DIAMONDNVME, w.diamond_db),
     container:
-        docker["mag_annotate"],
+        docker["mag_annotate"]
     shell:
         r"""
         set +u
@@ -132,15 +134,16 @@ rule read_annotate__diamond__summarise:
         lambda w: [
             DIAMOND / w.diamond_db / f"{sample_id}.{library_id}_R1.out"
             for sample_id, library_id in SAMPLE_LIBRARY
-        ] + [
+        ]
+        + [
             DIAMOND / w.diamond_db / f"{sample_id}.{library_id}_R2.out"
             for sample_id, library_id in SAMPLE_LIBRARY
-        ]
+        ],
     output:
         DIAMOND / "{diamond_db}" / "summary_a.tsv",
-        DIAMOND / "{diamond_db}" / "summary_b.tsv"
+        DIAMOND / "{diamond_db}" / "summary_b.tsv",
     log:
-        DIAMOND / "{diamond_db}" / "read_annotate__diamond__summarise.log"
+        DIAMOND / "{diamond_db}" / "read_annotate__diamond__summarise.log",
     benchmark:
         DIAMOND / "{diamond_db}" / "benchmark_summarise.tsv"
     threads: esc("cpus", "read_annotate__diamond__summarise")
@@ -152,7 +155,10 @@ rule read_annotate__diamond__summarise:
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__diamond__summarise')['nvme']}",
         attempt=esc("attempt", "read_annotate__diamond__summarise"),
     params:
-        script=lambda w: config["pipeline_folder"] + "workflow/scripts/downstream_scripts/create_featuretable_diamond_" + w.diamond_db + ".R",
+        script=lambda w: config["pipeline_folder"]
+        + "workflow/scripts/downstream_scripts/create_featuretable_diamond_"
+        + w.diamond_db
+        + ".R",
         project_folder=WD,
         database=lambda w: w.diamond_db,
         max_target_seqs=params["read_annotate"]["diamond"]["max-target-seqs"],
@@ -163,6 +169,7 @@ rule read_annotate__diamond__summarise:
         R -e "project_folder <- '{params.project_folder}'; result_folder <- 'results/read_annotate/diamond/{params.database}'; max_target_seqs <- {params.max_target_seqs}; database <- '{params.database}';  source('{params.script}')" &> {log}
         """
 
+
 rule read_annotate__diamond:
     """Run all Diamond steps"""
     input:
@@ -170,14 +177,17 @@ rule read_annotate__diamond:
             DIAMOND / diamond_db / f"{sample_id}.{library_id}_R1.out"
             for sample_id, library_id in SAMPLE_LIBRARY
             for diamond_db in features["databases"]["diamond"]
-        ] + [
+        ]
+        + [
             DIAMOND / diamond_db / f"{sample_id}.{library_id}_R2.out"
             for sample_id, library_id in SAMPLE_LIBRARY
             for diamond_db in features["databases"]["diamond"]
-        ] + [
+        ]
+        + [
             DIAMOND / diamond_db / "summary_a.tsv"
             for diamond_db in features["databases"]["diamond"]
-        ] + [
+        ]
+        + [
             DIAMOND / diamond_db / "summary_b.tsv"
             for diamond_db in features["databases"]["diamond"]
-        ]
+        ],

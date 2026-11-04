@@ -7,7 +7,7 @@ rule quantify__bowtie2__build:
     log:
         MAG_INDEX / "dereplicated_genomes.log",
     benchmark:
-        MAG_INDEX / "benchmark/dereplicated_genomes.tsv",
+        MAG_INDEX / "benchmark/dereplicated_genomes.tsv"
     container:
         docker["bowtie2"]
     threads: esc("cpus", "quantify__bowtie2__build")
@@ -39,7 +39,7 @@ rule quantify__bowtie2__map:
     log:
         MAG_MAPPING / f"{LIBRARY}.log",
     benchmark:
-        MAG_MAPPING / f"benchmark/{LIBRARY}.tsv",
+        MAG_MAPPING / f"benchmark/{LIBRARY}.tsv"
     container:
         docker["bowtie2"]
     threads: esc("cpus", "quantify__bowtie2__map")

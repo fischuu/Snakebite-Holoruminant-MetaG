@@ -5,15 +5,15 @@ rule mag_annotate__camper__annotate:
         annotation=DRAM / "annotate" / "annotations.tsv",
     output:
         annotation=CAMPER / "annotations.tsv",
-        distill=CAMPER / "distill.tsv"        
+        distill=CAMPER / "distill.tsv",
     log:
         CAMPER / "camper.log",
     benchmark:
-        CAMPER / "benchmark.tsv",
+        CAMPER / "benchmark.tsv"
     container:
         docker["camper"]
     params:
-        camper_dir = CAMPER,
+        camper_dir=CAMPER,
         camper_db=features["databases"]["camper"],
         nvme=config["nvme_storage"],
     threads: esc("cpus", "mag_annotate__camper__annotate")
@@ -60,22 +60,23 @@ rule mag_annotate__camper__annotate:
                         -o $tmpdir \
                         --threads {threads} \
                         --camper_fa_db_loc $tmp_db_dir/CAMPER_blast.faa \
-	                      --camper_fa_db_cutoffs_loc $tmp_db_dir/CAMPER_blast_scores.tsv \
-	                      --camper_hmm_loc $tmp_db_dir/CAMPER.hmm  \
+                          --camper_fa_db_cutoffs_loc $tmp_db_dir/CAMPER_blast_scores.tsv \
+                          --camper_hmm_loc $tmp_db_dir/CAMPER.hmm  \
                         --camper_hmm_cutoffs_loc $tmp_db_dir/CAMPER_hmm_scores.tsv \
                         2>> {log} 1>&2
 
         debug "running camper_distill: output={output.distill}" 2>> {log}
         camper_distill  -a $tmpdir/annotations.tsv \
                         -o {output.distill} \
-	                      --camper_distillate $tmp_db_dir/CAMPER_distillate.tsv \
-	      2>> {log} 1>&2
+                          --camper_distillate $tmp_db_dir/CAMPER_distillate.tsv \
+          2>> {log} 1>&2
 
-	      # Move all tmp files one level up
+          # Move all tmp files one level up
         mv "$tmpdir"/* {params.camper_dir}/
 
         rm --recursive --force "$sys_tmp_dir"
         """
+
 
 rule mag_annotate__camper:
     """Run CAMPER on dereplicated genomes."""

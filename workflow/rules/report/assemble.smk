@@ -7,7 +7,7 @@ rule report__assemble:
     log:
         PIPELINE_REPORT / "assemble.log",
     benchmark:
-        PIPELINE_REPORT / "assemble_benchmark.tsv",
+        PIPELINE_REPORT / "assemble_benchmark.tsv"
     container:
         docker["r_report"]
     params:

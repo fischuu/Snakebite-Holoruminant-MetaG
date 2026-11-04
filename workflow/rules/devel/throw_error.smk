@@ -1,8 +1,8 @@
 rule test_error:
     output:
-        "done.txt"
+        "done.txt",
     params:
-        fail_at_sec = 20  # Set to the second at which to simulate failure, or None
+        fail_at_sec=20,  # Set to the second at which to simulate failure, or None
     threads: esc("cpus", "test_error")
     resources:
         runtime=esc("runtime", "test_error"),
@@ -11,7 +11,8 @@ rule test_error:
         slurm_partition=esc("partition", "test_error"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'test_error')['nvme']}",
         attempt=esc("attempt", "test_error"),
-    log: "log_file.txt"
+    log:
+        "log_file.txt",
     shell:
         """
         try_log={log}.try{resources.attempt}

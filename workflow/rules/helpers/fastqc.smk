@@ -1,10 +1,10 @@
 rule helpers__fastqc:
     """Generic FastQC rule: report for any {prefix}.fq.gz, reused across modules"""
     input:
-        "{prefix}.fq.gz"
+        "{prefix}.fq.gz",
     output:
         html="{prefix}_fastqc.html",
-        zip="{prefix}_fastqc.zip"
+        zip="{prefix}_fastqc.zip",
     container:
         docker["helpers"]
     threads: esc("cpus", "helpers__fastqc")
@@ -16,7 +16,7 @@ rule helpers__fastqc:
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'helpers__fastqc')['nvme']}",
         attempt=esc("attempt", "helpers__fastqc"),
     log:
-        "{prefix}_fastqc.log"
+        "{prefix}_fastqc.log",
     benchmark:
         "{prefix}_fastqc_benchmark.tsv"
     shell:

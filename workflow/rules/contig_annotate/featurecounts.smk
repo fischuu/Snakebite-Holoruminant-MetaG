@@ -1,13 +1,14 @@
-
 if params["assemble"]["samtools"]["out_type"].upper() == "CRAM":
+
     rule contig_annotate__cram_to_bam:
         """Create temporary bam-files for quantification"""
         input:
-            ASSEMBLY_MAPPING / "{assembly_id}.{sample_id}.{library_id}.cram"
+            ASSEMBLY_MAPPING / "{assembly_id}.{sample_id}.{library_id}.cram",
         output:
             temp(ASSEMBLY_MAPPING / "{assembly_id}.{sample_id}.{library_id}.bam"),
         log:
-            log=ASSEMBLY_MAPPING / "{assembly_id}.{sample_id}.{library_id}.cramToBam.log",
+            log=ASSEMBLY_MAPPING
+            / "{assembly_id}.{sample_id}.{library_id}.cramToBam.log",
         container:
             docker["assemble"]
         threads: esc("cpus", "contig_annotate__cram_to_bam")
@@ -36,9 +37,11 @@ rule contig_annotate__featurecounts__run:
         bam=ASSEMBLY_MAPPING / "{assembly_id}.{sample_id}.{library_id}.bam",
         gtf=CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.prodigal.gtf",
     output:
-        file=CONTIG_FEATURECOUNTS / "{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.txt",
+        file=CONTIG_FEATURECOUNTS
+        / "{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.txt",
     log:
-        CONTIG_FEATURECOUNTS / "{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.log",
+        CONTIG_FEATURECOUNTS
+        / "{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.log",
     threads: esc("cpus", "contig_annotate__featurecounts__run")
     resources:
         runtime=esc("runtime", "contig_annotate__featurecounts__run"),
@@ -47,8 +50,10 @@ rule contig_annotate__featurecounts__run:
         slurm_partition=esc("partition", "contig_annotate__featurecounts__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__featurecounts__run')['nvme']}",
         attempt=esc("attempt", "contig_annotate__featurecounts__run"),
-    container: docker["subread"]
-    shell:"""
+    container:
+        docker["subread"]
+    shell:
+        """
         featureCounts -p \
                       -T {threads} \
                       -F GFF3 \
@@ -60,12 +65,13 @@ rule contig_annotate__featurecounts__run:
 
         debug "assembly_id={wildcards.assembly_id} sample={wildcards.sample_id} library={wildcards.library_id} threads={threads} bam={input.bam} gtf={input.gtf} output={output.file}" 2>> {log}
     """
-    
-    
+
+
 rule contig_annotate__featurecounts:
     """Quantify all samples for all the assemblies that they belong to"""
     input:
         [
-            CONTIG_FEATURECOUNTS / "{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.txt"
+            CONTIG_FEATURECOUNTS
+            / "{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.txt"
             for assembly_id, sample_id, library_id in ASSEMBLY_LIBRARIES
         ],

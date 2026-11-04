@@ -16,7 +16,7 @@ rule mag_annotate__dram_mag__annotate:
     log:
         _DRAM_ASSEMBLY / "annotate_{assembly_id}.log",
     benchmark:
-        _DRAM_ASSEMBLY / "benchmark_annotate.tsv",
+        _DRAM_ASSEMBLY / "benchmark_annotate.tsv"
     container:
         docker["dram"]
     params:
@@ -103,7 +103,7 @@ rule mag_annotate__dram_mag__distill:
     log:
         _DRAM_ASSEMBLY / "distill.log2",
     benchmark:
-        _DRAM_ASSEMBLY / "benchmark_distill.tsv",
+        _DRAM_ASSEMBLY / "benchmark_distill.tsv"
     container:
         docker["dram"]
     threads: esc("cpus", "mag_annotate__dram_mag__distill")

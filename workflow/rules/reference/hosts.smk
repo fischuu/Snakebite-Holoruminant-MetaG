@@ -7,7 +7,7 @@ rule reference__hosts__recompress:
     log:
         HOST_GENOMES / "{genome}.log",
     benchmark:
-        HOST_GENOMES / "benchmark/{genome}.tsv",
+        HOST_GENOMES / "benchmark/{genome}.tsv"
     container:
         docker["reference"]
     threads: esc("cpus", "reference__hosts__recompress")

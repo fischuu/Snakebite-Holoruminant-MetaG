@@ -7,7 +7,7 @@ rule report__quantify:
     log:
         PIPELINE_REPORT / "quantify.log",
     benchmark:
-        PIPELINE_REPORT / "quantify_benchmark.tsv",
+        PIPELINE_REPORT / "quantify_benchmark.tsv"
     container:
         docker["r_report"]
     params:

@@ -7,7 +7,7 @@ rule report__mag_annotate:
     log:
         PIPELINE_REPORT / "mag_annotate.log",
     benchmark:
-        PIPELINE_REPORT / "mag_annotate_benchmark.tsv",
+        PIPELINE_REPORT / "mag_annotate_benchmark.tsv"
     container:
         docker["r_report"]
     params:
