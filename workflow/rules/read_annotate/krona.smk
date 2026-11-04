@@ -25,7 +25,8 @@ rule read_annotate__krona__visualize:
     shell:
         """
         debug "input={input} output={output} krona_db={params.krona_db}" 2> {log}
-        ktImportTaxonomy -q 2 -t 3 {input} -o {output} --tax {params.krona_db} 2>> {log} 1>&2
+        # Columns of a Kraken2 report: 5 is the taxon, 3 the reads assigned directly to it
+        ktImportTaxonomy -t 5 -m 3 {input} -o {output} --tax {params.krona_db} 2>> {log} 1>&2
         """
 
 

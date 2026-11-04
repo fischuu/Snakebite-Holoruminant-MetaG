@@ -124,11 +124,11 @@ rule read_annotate__kraken2__assign:
                 --threads {threads} \
                 --gzip-compressed \
                 --paired \
-                --output >(pigz --processes {threads} > "$out_gz") \
                 --report "$report" \
                 --memory-mapping \
                 "$forward" "$reverse" \
-            > "$sample_log" 2>&1
+                2> "$sample_log" \
+                | pigz --processes {threads} > "$out_gz"
         done
 
         if [ "{params.run_in_shm}" = "True" ] && [ "$db_dst" = "$db_shm" ]; then

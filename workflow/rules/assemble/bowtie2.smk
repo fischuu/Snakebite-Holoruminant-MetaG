@@ -14,14 +14,14 @@ rule assemble__bowtie2__build__run:
         ASSEMBLY_INDEX / "benchmark/{assembly_id}.tsv"
     container:
         docker["assemble"]
-    threads: esc("cpus", "assemble__bowtie2__build")
+    threads: esc("cpus", "assemble__bowtie2__build__run")
     resources:
-        runtime=esc("runtime", "assemble__bowtie2__build"),
-        mem_mb=esc("mem_mb", "assemble__bowtie2__build"),
-        cpus_per_task=esc("cpus", "assemble__bowtie2__build"),
-        slurm_partition=esc("partition", "assemble__bowtie2__build"),
-        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__bowtie2__build')['nvme']}",
-        attempt=esc("attempt", "assemble__bowtie2__build"),
+        runtime=esc("runtime", "assemble__bowtie2__build__run"),
+        mem_mb=esc("mem_mb", "assemble__bowtie2__build__run"),
+        cpus_per_task=esc("cpus", "assemble__bowtie2__build__run"),
+        slurm_partition=esc("partition", "assemble__bowtie2__build__run"),
+        gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__bowtie2__build__run')['nvme']}",
+        attempt=esc("attempt", "assemble__bowtie2__build__run"),
     shell:
         """
         try_log={log}.try{resources.attempt}

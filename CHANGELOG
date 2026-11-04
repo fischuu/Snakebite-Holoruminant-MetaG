@@ -3,6 +3,17 @@
 
 Version 0.4.*:
 -----------
+69: Fixed four problems that a run with the real tools and a look through the rules brought up. Please read
+    RELEASE_NOTES, in particular about the clean reads.
+    Clean reads could end up truncated, as preprocess__bowtie2__extract_nonhost__run wrote them through
+    ">(pigz ...)", which Bash doesn't wait for. samtools fastq now writes them itself. Kraken2's per-read
+    output had the same problem, and is now piped into pigz.
+    The Krona charts were wrong, because the rule read a Kraken2 report with the options for per-read output.
+    The DIAMOND rules never ran from the original database on their last attempt, and with copy_dbs "False"
+    they failed after DIAMOND had finished.
+    assemble__bowtie2__build__run took its resources from another rule name, so it got three attempts with the
+    same resources. Its line in escalation.yaml has the rule's own name now.
+    New tests: tests/diamond_staging and tests/krona.
 68: Restored the strict mode of the rules, which got lost with the debug messages in September 2026
     (shell.prefix replaces Snakemake's "set -euo pipefail"), so a failing command inside a rule went
     unnoticed unless it was the last one. Please read RELEASE_NOTES if you ran such a version.
