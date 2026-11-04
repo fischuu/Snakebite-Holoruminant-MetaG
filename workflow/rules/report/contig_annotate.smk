@@ -24,7 +24,6 @@ rule report__contig_annotate:
         slurm_partition=esc("partition", "report__contig_annotate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'report__contig_annotate')['nvme']}",
         attempt=esc("attempt", "report__contig_annotate"),
-    retries: len(get_escalation_order("report__contig_annotate"))
     shell:
         """
         exec > {log} 2>&1

@@ -22,7 +22,6 @@ rule contig_annotate__prodigal__run:
         slurm_partition=esc("partition", "contig_annotate__prodigal__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__prodigal__run')['nvme']}",
         attempt=esc("attempt", "contig_annotate__prodigal__run"),
-    retries: len(get_escalation_order("contig_annotate__prodigal__run"))
     shell:"""
          exec 2> {log}
          debug "assembly_id={wildcards.assembly_id} threads={threads} assembly_input={input.assembly} out_fa={output.fa} out_gtf={output.gtf}"
@@ -58,7 +57,6 @@ checkpoint contig_annotate__cut_prodigal:
         slurm_partition=esc("partition", "contig_annotate__cut_prodigal"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__cut_prodigal')['nvme']}",
         attempt=esc("attempt", "contig_annotate__cut_prodigal"),
-    retries: len(get_escalation_order("contig_annotate__cut_prodigal"))
     container:
         docker["mag_annotate"]
     shell:"""

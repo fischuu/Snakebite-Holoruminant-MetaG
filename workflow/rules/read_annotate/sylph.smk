@@ -21,7 +21,6 @@ rule read_annotate__sylph_profile:
         #gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__sylph_profile')['nvme']}",
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__sylph_profile')['nvme']}",
         attempt=esc("attempt", "read_annotate__sylph_profile"),
-    retries: len(get_escalation_order("read_annotate__sylph_profile"))
     shell:
         """
         echo "Starting Sylph rule attempt {resources.attempt}" > {log}

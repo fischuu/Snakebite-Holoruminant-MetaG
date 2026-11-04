@@ -25,7 +25,6 @@ rule eukaryote__tiara__run:
         slurm_partition=esc("partition", "eukaryote__tiara__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'eukaryote__tiara__run')['nvme']}",
         attempt=esc("attempt", "eukaryote__tiara__run"),
-    retries: len(get_escalation_order("eukaryote__tiara__run"))
     params:
         min_len=params["eukaryote"]["tiara"]["min_len"],
         prob_cutoff=params["eukaryote"]["tiara"]["prob_cutoff"],

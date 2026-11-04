@@ -77,6 +77,9 @@ fails, the slurm executor resubmits the rule with the next resource set defined 
 you cannot use the slurm exeutor you need to check if resubmission is possible with your choice of
 executor. If this is not possible, you can shorten here the entries to single resource sets to work.
 
+Every resource set of a rule gets one attempt, each as a new SLURM job. A rule with a single resource set isn't
+retried, and a rule that isn't listed here uses `small, medium, large`.
+
 For test runs, it is also advisable to keep escalations on a single value to avoid wasting resources.
 
 ## config/features.yaml

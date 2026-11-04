@@ -15,7 +15,6 @@ rule helpers__fastqc:
         slurm_partition=esc("partition", "helpers__fastqc"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'helpers__fastqc')['nvme']}",
         attempt=esc("attempt", "helpers__fastqc"),
-    retries: len(get_escalation_order("helpers__fastqc"))
     log:
         "{prefix}_fastqc.log"
     benchmark:

@@ -1,3 +1,41 @@
+# Version 0.4.68
+################################################################################
+
+Please check your results if you ran a version with the bug described here. It affects runs from the branch
+standalone-rewrite since 8 September 2026 (commit 31c40e2), and from main since 3 November 2026, up to this version.
+
+In those versions, rules ran without "set -euo pipefail". A command that failed inside a rule didn't stop it, and
+only the last command decided about success. So a tool could crash or run out of memory, or a pipe could break, and
+the job still counted as COMPLETED, possibly with an incomplete or empty result, and with later rules building on
+that. Rules that end in the tool's own command were not affected by this when that tool failed, but many rules do
+something after the tool, such as moving a log file.
+
+The rule's log file holds the message of the failed tool, so you can search for it. This finds candidates, and many
+tools also use these words in normal messages, so you have to look at what it finds:
+
+   grep -rilE 'error|killed|out of memory|segmentation fault|cannot allocate' results --include='*.log*'
+
+Also check that compressed results are intact, and look for files that are suspiciously small:
+
+   find results -name '*.gz' -exec sh -c 'gzip -t "$1" 2>/dev/null || echo "broken: $1"' _ {} \;
+   find results -type f -size -100c -not -name '*.log*' -not -name '*.tsv'
+
+If you find a broken result, delete it and everything built on it, and let Snakemake make them again.
+
+Now that failures count again, a rule may fail where it used to pass. That is the intended effect, and it means the
+earlier result of that rule was probably not trustworthy.
+
+The resource escalation works differently now, which you may notice in a running project:
+
+- A job that fails is retried as a new SLURM job with the next resource set of config/escalation.yaml. Before, a
+  failing tool was first retried inside the same SLURM job, while its command claimed more memory and CPUs than
+  the job really had. You can recognise those old retries by "Trying to restart" in the logs under
+  .snakemake/slurm_logs/.
+- Every resource set of a rule gets one attempt.
+- A rule with a single resource set in config/escalation.yaml is no longer retried at all. Before, it got one more
+  try in the same job. This applies to most rules in the default file, so give a rule several resource sets if you
+  want it to escalate, for example "small, medium, large".
+
 # Version 0.4.67
 ################################################################################
 

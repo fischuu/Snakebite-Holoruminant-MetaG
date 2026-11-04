@@ -20,7 +20,6 @@ rule mag_annotate__gtdbtk__classify:
         slurm_partition=esc("partition", "mag_annotate__gtdbtk__classify"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__gtdbtk__classify')['nvme']}",
         attempt=esc("attempt", "mag_annotate__gtdbtk__classify"),
-    retries: len(get_escalation_order("mag_annotate__gtdbtk__classify"))
     shell:
         """
         try_log={log}.try{resources.attempt}

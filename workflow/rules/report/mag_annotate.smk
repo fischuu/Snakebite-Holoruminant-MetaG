@@ -24,7 +24,6 @@ rule report__mag_annotate:
         slurm_partition=esc("partition", "report__mag_annotate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'report__mag_annotate')['nvme']}",
         attempt=esc("attempt", "report__mag_annotate"),
-    retries: len(get_escalation_order("report__mag_annotate"))
     shell:
         """
         exec > {log} 2>&1

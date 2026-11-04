@@ -19,7 +19,6 @@ rule mag_annotate__phylophlan:
         slurm_partition=esc("partition", "mag_annotate__phylophlan"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__phylophlan')['nvme']}",
         attempt=esc("attempt", "mag_annotate__phylophlan"),
-    retries: len(get_escalation_order("mag_annotate__phylophlan"))
     container:
         docker["mag_annotate"]
     params:

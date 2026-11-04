@@ -18,7 +18,6 @@ rule contig_annotate__ncyc__prepare_input:
         slurm_partition=esc("partition", "contig_annotate__ncyc__prepare_input"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__ncyc__prepare_input')['nvme']}",
         attempt=esc("attempt", "contig_annotate__ncyc__prepare_input"),
-    retries: len(get_escalation_order("contig_annotate__ncyc__prepare_input"))
     params:
         folder=config["pipeline_folder"],
         input_dir=CONTIG_NCYC / "input",
@@ -61,7 +60,6 @@ rule contig_annotate__ncyc__run:
         slurm_partition=esc("partition", "contig_annotate__ncyc__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__ncyc__run')['nvme']}",
         attempt=esc("attempt", "contig_annotate__ncyc__run"),
-    retries: len(get_escalation_order("contig_annotate__ncyc__run"))
     params:
         folder=config["pipeline_folder"],
         outdir=CONTIG_NCYC,

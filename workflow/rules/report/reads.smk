@@ -24,7 +24,6 @@ rule report__reads:
         slurm_partition=esc("partition", "report__reads"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'report__reads')['nvme']}",
         attempt=esc("attempt", "report__reads"),
-    retries: len(get_escalation_order("report__reads"))
     shell:
         """
         exec > {log} 2>&1

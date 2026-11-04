@@ -21,7 +21,6 @@ rule preprocess__samtools__stats_cram:
         slurm_partition=esc("partition", "preprocess__samtools__stats_cram"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'preprocess__samtools__stats_cram')['nvme']}",
         attempt=esc("attempt", "preprocess__samtools__stats_cram"),
-    retries: len(get_escalation_order("preprocess__samtools__stats_cram"))
     shell:
         """
         exec 2> {log}

@@ -24,7 +24,6 @@ rule mag_annotate__camper__annotate:
         slurm_partition=esc("partition", "mag_annotate__camper__annotate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__camper__annotate')['nvme']}",
         attempt=esc("attempt", "mag_annotate__camper__annotate"),
-    retries: len(get_escalation_order("mag_annotate__camper__annotate"))
     shell:
         """
         # Setup tmp-folder, depending whether there is nvme space or not.

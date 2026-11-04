@@ -31,7 +31,6 @@ rule preprocess__fastp__run:
         slurm_partition=esc("partition", "preprocess__fastp__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'preprocess__fastp__run')['nvme']}",
         attempt=esc("attempt", "preprocess__fastp__run"),
-    retries: len(get_escalation_order("preprocess__fastp__run")),
     shell: """
         try_log={log}.try{resources.attempt}
         exec > "$try_log" 2>&1

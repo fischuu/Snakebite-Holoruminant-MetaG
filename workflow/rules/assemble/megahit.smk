@@ -24,7 +24,6 @@ rule assemble__megahit__run:
         slurm_partition=esc("partition", "assemble__megahit__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__megahit__run')['nvme']}",
         attempt=esc("attempt", "assemble__megahit__run"),
-    retries: len(get_escalation_order("assemble__megahit__run"))
     params:
         workdir=lambda w: MEGAHIT / w.assembly_id,
         forwards=assembly_reads(1, separator=","),

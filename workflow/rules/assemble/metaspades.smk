@@ -27,7 +27,6 @@ rule assemble__metaspades__run:
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__metaspades__run')['nvme']}",
         attempt=esc("attempt", "assemble__metaspades__run"),
         metaspades_slots=1,
-    retries: len(get_escalation_order("assemble__metaspades__run"))
     params:
         workdir=lambda w: METASPADES / w.assembly_id,
         settings=params["assemble"]["metaspades"],

@@ -21,7 +21,6 @@ rule contig_annotate__hmmer__assign:
         slurm_partition=esc("partition", "contig_annotate__hmmer__assign"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__hmmer__assign')['nvme']}",
         attempt=lambda wildcards, attempt: attempt,
-    retries: len(get_escalation_order("contig_annotate__hmmer__assign")) - 1,
     params:
         out_folder=lambda w: CONTIG_HMMER / w.hmmer_db,
         domt=lambda w: params["contig_annotate"]["hmmer"]["domt"].get(w.hmmer_db, params["contig_annotate"]["hmmer"]["domt"]["fallback"])

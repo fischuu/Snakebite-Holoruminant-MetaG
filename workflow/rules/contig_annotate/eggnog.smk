@@ -27,7 +27,6 @@ rule contig_annotate__eggnog_find_homology:
         slurm_partition=esc("partition", "contig_annotate__eggnog_find_homology"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__eggnog_find_homology')['nvme']}",
         attempt=esc("attempt", "contig_annotate__eggnog_find_homology"),
-    retries: len(get_escalation_order("contig_annotate__eggnog_find_homology"))
     container:
         docker["mag_annotate"]
     shell:""" 
@@ -68,7 +67,6 @@ rule contig_annotate__eggnog_orthology_chunk:
         slurm_partition=esc("partition", "contig_annotate__eggnog_orthology_chunk"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__eggnog_orthology_chunk')['nvme']}",
         attempt=esc("attempt", "contig_annotate__eggnog_orthology_chunk"),
-    retries: len(get_escalation_order("contig_annotate__eggnog_orthology_chunk"))    
     container:
         docker["mag_annotate"]
     params:

@@ -202,7 +202,11 @@ ESCALATION_CONFIG = {k: [x.strip() for x in v.split(",")] for k, v in raw.items(
 # Braces are doubled ({{ }}) because Snakemake's shell formatting would
 # otherwise try to interpret single braces as {wildcards}/{params}-style
 # substitutions.
+# shell.prefix replaces Snakemake's default prefix, so it has to repeat
+# "set -euo pipefail": without that, a rule ignores any failing command
+# except its last one.
 shell.prefix(
+    'set -euo pipefail; '
     'debug() {{ '
     'if [ "${{PIPELINE_DEBUG:-0}}" = "1" ]; then echo "[DEBUG] $*" >&2; fi; '
     '}}; '
@@ -241,21 +245,17 @@ rule all:
 
 
 # ------------------------------------------------------------------------------
-# Disable retries for rules without real escalation
+# Retries follow the escalation order
 # ------------------------------------------------------------------------------
+# A retry has to be a new SLURM job with the next resource set, so only the Snakemake that submits
+# the jobs may retry. Each SLURM job runs its own Snakemake on this file (workflow.remote_exec), and
+# a retry there would rerun the command in the same job, with the numbers of a resource set the job
+# doesn't have. The attribute has to be restart_times, which is what Snakemake reads.
 
 debug("Adjusting retries based on escalation configuration...")
 
 for r in workflow.rules:
-    try:
-        esc_list = get_escalation_order(r.name)
-
-        if esc_list is None or len(esc_list) <= 1:
-            r.retries = 0
-            debug(f"Rule '{r.name}': retries disabled (no escalation)")
-        else:
-            r.retries = len(esc_list)
-            debug(f"Rule '{r.name}': retries set to {r.retries}")
-
-    except Exception as e:
-        debug(f"Rule '{r.name}': could not determine escalation ({e}); leaving retries unchanged")
+    # One attempt per resource set
+    retries = 0 if workflow.remote_exec else len(get_escalation_order(r.name)) - 1
+    r.restart_times = retries
+    debug(f"Rule '{r.name}': retries set to {retries}")

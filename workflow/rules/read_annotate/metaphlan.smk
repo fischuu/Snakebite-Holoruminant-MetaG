@@ -22,7 +22,6 @@ rule read_annotate__metaphlan__run:
         slurm_partition=esc("partition", "read_annotate__metaphlan__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__metaphlan__run')['nvme']}",
         attempt=esc("attempt", "read_annotate__metaphlan__run"),
-    retries: len(get_escalation_order("read_annotate__metaphlan__run"))
     params:
         tmp = config["tmp_storage"]
     shell:
@@ -65,7 +64,6 @@ rule read_annotate__metaphlan__condense:
         slurm_partition=esc("partition", "read_annotate__metaphlan__condense"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__metaphlan__condense')['nvme']}",
         attempt=esc("attempt", "read_annotate__metaphlan__condense"),
-    retries: len(get_escalation_order("read_annotate__metaphlan__condense"))
     shell:
         """
         debug "merging $(echo {input.profiled_data} | wc -w) profiled tables from {params.input_dir}" 2> {log}

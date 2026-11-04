@@ -18,7 +18,6 @@ rule reference__hosts__recompress:
         slurm_partition=esc("partition", "reference__hosts__recompress"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'reference__hosts__recompress')['nvme']}",
         attempt=esc("attempt", "reference__hosts__recompress"),
-    retries: len(get_escalation_order("reference__hosts__recompress"))
     shell:
         """
         exec > {log} 2>&1

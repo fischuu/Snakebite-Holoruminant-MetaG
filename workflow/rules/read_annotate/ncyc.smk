@@ -25,7 +25,6 @@ rule read_annotate__ncyc__prepare_input:
         slurm_partition=esc("partition", "read_annotate__ncyc__prepare_input"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__ncyc__prepare_input')['nvme']}",
         attempt=esc("attempt", "read_annotate__ncyc__prepare_input"),
-    retries: len(get_escalation_order("read_annotate__ncyc__prepare_input"))
     params:
         folder=config["pipeline_folder"],
         reads=CLEAN_READS,
@@ -60,7 +59,6 @@ rule read_annotate__ncyc__run:
         slurm_partition=esc("partition", "read_annotate__ncyc__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__ncyc__run')['nvme']}",
         attempt=esc("attempt", "read_annotate__ncyc__run"),
-    retries: len(get_escalation_order("read_annotate__ncyc__run"))
     params:
         folder=config["pipeline_folder"],
         outdir=NCYC,

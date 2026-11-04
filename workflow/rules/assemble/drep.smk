@@ -21,7 +21,6 @@ rule assemble__drep__split_bins:
         slurm_partition=esc("partition", "assemble__drep__split_bins"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__drep__split_bins')['nvme']}",
         attempt=esc("attempt", "assemble__drep__split_bins"),
-    retries: len(get_escalation_order("assemble__drep__split_bins"))
     params:
         script_folder=SCRIPT_FOLDER,
     shell:
@@ -53,7 +52,6 @@ rule assemble__drep__run:
         slurm_partition=esc("partition", "assemble__drep__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__drep__run')['nvme']}",
         attempt=esc("attempt", "assemble__drep__run"),
-    retries: len(get_escalation_order("assemble__drep__run"))
     params:
         settings=params["assemble"]["drep"],
     shell:
@@ -100,7 +98,6 @@ rule assemble__drep__catalogue:
         slurm_partition=esc("partition", "assemble__drep__catalogue"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__drep__catalogue')['nvme']}",
         attempt=esc("attempt", "assemble__drep__catalogue"),
-    retries: len(get_escalation_order("assemble__drep__catalogue"))
     shell:
         """
         exec 2> {log}

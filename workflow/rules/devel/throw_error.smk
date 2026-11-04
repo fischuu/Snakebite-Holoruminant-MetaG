@@ -11,7 +11,6 @@ rule test_error:
         slurm_partition=esc("partition", "test_error"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'test_error')['nvme']}",
         attempt=esc("attempt", "test_error"),
-    retries: len(get_escalation_order("test_error"))
     log: "log_file.txt"
     shell:
         """

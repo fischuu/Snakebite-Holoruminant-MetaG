@@ -17,7 +17,6 @@ rule contig_annotate__diamond__assign:
         slurm_partition=esc("partition", "contig_annotate__diamond__assign"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__diamond__assign')['nvme']}",
         attempt=lambda wildcards, attempt: attempt,
-    retries: len(get_escalation_order("contig_annotate__diamond__assign")) - 1,
     params:
         retries=len(get_escalation_order("contig_annotate__diamond__assign")) - 1,
         in_folder=FASTP,
@@ -148,7 +147,6 @@ rule contig_annotate__diamond__summarise:
         slurm_partition=esc("partition", "contig_annotate__diamond__summarise"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__diamond__summarise')['nvme']}",
         attempt=esc("attempt", "contig_annotate__diamond__summarise"),
-    retries: len(get_escalation_order("contig_annotate__diamond__summarise"))
     params:
         script=lambda w: config["pipeline_folder"] + "workflow/scripts/downstream_scripts/create_featuretable_diamond_" + w.diamond_db + ".R",
         project_folder=WD,

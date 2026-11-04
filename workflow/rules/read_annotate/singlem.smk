@@ -27,7 +27,6 @@ rule read_annotate__singlem__pipe:
         slurm_partition=esc("partition", "read_annotate__singlem__pipe"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__singlem__pipe')['nvme']}",
         attempt=esc("attempt", "read_annotate__singlem__pipe"),
-    retries: len(get_escalation_order("read_annotate__singlem__pipe"))
     params:
         tmp = config["tmp_storage"]
     shell:
@@ -77,7 +76,6 @@ rule read_annotate__singlem__condense:
         slurm_partition=esc("partition", "read_annotate__singlem__condense"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__singlem__condense')['nvme']}",
         attempt=esc("attempt", "read_annotate__singlem__condense"),
-    retries: len(get_escalation_order("read_annotate__singlem__condense"))
     shell:
         """
         exec > {log} 2>&1
@@ -114,7 +112,6 @@ rule read_annotate__singlem__microbial_fraction:
         slurm_partition=esc("partition", "read_annotate__singlem__microbial_fraction"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__singlem__microbial_fraction')['nvme']}",
         attempt=esc("attempt", "read_annotate__singlem__microbial_fraction"),
-    retries: len(get_escalation_order("read_annotate__singlem__microbial_fraction"))
     shell:
         """
         exec > {log} 2>&1
@@ -151,7 +148,6 @@ rule read_annotate__singlem__aggregate_microbial_fraction:
         slurm_partition=esc("partition", "read_annotate__singlem__aggregate_microbial_fraction"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__singlem__aggregate_microbial_fraction')['nvme']}",
         attempt=esc("attempt", "read_annotate__singlem__aggregate_microbial_fraction"),
-    retries: len(get_escalation_order("read_annotate__singlem__aggregate_microbial_fraction"))
     shell:
         """
         exec 2> {log}

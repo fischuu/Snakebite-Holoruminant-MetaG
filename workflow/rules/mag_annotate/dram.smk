@@ -28,7 +28,6 @@ rule mag_annotate__dram__annotate:
         slurm_partition=esc("partition", "mag_annotate__dram__annotate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__dram__annotate')['nvme']}",
         attempt=esc("attempt", "mag_annotate__dram__annotate"),
-    retries: len(get_escalation_order("mag_annotate__dram__annotate"))
     shell:
         """
         exec > {log} 2>&1
@@ -108,7 +107,6 @@ rule mag_annotate__dram__distill:
         slurm_partition=esc("partition", "mag_annotate__dram__distill"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__dram__distill')['nvme']}",
         attempt=esc("attempt", "mag_annotate__dram__distill"),
-    retries: len(get_escalation_order("mag_annotate__dram__distill"))
     params:
         dram_config=config["dram-config"],
     shell:

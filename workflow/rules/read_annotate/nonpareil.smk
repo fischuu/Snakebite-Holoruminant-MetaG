@@ -31,7 +31,6 @@ rule read_annotate__nonpareil__run:
         slurm_partition=esc("partition", "read_annotate__nonpareil__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__nonpareil__run')['nvme']}",
         attempt=esc("attempt", "read_annotate__nonpareil__run"),
-    retries: len(get_escalation_order("read_annotate__nonpareil__run"))
     shell:
         """
         export TMPDIR={params.tmp}
@@ -65,7 +64,6 @@ rule read_annotate__nonpareil__aggregate:
         slurm_partition=esc("partition", "read_annotate__nonpareil__aggregate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__nonpareil__aggregate')['nvme']}",
         attempt=esc("attempt", "read_annotate__nonpareil__aggregate"),
-    retries: len(get_escalation_order("read_annotate__nonpareil__aggregate"))
     params:
         input_dir=NONPAREIL,
         script_folder=SCRIPT_FOLDER,

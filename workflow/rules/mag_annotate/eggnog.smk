@@ -23,7 +23,6 @@ rule mag_annotate__eggnog:
         slurm_partition=esc("partition", "mag_annotate__eggnog"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__eggnog')['nvme']}",
         attempt=esc("attempt", "mag_annotate__eggnog"),
-    retries: len(get_escalation_order("mag_annotate__eggnog"))
     shell:
         """
         exec 2>> {log}

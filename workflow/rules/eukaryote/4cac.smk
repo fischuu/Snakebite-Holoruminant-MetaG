@@ -26,7 +26,6 @@ rule eukaryote__4cac__extract_graph:
         slurm_partition=esc("partition", "eukaryote__4cac__extract_graph"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'eukaryote__4cac__extract_graph')['nvme']}",
         attempt=esc("attempt", "eukaryote__4cac__extract_graph"),
-    retries: len(get_escalation_order("eukaryote__4cac__extract_graph"))
     params:
         tmp_dir=lambda w: EUK_4CAC / w.assembly_id / "extract_tmp",
     shell:
@@ -84,7 +83,6 @@ rule eukaryote__4cac__run:
         slurm_partition=esc("partition", "eukaryote__4cac__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'eukaryote__4cac__run')['nvme']}",
         attempt=esc("attempt", "eukaryote__4cac__run"),
-    retries: len(get_escalation_order("eukaryote__4cac__run"))
     params:
         workdir=lambda w: EUK_4CAC / w.assembly_id,
         install_dir=params["eukaryote"]["4cac"]["install_dir"],

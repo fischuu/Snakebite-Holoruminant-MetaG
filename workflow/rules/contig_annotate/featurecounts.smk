@@ -18,7 +18,6 @@ if params["assemble"]["samtools"]["out_type"].upper() == "CRAM":
             slurm_partition=esc("partition", "contig_annotate__cram_to_bam"),
             gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__cram_to_bam')['nvme']}",
             attempt=esc("attempt", "contig_annotate__cram_to_bam"),
-        retries: len(get_escalation_order("contig_annotate__cram_to_bam"))
         shell:
             """
             exec > {log} 2>&1
@@ -48,7 +47,6 @@ rule contig_annotate__featurecounts__run:
         slurm_partition=esc("partition", "contig_annotate__featurecounts__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__featurecounts__run')['nvme']}",
         attempt=esc("attempt", "contig_annotate__featurecounts__run"),
-    retries: len(get_escalation_order("contig_annotate__featurecounts__run"))
     container: docker["subread"]
     shell:"""
         featureCounts -p \

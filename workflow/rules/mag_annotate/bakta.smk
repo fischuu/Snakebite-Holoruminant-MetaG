@@ -23,7 +23,6 @@ rule mag_annotate__bakta:
         slurm_partition=esc("partition", "mag_annotate__bakta"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__bakta')['nvme']}",
         attempt=esc("attempt", "mag_annotate__bakta"),
-    retries: len(get_escalation_order("mag_annotate__bakta"))
     shell:
         """
         # bakta's own tempfile handling is fine with the container's default
@@ -80,7 +79,6 @@ rule mag_annotate__bakta_mags__run:
         slurm_partition=esc("partition", "mag_annotate__bakta_mags__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__bakta_mags__run')['nvme']}",
         attempt=esc("attempt", "mag_annotate__bakta_mags__run"),
-    retries: len(get_escalation_order("mag_annotate__bakta_mags__run"))
     shell:
         """
         # See mag_annotate__bakta above: tRNAscan-SE (spawned by bakta as a

@@ -27,7 +27,6 @@ rule read_annotate__humann__run:
         slurm_partition=esc("partition", "read_annotate__humann__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__humann__run')['nvme']}",
         attempt=esc("attempt", "read_annotate__humann__run"),
-    retries: len(get_escalation_order("read_annotate__humann__run")),
     shell: """
         echo "In case this rule crashes for larger datasets, you need to ensure a proper size of TMPDIR!"
     
@@ -74,7 +73,6 @@ rule read_annotate__humann__condense:
         slurm_partition=esc("partition", "read_annotate__humann__condense"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__humann__condense')['nvme']}",
         attempt=esc("attempt", "read_annotate__humann__condense"),
-    retries: len(get_escalation_order("read_annotate__humann__condense")),
     shell:
         """
         cat {input.genefamily_data} > {output} 2> {log}

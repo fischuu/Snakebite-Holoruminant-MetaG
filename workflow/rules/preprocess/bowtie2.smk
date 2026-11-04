@@ -19,7 +19,6 @@ rule preprocess__bowtie2__build:
         slurm_partition=esc("partition", "preprocess__bowtie2__build"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'preprocess__bowtie2__build')['nvme']}",
         attempt=esc("attempt", "preprocess__bowtie2__build"),
-    retries: len(get_escalation_order("preprocess__bowtie2__build"))
     shell:
         """
         try_log={log}.try{resources.attempt}
@@ -59,7 +58,6 @@ rule preprocess__bowtie2__map:
         slurm_partition=esc("partition", "preprocess__bowtie2__map"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'preprocess__bowtie2__map')['nvme']}",
         attempt=esc("attempt", "preprocess__bowtie2__map"),
-    retries: len(get_escalation_order("preprocess__bowtie2__map"))
     shell:
         """
         try_log={log}.try{resources.attempt}
@@ -106,7 +104,6 @@ rule preprocess__bowtie2__extract_nonhost__run:
         slurm_partition=esc("partition", "preprocess__bowtie2__extract_nonhost__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'preprocess__bowtie2__extract_nonhost__run')['nvme']}",
         attempt=esc("attempt", "preprocess__bowtie2__extract_nonhost__run"),
-    retries: len(get_escalation_order("preprocess__bowtie2__extract_nonhost__run"))
     shell:
         """
         exec 2> {log}
@@ -144,7 +141,6 @@ rule preprocess__store_final_fastq:
         slurm_partition=esc("partition", "preprocess__store_final_fastq"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'preprocess__store_final_fastq')['nvme']}",
         attempt=esc("attempt", "preprocess__store_final_fastq"),
-    retries: len(get_escalation_order("preprocess__store_final_fastq"))
     shell:
         """
         cp {input.forward_} {output.forward_}

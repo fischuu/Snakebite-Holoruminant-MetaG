@@ -29,7 +29,6 @@ rule eukaryote__remag__filter:
         slurm_partition=esc("partition", "eukaryote__remag__filter"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'eukaryote__remag__filter')['nvme']}",
         attempt=esc("attempt", "eukaryote__remag__filter"),
-    retries: len(get_escalation_order("eukaryote__remag__filter"))
     params:
         out_dir=lambda w: EUK_REMAG / w.assembly_id,
         min_contig_length=params["eukaryote"]["remag"]["min_contig_length"],
@@ -95,7 +94,6 @@ rule eukaryote__remag__bin:
         slurm_partition=esc("partition", "eukaryote__remag__bin"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'eukaryote__remag__bin')['nvme']}",
         attempt=esc("attempt", "eukaryote__remag__bin"),
-    retries: len(get_escalation_order("eukaryote__remag__bin"))
     params:
         out_dir=lambda w: EUK_REMAG / w.assembly_id,
         coverage=compose_coverage_args_for_remag,

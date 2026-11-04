@@ -24,7 +24,6 @@ rule report__preprocess:
         slurm_partition=esc("partition", "report__preprocess"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'report__preprocess')['nvme']}",
         attempt=esc("attempt", "report__preprocess"),
-    retries: len(get_escalation_order("report__preprocess"))
     shell:
         """
         exec > {log} 2>&1
