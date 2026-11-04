@@ -1,21 +1,25 @@
 rule report__assemble:
-    """Render the assemble module PDF report: assembly/binning/dereplication summary, runtime"""
+    """Report on assembly, binning and the genome catalogue, data volume and resources"""
     input:
         rules.assemble.input,
     output:
         pdf=PIPELINE_REPORT / "assemble.pdf",
+        folder=directory(PIPELINE_REPORT / "assemble"),
     log:
         PIPELINE_REPORT / "assemble.log",
     benchmark:
-        PIPELINE_REPORT / "assemble_benchmark.tsv",
+        PIPELINE_REPORT / "assemble_benchmark.tsv"
     container:
-        docker["r_report"]
+        REPORT_IMAGE
     params:
-        script=ASSEMBLE_R,
+        script=REPORT_SCRIPT,
         pipeline_folder=config["pipeline_folder"],
         features=config["features-file"],
         sample_file=config["sample-file"],
         project_folder=WD,
+        rule_table=lambda wc: report_rule_table("assemble"),
+        version=version,
+        snakemake_version=SNAKEMAKE_VERSION,
     threads: esc("cpus", "report__assemble")
     resources:
         runtime=esc("runtime", "report__assemble"),
@@ -24,14 +28,11 @@ rule report__assemble:
         slurm_partition=esc("partition", "report__assemble"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'report__assemble')['nvme']}",
         attempt=esc("attempt", "report__assemble"),
-    retries: len(get_escalation_order("report__assemble"))
     shell:
         """
         exec > {log} 2>&1
-        R -e "project_folder <- '{params.project_folder}'; \
-              pipeline_folder <- '{params.pipeline_folder}'; \
-              features_file <- '{params.features}'; \
-              sample_file <- '{params.sample_file}'; \
-              rmarkdown::render('{params.script}', output_format='pdf_document', \
-                                 output_file=file.path('{params.project_folder}', '{output.pdf}'))"
+        Rscript {params.script} module=assemble project={params.project_folder} \
+            pipeline={params.pipeline_folder} features={params.features} samples={params.sample_file} \
+            output={output.pdf} version={params.version} snakemake={params.snakemake_version} \
+            rules={params.rule_table:q}
         """

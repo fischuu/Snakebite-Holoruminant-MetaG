@@ -1,0 +1,25 @@
+# Numbers from a real run of the tools on 1M read pairs per sample of ERR2019410, ERR2019412 and ERR2019415, which were
+# checked in the tools' own output.
+module	table	key_column	key	assembly	column	value	label
+reads	reads_per_library	library	ERR2019410.lib1		read_pairs	1000000	raw read pairs, from FastQC
+reads	reads_per_library	library	ERR2019410.lib1		read_length	101	read length, from FastQC
+preprocess	read_pairs_per_step	library	ERR2019410.lib1		after_fastp	935567	pairs after fastp
+preprocess	read_pairs_per_step	library	ERR2019410.lib1		clean_pairs	933448	clean pairs, as in the clean files
+preprocess	read_pairs_per_step	library	ERR2019412.lib1		clean_pairs	948489	clean pairs, library 2
+preprocess	read_pairs_per_step	library	ERR2019415.lib1		clean_pairs	954398	clean pairs, library 3
+preprocess	host_mapping	library	ERR2019410.lib1		reads_mapped	4187	reads on PhiX, as in flagstats
+preprocess	adapter_trimming	library	ERR2019410.lib1		forward_adapter	AGATCGGAAGAGCACACGTCTGAACTCCAGTCA	adapter from the sample sheet
+read_annotate	nonpareil	sample_id	ERR2019410.lib1		kappa	0.13006	Nonpareil kappa
+read_annotate	ncyc_per_library	library	ERR2019410.lib1		genes	41	NCycDB genes with hits
+assemble	assembly_statistics	assembly_id	coasm		contigs	900	contigs of the co-assembly
+assemble	assembly_statistics	assembly_id	coasm		N50	2858	N50 of the co-assembly
+assemble	assembly_statistics	assembly_id	ERR2019410		contigs	549	contigs of the single assembly
+assemble	mapping_rates	library	ERR2019412.lib1		overall_pct	2.31	alignment rate of library 2
+assemble	bins_per_assembly	assembly_id	coasm		magscot	1	refined bins of the co-assembly
+assemble	bins_per_assembly	assembly_id	coasm		concoct	21	CONCOCT bins of the co-assembly
+assemble	catalogue	contigs	554		total_bp	1647187	length of the catalogue
+quantify	genomes	genome	coasm:bin_000001		reads	117205	reads on the genome, in all libraries
+quantify	mapping_to_catalogue	library	ERR2019410.lib1		primary_mapped	89007	reads mapped in library 1
+contig_annotate	genes_per_assembly	assembly_id	coasm		genes	2828	genes, without comment lines
+contig_annotate	featurecounts	library	ERR2019410.lib1	coasm	assigned	54908	fragments assigned to genes
+eukaryote	tiara_classes	class	eukarya	coasm	contigs	40	eukaryotic contigs of the co-assembly

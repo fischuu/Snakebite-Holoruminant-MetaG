@@ -44,8 +44,8 @@ bash run_Snakebite-Holoruminant-MetaG.sh assemble__metaspades
 bash run_Snakebite-Holoruminant-MetaG.sh mag_annotate__gtdbtk
 ```
 
-Running a submodule automatically triggers its upstream dependencies. A `report_<module>` target exists
-for most modules but the reporting module is still under development and may not produce usable output.
+Running a submodule automatically triggers its upstream dependencies. Every module has a `report_<module>`
+target, see "Reports" below.
 
 Formatting: `snakefmt` (config in `.github/linters/.snakefmt.toml`, which sets `skip_string_normalization
 = true` for the underlying black formatter) is what CI lints with.
@@ -178,3 +178,24 @@ Non-obvious parts:
 The pipeline version shown in logs/reports is parsed out of the `CHANGELOG` file at Snakemake startup
 (`get_version_from_changelog()` in `workflow/Snakefile`, matching `Version X.Y.*:` and a leading patch
 number) — bump `CHANGELOG`, not a separate version constant, when releasing.
+
+## Reports
+
+`workflow/rules/report/<module>.smk` runs `workflow/scripts/R/render_report.R`, which renders
+`workflow/scripts/R/<module>.Rmd`. The shared parts are in `report_helpers.R`: tables, figures, data volume, requested
+and used resources, and suggestions for `config/escalation.yaml`. Every chunk has `results="asis"`, every part of a report
+is inside `section()`, which turns an error into a sentence, and all tables go through `show_table()`, which also writes
+them to `Rreports/<module>/tables/`.
+
+- **If a rule's output changes, change the report's parser too**, and `tests/reports/`. Run
+  `tests/reports/run_test.sh`, which renders all reports in the container without network, as on a compute node.
+- **LaTeX in the container is minimal, and it can't download packages on a compute node.** There is no `booktabs`,
+  `float`, `caption` or `xurl`, and `xelatex` lacks `unicode-math`. So the reports use `pdflatex`, write tables and figures
+  as non-floating blocks, and replace characters that `pdflatex` has no glyph for. `LOCAL_R=1` with a full LaTeX hides
+  such problems, so test in the container before a commit.
+- **In dplyr, `summarise()` and `transmute()` see earlier results under the same name.** `summarise(hits = sum(hits),
+  genes = sum(hits > 0))` gives a wrong number of genes, silently. Tests with several jobs or libraries catch this.
+- A new rule needs no change for its resources to appear: `report_rule_table()` in `rules/report/__functions__.smk`
+  passes the rules with a benchmark from the workflow.
+- `workflow/scripts/R/report_tools.tsv` has the tool, container key, purpose and reference for the tables of tools. Tool
+  versions come from `workflow/scripts/R/tool_versions.tsv`.

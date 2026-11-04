@@ -1,21 +1,25 @@
 rule report__reference:
-    """Render the reference module PDF report: configured hosts, recompression runtime"""
+    """Report on the host genomes and the configured databases, data volume and resources"""
     input:
         rules.reference.input,
     output:
         pdf=PIPELINE_REPORT / "reference.pdf",
+        folder=directory(PIPELINE_REPORT / "reference"),
     log:
         PIPELINE_REPORT / "reference.log",
     benchmark:
-        PIPELINE_REPORT / "reference_benchmark.tsv",
+        PIPELINE_REPORT / "reference_benchmark.tsv"
     container:
-        docker["r_report"]
+        REPORT_IMAGE
     params:
-        script=REFERENCE_R,
+        script=REPORT_SCRIPT,
         pipeline_folder=config["pipeline_folder"],
         features=config["features-file"],
         sample_file=config["sample-file"],
         project_folder=WD,
+        rule_table=lambda wc: report_rule_table("reference"),
+        version=version,
+        snakemake_version=SNAKEMAKE_VERSION,
     threads: esc("cpus", "report__reference")
     resources:
         runtime=esc("runtime", "report__reference"),
@@ -24,14 +28,11 @@ rule report__reference:
         slurm_partition=esc("partition", "report__reference"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'report__reference')['nvme']}",
         attempt=esc("attempt", "report__reference"),
-    retries: len(get_escalation_order("report__reference"))
     shell:
         """
         exec > {log} 2>&1
-        R -e "project_folder <- '{params.project_folder}'; \
-              pipeline_folder <- '{params.pipeline_folder}'; \
-              features_file <- '{params.features}'; \
-              sample_file <- '{params.sample_file}'; \
-              rmarkdown::render('{params.script}', output_format='pdf_document', \
-                                 output_file=file.path('{params.project_folder}', '{output.pdf}'))"
+        Rscript {params.script} module=reference project={params.project_folder} \
+            pipeline={params.pipeline_folder} features={params.features} samples={params.sample_file} \
+            output={output.pdf} version={params.version} snakemake={params.snakemake_version} \
+            rules={params.rule_table:q}
         """

@@ -1,3 +1,24 @@
+# Version 0.4.71
+################################################################################
+
+Every module now has a report, Rreports/<module>.pdf, and the rule all makes them at the end of a run. docs/06-Details.md
+describes what's in them. The module eukaryote is optional, so its report has its own target, report_eukaryote.
+
+If you only want the reports of a finished project, run the target report:
+
+   bash run_Snakebite-Holoruminant-MetaG.sh report
+
+The reports need a new container, rocker/verse, which Snakemake downloads once (1.3 GB). A project set up with an
+earlier version doesn't need a change, but you can add this line to its config/.docker.yml to choose another version:
+
+   report: "docker://rocker/verse:4.4.2"
+
+Reports written by an earlier version have mistakes, so don't use their numbers: bins and genes were counted too high,
+host removal was always empty, and CoverM's tables were missing. They also could not be built in their container.
+
+Before you apply a suggestion for config/escalation.yaml, check that the run had data like your next one. A test on a
+subset says little about the memory that the full data needs.
+
 # Version 0.4.67
 ################################################################################
 

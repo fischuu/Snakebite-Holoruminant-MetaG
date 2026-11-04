@@ -1,75 +1,229 @@
 ---
-title: "Snakebite - Holoruminant - MetaG"
-subtitle: "quantify module - report"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    fig_caption: true
+title: "Snakebite-Holoruminant-MetaG"
+subtitle: "Module report: quantify"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+geometry: margin=2cm
+fontsize: 10pt
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                       fig.align = "center", fig.width = 7, fig.height = 4)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = "asis")
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"), local = knitr::knit_global())
+report_start("quantify")
 
-if (!exists("project_folder")) {
-  project_folder <- getwd()
-  pipeline_folder <- getwd()
-  features_file <- "config/features.yaml"
-  sample_file <- "config/samples.tsv"
+coverm_dir <- p("results", "quantify", "coverm")
+read_coverm <- function(level, method) {
+  file <- file.path(coverm_dir, paste0(level, ".", method, ".tsv"))
+  if (!file.exists(file)) return(NULL)
+  read_table_quiet(file)
 }
+genome <- list(
+  count = read_coverm("genome", "count"), tpm = read_coverm("genome", "tpm"),
+  covered = read_coverm("genome", "covered_bases"), length = read_coverm("genome", "length")
+)
+contig <- list(count = read_coverm("contig", "count"), covered = read_coverm("contig", "covered_bases"), length = read_coverm("contig", "length"))
 
-source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
-coverm_dir <- file.path(project_folder, "results", "quantify", "coverm")
-```
+mapping <- map_dfr(libraries(), function(library) {
+  flagstat <- p("results", "quantify", "bowtie2", paste0(library, ".flagstats.txt"))
+  if (!file.exists(flagstat)) return(NULL)
+  bind_cols(tibble(library = library), read_flagstat(flagstat))
+})
 
-# Genome-level abundance (CoverM)
-
-```{r coverm-genome-summary, results='asis'}
-genome_files <- Sys.glob(file.path(coverm_dir, "genome.*.tsv"))
-if (length(genome_files) == 0) {
-  cat("_No genome-level CoverM output found yet._\n")
+longer <- function(table, value) {
+  pivot_longer(table, -1, names_to = "library", values_to = value) %>% rename(genome = 1)
 }
-for (f in genome_files) {
-  method <- sub("^genome\\.(.*)\\.tsv$", "\\1", basename(f))
-  cat(paste0("\n### Method: ", method, "\n\n"))
-  df <- safe_read_tsv(f)
-  if (nrow(df) == 0) next
-  n_genomes <- nrow(df)
-  sample_cols <- setdiff(colnames(df), colnames(df)[1])
-  cat(sprintf("**%d** genomes quantified across **%d** libraries.\n\n", n_genomes, length(sample_cols)))
-  preview_table(df, n = 15, caption = paste("CoverM genome abundance --", method, "(first 15 genomes)"))
+per_genome <- if (!is.null(genome$count)) {
+  table <- longer(genome$count, "count")
+  if (!is.null(genome$tpm)) table <- left_join(table, longer(genome$tpm, "tpm"), by = c("genome", "library"))
+  if (!is.null(genome$covered)) table <- left_join(table, longer(genome$covered, "covered_bases"), by = c("genome", "library"))
+  if (!is.null(genome$length)) table <- left_join(table, longer(genome$length, "length"), by = c("genome", "library"))
+  table
+} else {
+  tibble()
 }
-```
-
-# Contig-level abundance (CoverM)
-
-```{r coverm-contig-summary, results='asis'}
-contig_files <- Sys.glob(file.path(coverm_dir, "contig.*.tsv"))
-if (length(contig_files) == 0) {
-  cat("_No contig-level CoverM output found yet._\n")
-}
-for (f in contig_files) {
-  method <- sub("^contig\\.(.*)\\.tsv$", "\\1", basename(f))
-  cat(paste0("\n### Method: ", method, "\n\n"))
-  preview_table(safe_read_tsv(f), n = 15, caption = paste("CoverM contig abundance --", method, "(first 15 contigs)"))
+if (nrow(per_genome) > 0 && all(c("covered_bases", "length") %in% names(per_genome))) {
+  per_genome$covered_pct <- 100 * per_genome$covered_bases / per_genome$length
 }
 ```
 
-# Runtime statistics
-
-```{r quantify-runtime}
-bench <- discover_benchmarks(project_folder, "quantify")
-runtime_table(bench, caption = "quantify module: runtime and peak memory per rule")
+```{r brief}
+section("Results in brief", {
+  if (nrow(per_genome) == 0) {
+    no_output("CoverM", "results/quantify/coverm/")
+  } else {
+    n_genomes <- n_distinct(per_genome$genome)
+    para("Reads of **", plural(n_distinct(per_genome$library), "library", "libraries"), "** were counted on **", plural(n_genomes, "genome"), "** of the catalogue.")
+    if (nrow(mapping) > 0) {
+      rate <- 100 * mapping$primary_mapped / mapping$primary
+      para("Between ", fmt_pct(min(rate)), " and ", fmt_pct(max(rate)), " of the reads map to the catalogue (mean ", fmt_pct(mean(rate)), "). This is the share of each ",
+           "community that the genomes represent. All abundances below are about this share only.")
+    }
+    if (n_genomes == 1) {
+      para("**With a single genome, TPM carries no information**: it's a share of the genomes, so that genome gets 1,000,000 in every library. Use counts and coverage here.")
+    }
+  }
+})
 ```
 
-```{r quantify-resource-allocation}
-resource_allocation_table(bench, "quantify", project_folder,
-                          caption = "quantify module: allocated vs. actual resource usage (starting tier)")
+```{r mapping}
+section("Reads mapped to the catalogue", {
+  if (nrow(mapping) == 0) {
+    no_output("Bowtie2 and samtools", "results/quantify/bowtie2/")
+  } else {
+    table <- mapping %>% mutate(mapped_pct = 100 * primary_mapped / primary, proper_pct = 100 * properly_paired / primary)
+    show_table(
+      table %>% transmute(Library = library, `Reads` = fmt_int(primary), Mapped = fmt_int(primary_mapped), `Mapped %` = fmt_pct(mapped_pct, 2), `Properly paired %` = fmt_pct(proper_pct, 2)),
+      "Reads mapped to the genome catalogue per library, from samtools flagstats",
+      "mapping_to_catalogue",
+      export = table,
+      max_rows = 60
+    )
+    show_figure(
+      table %>%
+        mutate(library = factor(library, levels = rev(libraries()))) %>%
+        ggplot(aes(mapped_pct, library)) +
+        geom_col(fill = PALETTE[[1]]) +
+        labs(x = "Reads mapped to the catalogue (%)", y = NULL) +
+        theme_report() +
+        library_axis(nrow(table)),
+      "mapping_to_catalogue",
+      "Share of reads that map to the genome catalogue, per library.",
+      height = rows_height(nrow(table))
+    )
+  }
+})
 ```
 
-```{r quantify-runtime-plot, fig.height=3}
-runtime_plot(bench, title = "quantify module: total runtime per rule")
+```{r genomes}
+section("Abundance of the genomes", {
+  if (nrow(per_genome) == 0) {
+    no_output("CoverM", "results/quantify/coverm/")
+  } else {
+    para(
+      "Four measures come from CoverM: **count** is the number of reads on a genome, **length** the genome's length, and **covered bases** the bases with at least one read. ",
+      "**TPM** is the count normalized by length and by the library's total on the catalogue. Count isn't comparable between libraries of different depth, and TPM isn't comparable ",
+      "when the share of mapped reads differs strongly. The full tables are in `results/quantify/coverm/genome.*.tsv`."
+    )
+    summary <- per_genome %>%
+      group_by(genome) %>%
+      summarise(
+        length = if ("length" %in% names(per_genome)) max(length) else NA_real_,
+        libraries_detected = sum(count > 0),
+        reads = sum(count),
+        mean_tpm = if ("tpm" %in% names(per_genome)) mean(tpm) else NA_real_,
+        mean_covered_pct = if ("covered_pct" %in% names(per_genome)) mean(covered_pct) else NA_real_,
+        .groups = "drop"
+      ) %>%
+      arrange(desc(reads))
+    show_table(
+      summary %>% transmute(
+        Genome = genome, Length = fmt_bp(length), Libraries = fmt_int(libraries_detected), Reads = fmt_int(reads), `Mean TPM` = fmt_int(mean_tpm), `Mean covered` = fmt_pct(mean_covered_pct)
+      ),
+      "Genomes with the most reads",
+      "genomes",
+      export = summary,
+      max_rows = 25
+    )
+    per_library <- per_genome %>%
+      group_by(library) %>%
+      summarise(genomes_detected = sum(count > 0), reads_on_genomes = sum(count), richest = genome[which.max(count)], .groups = "drop")
+    show_table(
+      per_library %>% transmute(Library = library, `Genomes with reads` = fmt_int(genomes_detected), Reads = fmt_int(reads_on_genomes), `Top genome` = richest),
+      "Genomes per library. A genome with reads can still be absent: a few reads can map by chance, so compare covered bases too",
+      "genomes_per_library",
+      export = per_library,
+      max_rows = 60
+    )
+    if ("covered_pct" %in% names(per_genome)) {
+      show_figure(
+        ggplot(per_genome, aes(pmax(count, 0.5), covered_pct)) +
+          geom_point(size = 1.2, alpha = 0.6, colour = PALETTE[[1]]) +
+          scale_x_log10() +
+          labs(x = "Reads on the genome (logarithmic scale)", y = "Genome covered by at least one read (%)") +
+          theme_report(),
+        "reads_and_breadth",
+        "Reads and covered share of each genome in each library. A genome with many reads and low coverage breadth is suspect: its reads may come from a related organism or from a shared region.",
+        height = 3.2
+      )
+    }
+    n_genomes <- n_distinct(per_genome$genome)
+    if (n_genomes > 1 && "tpm" %in% names(per_genome)) {
+      top <- head(arrange(summary, desc(mean_tpm))$genome, 40)
+      show_figure(
+        per_genome %>%
+          filter(genome %in% top) %>%
+          mutate(genome = factor(genome, levels = rev(top)), library = factor(library, levels = libraries())) %>%
+          ggplot(aes(library, genome, fill = log10(tpm + 1))) +
+          geom_tile() +
+          scale_fill_viridis_c(name = "log10(TPM + 1)") +
+          labs(x = NULL, y = NULL) +
+          theme_report() +
+          theme(axis.text.x = element_text(angle = 40, hjust = 1)),
+        "tpm_heatmap",
+        "Abundance (TPM) of the genomes with the highest mean TPM.",
+        height = max(3, length(top) * 0.16 + 1.4)
+      )
+      matrix_tpm <- per_genome %>%
+        select(genome, library, tpm) %>%
+        pivot_wider(names_from = library, values_from = tpm) %>%
+        select(-genome) %>%
+        as.matrix()
+      if (ncol(matrix_tpm) >= 3 && n_genomes >= 3) {
+        logged <- log1p(matrix_tpm)
+        logged <- logged[apply(logged, 1, var) > 0, , drop = FALSE]
+        if (nrow(logged) >= 3) {
+          pca <- prcomp(t(logged), scale. = FALSE)
+          variance <- 100 * pca$sdev^2 / sum(pca$sdev^2)
+          coordinates <- tibble(library = rownames(pca$x), PC1 = pca$x[, 1], PC2 = pca$x[, 2])
+          write_tsv(coordinates, file.path(ctx$tables, "pca_tpm.tsv"))
+          show_figure(
+            ggplot(coordinates, aes(PC1, PC2, label = library)) +
+              geom_point(colour = PALETTE[[1]], size = 2) +
+              geom_text(size = 2.2, vjust = -0.9, check_overlap = TRUE) +
+              labs(x = sprintf("PC1 (%.1f%%)", variance[[1]]), y = sprintf("PC2 (%.1f%%)", variance[[2]])) +
+              theme_report(),
+            "pca_tpm",
+            "Principal component analysis of log(TPM + 1) of the genomes, as a first look at how libraries differ. For a paper, consider a method for compositional data.",
+            height = 3.6
+          )
+        }
+      }
+    }
+  }
+})
+```
+
+```{r contigs}
+section("Abundance of the contigs", {
+  if (is.null(contig$count)) {
+    no_output("CoverM", "results/quantify/coverm/contig.count.tsv")
+  } else {
+    table <- longer(contig$count, "count") %>% rename(contig = genome)
+    per_library <- table %>%
+      group_by(library) %>%
+      summarise(contigs_with_reads = sum(count > 0), contigs = n(), reads = sum(count), .groups = "drop")
+    show_table(
+      per_library %>% transmute(Library = library, Contigs = fmt_int(contigs), `With reads` = fmt_int(contigs_with_reads), Reads = fmt_int(reads)),
+      "Contigs of the catalogue with reads, per library. The full tables are in results/quantify/coverm/contig.*.tsv",
+      "contigs_per_library",
+      export = per_library,
+      max_rows = 60
+    )
+  }
+})
+```
+
+```{r methods}
+section("Methods text", {
+  para("You can use or adapt this text for a paper. It describes what the rules of this module did, with the settings of this project.")
+  s <- ctx$params$quantify$coverm
+  para(
+    "> Clean reads were mapped to the dereplicated genome catalogue with ", tv("Bowtie2"), " and sorted with ", tv("SAMtools"), ". Genome and contig abundances were computed with ", tv("CoverM"),
+    " (methods ", paste(unlist(s$genome$methods), collapse = ", "), "; minimum covered fraction ", s$genome$min_covered_fraction %||% "?", ")."
+  )
+})
+```
+
+```{r end}
+report_end(c(bowtie2 = "Reads mapped to the catalogue, statistics", index = "Bowtie2 index of the catalogue", coverm = "Abundance tables of genomes and contigs"))
 ```
