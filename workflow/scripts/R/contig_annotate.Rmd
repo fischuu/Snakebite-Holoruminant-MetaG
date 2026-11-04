@@ -1,66 +1,331 @@
 ---
-title: "Snakebite - Holoruminant - MetaG"
-subtitle: "contig_annotate module - report"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    fig_caption: true
+title: "Snakebite-Holoruminant-MetaG"
+subtitle: "Module report: contig_annotate"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+geometry: margin=2cm
+fontsize: 10pt
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                       fig.align = "center", fig.width = 7, fig.height = 4)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = "asis")
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"), local = knitr::knit_global())
+report_start("contig_annotate")
 
-if (!exists("project_folder")) {
-  project_folder <- getwd()
-  pipeline_folder <- getwd()
-  features_file <- "config/features.yaml"
-  sample_file <- "config/samples.tsv"
+ca <- function(...) p("results", "contig_annotate", ...)
+assemblies <- ctx$assemblies
+
+genes <- map_dfr(assemblies, function(a) {
+  file <- ca("prodigal", a, paste0(a, ".prodigal_plain.gtf"))
+  if (!file.exists(file) || file.size(file) == 0) return(NULL)
+  read_tsv(file, col_names = c("contig", "source", "type", "start", "end", "score", "strand", "phase", "attributes"),
+           col_select = c(contig, start, end, attributes), show_col_types = FALSE, comment = "#") %>%
+    transmute(
+      assembly_id = a, contig, length = end - start + 1,
+      partial = sub(";.*$", "", sub("^.*partial=", "", attributes)),
+      gc = suppressWarnings(as.numeric(sub(";.*$", "", sub("^.*gc_cont=", "", attributes))))
+    )
+})
+gene_summary <- if (nrow(genes) > 0) {
+  genes %>%
+    group_by(assembly_id) %>%
+    summarise(
+      genes = n(), contigs_with_genes = n_distinct(contig), mean_length = mean(length), median_length = median(length),
+      complete_pct = 100 * mean(partial == "00"), mean_gc = 100 * mean(gc, na.rm = TRUE), .groups = "drop"
+    )
+} else {
+  tibble()
 }
 
-source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
-samples <- read.delim(file.path(project_folder, sample_file), comment.char = "#")
-assembly_ids <- unique(unlist(strsplit(samples$assembly_ids, ",\\s*")))
-ca_dir <- file.path(project_folder, "results", "contig_annotate")
-```
-
-# Gene prediction (Prodigal)
-
-```{r prodigal-summary}
-gene_counts <- purrr::map_dfr(assembly_ids, function(a) {
-  gtf <- file.path(ca_dir, "prodigal", a, paste0(a, ".prodigal.gtf"))
-  n_genes <- if (file.exists(gtf)) length(readLines(gtf)) else NA_integer_
-  tibble::tibble(assembly_id = a, predicted_genes = n_genes)
+# Whitespace-separated tables of HMMER: target, accession, query, accession, E-value, score, ...
+hmmer_dbs <- names(ctx$features$databases$hmmer)
+hmmer <- map_dfr(hmmer_dbs, function(db) {
+  thresholds <- ctx$params$contig_annotate$hmmer$domt
+  threshold <- thresholds[[db]] %||% thresholds$fallback %||% 0
+  map_dfr(assemblies, function(a) {
+    file <- ca("hmmer", db, paste0(a, ".tblout.tsv"))
+    if (!file.exists(file)) return(NULL)
+    lines <- readLines(file, warn = FALSE)
+    lines <- lines[!startsWith(lines, "#")]
+    fields <- strsplit(trimws(lines), "[[:space:]]+")
+    tibble(
+      database = db, assembly_id = a, threshold = threshold,
+      hits = length(lines),
+      proteins_over_threshold = sum(map_dbl(fields, ~ as.numeric(.x[[6]])) >= threshold)
+    )
+  })
 })
-preview_table(gene_counts, n = nrow(gene_counts), caption = "Genes predicted per assembly")
+
+counts <- map_dfr(Sys.glob(ca("featurecounts", "*", "*.prodigal_fc.txt.summary")), function(file) {
+  table <- read_table_quiet(file)
+  names(table) <- c("status", "reads")
+  name <- sub("\\.prodigal_fc\\.txt\\.summary$", "", basename(file))
+  assembly <- basename(dirname(file))
+  tibble(
+    assembly_id = assembly,
+    library = sub(paste0("^", assembly, "_"), "", name),
+    total = sum(table$reads),
+    assigned = sum(table$reads[table$status == "Assigned"]),
+    no_features = sum(table$reads[table$status == "Unassigned_NoFeatures"]),
+    unmapped = sum(table$reads[table$status == "Unassigned_Unmapped"]),
+    ambiguous = sum(table$reads[table$status == "Unassigned_Ambiguity"]),
+    multi = sum(table$reads[table$status == "Unassigned_MultiMapping"])
+  )
+})
+
+# The rule uses --no_file_comments, so the file normally has no header, and the columns are in this order
+EMAPPER_COLUMNS <- c("query", "seed_ortholog", "evalue", "score", "eggNOG_OGs", "max_annot_lvl", "COG_category", "Description",
+                     "Preferred_name", "GOs", "EC", "KEGG_ko", "KEGG_Pathway", "KEGG_Module", "KEGG_Reaction", "KEGG_rclass",
+                     "BRITE", "KEGG_TC", "CAZy", "BiGG_Reaction", "PFAMs")
+read_emapper <- function(file) {
+  lines <- readLines(file, warn = FALSE)
+  header <- grep("^#query", lines)[1]
+  body <- lines[!startsWith(lines, "#")]
+  if (length(body) == 0) return(NULL)
+  columns <- if (is.na(header)) EMAPPER_COLUMNS else strsplit(sub("^#", "", lines[[header]]), "\t")[[1]]
+  table <- read_tsv(I(paste(body, collapse = "\n")), col_names = FALSE, show_col_types = FALSE, quote = "")
+  names(table) <- c(columns, paste0("extra_", seq_len(max(0, ncol(table) - length(columns)))))[seq_len(ncol(table))]
+  table
+}
+eggnog <- map_dfr(assemblies, function(a) {
+  file <- ca("eggnog", a, "eggnog_output.emapper.annotations")
+  if (!file.exists(file)) return(NULL)
+  table <- read_emapper(file)
+  if (is.null(table)) return(NULL)
+  transmute(table, assembly_id = a, query, COG_category, KEGG_ko, Description)
+})
 ```
 
-# Functional/taxonomic annotation of contigs
-
-```{r other-tools, results='asis'}
-generic_tool_section(project_folder, "contig_annotate", "diamond/*/summary_a.tsv", "DIAMOND")
-generic_tool_section(project_folder, "contig_annotate", "eggnog7/*/*.tsv.gz", "eggNOG-mapper (v7 DB)")
-generic_tool_section(project_folder, "contig_annotate", "hmmer/*/*.tblout.tsv", "HMMER")
-generic_tool_section(project_folder, "contig_annotate", "camper/*/annotations.tsv", "CAMPER")
-generic_tool_section(project_folder, "contig_annotate", "featurecounts/*/*.txt", "featureCounts (read quantification per gene)")
-generic_tool_section(project_folder, "contig_annotate", "ncyc/ncyc_results.tsv", "NCyc")
+```{r brief}
+section("Results in brief", {
+  sentences <- c(
+    if (nrow(gene_summary) > 0) {
+      paste0("Prodigal predicted **", fmt_int(sum(gene_summary$genes)), " genes** in ", nrow(gene_summary), " assemblies, of which ", fmt_pct(100 * mean(genes$partial == "00")),
+             " are complete. The rest are cut at a contig end, which is usual in short contigs.")
+    },
+    if (nrow(counts) > 0) {
+      paste0("Between ", fmt_pct(min(100 * counts$assigned / counts$total)), " and ", fmt_pct(max(100 * counts$assigned / counts$total)), " of the read fragments are assigned to genes (featureCounts).")
+    },
+    if (nrow(hmmer) > 0) {
+      paste0("HMMER found ", fmt_int(sum(hmmer$proteins_over_threshold)), " hydrogenase proteins over the score thresholds.")
+    },
+    if (nrow(eggnog) > 0) {
+      paste0("eggNOG-mapper annotated ", fmt_int(nrow(eggnog)), " genes.")
+    }
+  )
+  if (length(sentences) > 0) bullets(sentences) else para("No results of contig annotation were found yet.")
+})
 ```
 
-# Runtime statistics
-
-```{r contig-annotate-runtime}
-bench <- discover_benchmarks(project_folder, "contig_annotate")
-runtime_table(bench, caption = "contig_annotate module: runtime and peak memory per rule")
+```{r prodigal}
+section("Gene prediction with Prodigal", {
+  if (nrow(gene_summary) == 0) {
+    no_output("Prodigal", "results/contig_annotate/prodigal/")
+  } else {
+    para("Prodigal in metagenome mode finds protein-coding genes without training on one genome. **Complete** genes have both a start and a stop inside the contig.")
+    show_table(
+      gene_summary %>% transmute(
+        Assembly = assembly_id, Genes = fmt_int(genes), `Contigs with genes` = fmt_int(contigs_with_genes), `Mean length` = fmt_int(mean_length),
+        `Median length` = fmt_int(median_length), Complete = fmt_pct(complete_pct), GC = fmt_pct(mean_gc)
+      ),
+      "Predicted genes per assembly. Lengths are in bp",
+      "genes_per_assembly",
+      export = gene_summary,
+      max_rows = 60
+    )
+    show_figure(
+      ggplot(genes, aes(length, fill = partial == "00")) +
+        geom_histogram(bins = 40) +
+        scale_x_log10() +
+        scale_fill_manual(values = c(`TRUE` = PALETTE[[1]], `FALSE` = PALETTE[[2]]), labels = c(`TRUE` = "Complete", `FALSE` = "Partial"), name = NULL) +
+        facet_wrap(~assembly_id, scales = "free_y") +
+        labs(x = "Gene length (bp, logarithmic scale)", y = "Genes") +
+        theme_report(),
+      "gene_lengths",
+      "Length of the predicted genes per assembly.",
+      height = 2.6 + 1.4 * ceiling(length(assemblies) / 3)
+    )
+  }
+})
 ```
 
-```{r contig-annotate-resource-allocation}
-resource_allocation_table(bench, "contig_annotate", project_folder,
-                          caption = "contig_annotate module: allocated vs. actual resource usage (starting tier)")
+```{r featurecounts}
+section("Reads per gene with featureCounts", {
+  if (nrow(counts) == 0) {
+    no_output("featureCounts", "results/contig_annotate/featurecounts/")
+  } else {
+    para("featureCounts counts read pairs on the predicted genes. The gene tables are in `results/contig_annotate/featurecounts/`. Fragments that didn't map to the assembly at all count as unmapped.")
+    show_table(
+      counts %>% transmute(
+        Assembly = assembly_id, Library = library, Fragments = fmt_int(total), Assigned = fmt_int(assigned), `Assigned %` = fmt_pct(100 * assigned / total, 2),
+        `No gene` = fmt_int(no_features), Unmapped = fmt_int(unmapped), Ambiguous = fmt_int(ambiguous)
+      ),
+      "Read fragments per library and assembly",
+      "featurecounts",
+      export = counts,
+      max_rows = 60
+    )
+    long <- counts %>%
+      transmute(assembly_id, library, Assigned = assigned, `No gene` = no_features, Ambiguous = ambiguous + multi, Unmapped = unmapped, total) %>%
+      pivot_longer(c(Assigned, `No gene`, Ambiguous, Unmapped), names_to = "status", values_to = "reads") %>%
+      mutate(share = 100 * reads / total, library = factor(library, levels = rev(libraries())),
+             status = factor(status, levels = c("Unmapped", "Ambiguous", "No gene", "Assigned")))
+    show_figure(
+      ggplot(long, aes(share, library, fill = status)) +
+        geom_col() +
+        scale_fill_manual(values = c(Assigned = "#009E73", `No gene` = "#56B4E9", Ambiguous = "#E69F00", Unmapped = "#999999"), name = NULL, guide = guide_legend(reverse = TRUE)) +
+        facet_wrap(~assembly_id) +
+        labs(x = "Read fragments (%)", y = NULL) +
+        theme_report() +
+        library_axis(n_distinct(long$library)),
+      "featurecounts",
+      "What featureCounts did with the read fragments of each library.",
+      height = rows_height(n_distinct(long$library), 0.2, 1.5)
+    )
+  }
+})
 ```
 
-```{r contig-annotate-runtime-plot, fig.height=5}
-runtime_plot(bench, title = "contig_annotate module: total runtime per rule")
+```{r eggnog}
+section("Function with eggNOG-mapper", {
+  if (nrow(eggnog) == 0) {
+    no_output("eggNOG-mapper", "results/contig_annotate/eggnog/")
+  } else {
+    per_assembly <- eggnog %>%
+      group_by(assembly_id) %>%
+      summarise(annotated = n(), with_cog = sum(!is.na(COG_category) & COG_category != "-"), with_kegg = sum(!is.na(KEGG_ko) & KEGG_ko != "-"), .groups = "drop") %>%
+      mutate(genes = gene_summary$genes[match(assembly_id, gene_summary$assembly_id)])
+    show_table(
+      per_assembly %>% transmute(Assembly = assembly_id, Genes = fmt_int(genes), Annotated = fmt_int(annotated), `With COG` = fmt_int(with_cog), `With KEGG KO` = fmt_int(with_kegg)),
+      "Genes annotated by eggNOG-mapper",
+      "eggnog_per_assembly",
+      export = per_assembly,
+      max_rows = 60
+    )
+    cog <- eggnog %>%
+      filter(!is.na(COG_category), COG_category != "-") %>%
+      mutate(category = strsplit(COG_category, "")) %>%
+      unnest(category) %>%
+      count(assembly_id, category)
+    if (nrow(cog) > 0) {
+      write_tsv(cog, file.path(ctx$tables, "cog_categories.tsv"))
+      show_figure(
+        ggplot(cog, aes(category, n)) +
+          geom_col(fill = PALETTE[[1]]) +
+          facet_wrap(~assembly_id, scales = "free_y") +
+          labs(x = "COG category", y = "Genes") +
+          theme_report(),
+        "cog_categories",
+        "Genes per COG functional category. A gene with several categories counts for each.",
+        height = 2.6 + 1.4 * ceiling(length(assemblies) / 3)
+      )
+    }
+  }
+  eggnog7 <- Sys.glob(ca("eggnog7", "*", "*.eggnog.tsv.gz"))
+  if (length(eggnog7) > 0) {
+    table <- tibble(file = rel(eggnog7), bytes = file.size(eggnog7))
+    show_table(table %>% transmute(File = file, Size = fmt_bytes(bytes)), "Output of the eggNOG 7 search", "eggnog7_files", export = table, max_rows = 30)
+  }
+})
+```
+
+```{r diamond}
+section("Protein searches with DIAMOND", {
+  dbs <- names(ctx$features$databases$diamond_contig_protein)
+  summaries <- map_dfr(dbs, function(db) {
+    map_dfr(assemblies, function(a) {
+      file <- ca("diamond", db, paste0(a, ".out"))
+      if (!file.exists(file)) return(NULL)
+      lines <- readLines(file, warn = FALSE)
+      tibble(database = db, assembly_id = a, hits = length(lines), proteins = n_distinct(sub("\t.*$", "", lines)))
+    })
+  })
+  if (nrow(summaries) == 0) {
+    no_output("DIAMOND", "results/contig_annotate/diamond/")
+  } else {
+    show_table(
+      summaries %>% transmute(Database = database, Assembly = assembly_id, Hits = fmt_int(hits), `Proteins with a hit` = fmt_int(proteins)),
+      "DIAMOND hits of the predicted proteins",
+      "diamond_hits",
+      export = summaries,
+      max_rows = 40
+    )
+  }
+})
+```
+
+```{r hmmer}
+section("Hydrogenases with HMMER", {
+  if (nrow(hmmer) == 0) {
+    no_output("HMMER", "results/contig_annotate/hmmer/")
+  } else {
+    para("hmmsearch looks for hydrogenase profiles in the predicted proteins. The domain score threshold of each database comes from `config/params.yaml`. The table of a run also ",
+         "lists proteins whose domains missed the threshold, and so *over threshold* counts those with a full-sequence score at or above it.")
+    show_table(
+      hmmer %>% transmute(Database = database, Assembly = assembly_id, Threshold = fmt_num(threshold), `Lines in the table` = fmt_int(hits), `Over threshold` = fmt_int(proteins_over_threshold)),
+      "HMMER hits per database and assembly",
+      "hmmer_hits",
+      export = hmmer,
+      max_rows = 40
+    )
+  }
+})
+```
+
+```{r camper}
+section("Polyphenol metabolism with CAMPER", {
+  camper <- map_dfr(assemblies, function(a) {
+    file <- ca("camper", a, "annotations.tsv")
+    if (!file.exists(file)) return(NULL)
+    table <- read_table_quiet(file)
+    tibble(assembly_id = a, genes = nrow(table), with_hit = sum(!is.na(table$CAMPER_hits) & nzchar(table$CAMPER_hits)))
+  })
+  if (nrow(camper) == 0) {
+    no_output("CAMPER", "results/contig_annotate/camper/")
+  } else {
+    show_table(
+      camper %>% transmute(Assembly = assembly_id, Genes = fmt_int(genes), `With a hit` = fmt_int(with_hit)),
+      "Genes with a CAMPER hit per assembly",
+      "camper",
+      export = camper
+    )
+  }
+})
+```
+
+```{r ncyc}
+section("Nitrogen-cycle genes with NCycDB", {
+  file <- ca("ncyc", "ncyc_results.tsv")
+  if (!file.exists(file)) {
+    no_output("NCycProfiler", "results/contig_annotate/ncyc/ncyc_results.tsv")
+  } else {
+    lines <- readLines(file, warn = FALSE)
+    table <- read_tsv(I(paste(lines[!startsWith(lines, "#")], collapse = "\n")), show_col_types = FALSE)
+    write_tsv(table, file.path(ctx$tables, "ncyc.tsv"))
+    para("NCycProfiler compares the predicted proteins with NCycDB, and the first number of its file says that a random sample of ",
+         sub("^#random sampling: ", "", grep("^#random", lines, value = TRUE)[1]), " sequences per assembly was used.")
+    show_table(table, "Nitrogen-cycle genes per assembly", "ncyc_table", max_rows = 25)
+  }
+})
+```
+
+```{r methods}
+section("Methods text", {
+  para("You can use or adapt this text for a paper. It lists the tools with output in this project. Add database versions from the reference report.")
+  sentences <- c(
+    if (nrow(gene_summary) > 0) paste0("Genes were predicted on the contigs with ", tv("Prodigal"), " in metagenome mode."),
+    if (nrow(counts) > 0) paste0("Read pairs on genes were counted with ", tv("featureCounts"), "."),
+    if (nrow(eggnog) > 0) paste0("Proteins were annotated with ", tv("eggNOG-mapper"), "."),
+    if (length(Sys.glob(ca("diamond", "*", "*.out"))) > 0) paste0("Proteins were searched against ", paste(names(ctx$features$databases$diamond_contig_protein), collapse = ", "), " with ", tv("DIAMOND"), "."),
+    if (nrow(hmmer) > 0) paste0("Hydrogenases were identified with ", tv("HMMER"), " (hmmsearch) and the HydDB profiles, with score thresholds ", paste(paste0(hmmer_dbs, " ", map_chr(hmmer_dbs, ~ as.character(ctx$params$contig_annotate$hmmer$domt[[.x]] %||% "?"))), collapse = ", "), "."),
+    if (file.exists(ca("ncyc", "ncyc_results.tsv"))) "Nitrogen-cycle genes were counted with NCycProfiler and NCycDB."
+  )
+  if (length(sentences) > 0) para("> ", paste(sentences, collapse = " ")) else para("There is no output to describe yet.")
+})
+```
+
+```{r end}
+report_end(c(
+  prodigal = "Predicted genes and proteins", featurecounts = "Reads per gene", eggnog = "Annotations", eggnog7 = "Annotations, eggNOG 7",
+  diamond = "Protein hits", hmmer = "Hydrogenase search", camper = "Polyphenol genes", ncyc = "Nitrogen-cycle genes"
+))
 ```

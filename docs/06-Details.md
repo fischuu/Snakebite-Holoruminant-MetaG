@@ -133,6 +133,44 @@ https://zenodo.org/records/10522951
 
 # Reports and other output
 
+## Module reports
+
+Every module has a report, which you can use as a basis for a paper and to plan the next run. `Rreports/<module>.pdf`
+has, for its module:
+
+- **Results in brief**: the main numbers in sentences.
+- **Results of each tool**: tables and figures. The reads report has the number of samples, the reads per sample and
+  the quality summaries of FastQC. The preprocess report follows the reads through each step.
+- **Methods text**: a paragraph with the tools, versions and settings of this project, to adapt for a paper.
+- **How much data the module wrote, and where**: per folder and file type, and the largest files.
+- **Resources**: what each rule requested and what it used, and a suggestion for the next run. Requested values come from
+  Snakemake's logs in `.snakemake/log/`, and used values from the benchmark files. The lines to copy to
+  `config/escalation.yaml` are also in `Rreports/<module>/escalation_suggestions.yaml`.
+- **Tools, versions and references**.
+
+All tables are also in `Rreports/<module>/tables/` as TSV files with unrounded numbers, and all figures in
+`Rreports/<module>/figures/` as PDF and PNG.
+
+| Target | Report on |
+|--------|-----------|
+| `report_reads` | Samples, read numbers, read quality |
+| `report_reference` | Host genomes, the databases of the project |
+| `report_preprocess` | Trimming, host removal, what happened to the reads |
+| `report_read_annotate` | Taxonomy and function from the reads |
+| `report_assemble` | Assembly, binning, the genome catalogue |
+| `report_quantify` | Abundance of genomes and contigs |
+| `report_mag_annotate` | Quality, taxonomy and annotation of the genomes |
+| `report_contig_annotate` | Genes and annotation of the contigs |
+| `report_eukaryote` | Eukaryotic contigs and bins. This module is optional, so `all` and `report` don't include it |
+
+The rule `all` makes the first eight. A report asks for all results of its module, so calling it starts the module if it
+hasn't finished. A tool without output gets a sentence saying so, and a part of a report that fails says why in the
+PDF and in `Rreports/<module>/section_errors.txt`, so that a report doesn't stop a run at its end.
+
+The suggestions hold for data like that of the run: a test on a subset says little about the full data.
+
+The reports use the container `rocker/verse`, with the key `report` in `config/.docker.yml`.
+
 ## Benchmark
 
 There is a benchmark output in some (and hopefully soon in all) rules, that uses the snakemake `benchmark` directive, which in turn uses the `psutils` tool and that generates a tab-separated output file with the follwoing content regarding memory and time consumption as well as I/O pressure:

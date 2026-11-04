@@ -1,0 +1,212 @@
+---
+title: "Snakebite-Holoruminant-MetaG"
+subtitle: "Module report: eukaryote"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+geometry: margin=2cm
+fontsize: 10pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = "asis")
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"), local = knitr::knit_global())
+report_start("eukaryote")
+
+eu <- function(...) p("results", "eukaryote", ...)
+assemblies <- ctx$assemblies
+
+contig_lengths <- function(a) {
+  file <- assembly_fasta(a)
+  if (!file.exists(file)) return(tibble(contig = character(0), length = numeric(0)))
+  as_tibble(fasta_table(file)) %>% select(contig, length)
+}
+lengths <- setNames(map(assemblies, contig_lengths), assemblies)
+
+tiara <- map_dfr(assemblies, function(a) {
+  file <- eu("tiara", paste0(a, ".tsv"))
+  if (!file.exists(file)) return(NULL)
+  read_table_quiet(file) %>%
+    transmute(assembly_id = a, contig = sequence_id, class = class_fst_stage, second = class_snd_stage) %>%
+    left_join(lengths[[a]], by = "contig")
+})
+fourcac <- map_dfr(assemblies, function(a) {
+  file <- eu("4cac", paste0(a, ".tsv"))
+  if (!file.exists(file)) return(NULL)
+  read_table_quiet(file) %>%
+    transmute(assembly_id = a, contig = contig_id, class = class) %>%
+    left_join(lengths[[a]], by = "contig")
+})
+remag <- map_dfr(assemblies, function(a) {
+  file <- eu("remag", paste0(a, ".tsv"))
+  if (!file.exists(file)) return(NULL)
+  read_table_quiet(file) %>%
+    transmute(assembly_id = a, contig = contig_id, class = prediction, length, probability = eukaryote_prob)
+})
+remag_bins <- map_dfr(assemblies, function(a) {
+  folder <- eu("remag", a, "bins")
+  if (!dir.exists(folder)) return(NULL)
+  files <- list.files(folder, pattern = "\\.(fa|fasta)(\\.gz)?$", full.names = TRUE)
+  if (length(files) == 0) return(tibble(assembly_id = a, bin = NA_character_, contigs = NA_real_, length = NA_real_))
+  map_dfr(files, function(file) {
+    table <- fasta_table(file)
+    tibble(assembly_id = a, bin = basename(file), contigs = nrow(table), length = sum(as.numeric(table$length)))
+  })
+})
+
+class_summary <- function(table, tool) {
+  if (nrow(table) == 0) return(tibble())
+  table %>%
+    group_by(assembly_id, class) %>%
+    summarise(contigs = n(), bases = sum(as.numeric(length), na.rm = TRUE), .groups = "drop") %>%
+    group_by(assembly_id) %>%
+    mutate(contigs_pct = 100 * contigs / sum(contigs), bases_pct = 100 * bases / sum(bases)) %>%
+    ungroup() %>%
+    mutate(tool = tool)
+}
+is_eukaryotic <- function(class) grepl("euk", class, ignore.case = TRUE)
+```
+
+```{r brief}
+section("Results in brief", {
+  para("This module asks which contigs of an assembly come from eukaryotes such as fungi and protists. These are easily missed, because prokaryote tools don't recognize them. The ",
+       "tools differ in their method, so where they agree a result is more reliable.")
+  describe <- function(table, name) {
+    if (nrow(table) == 0) return(NULL)
+    euk <- filter(table, is_eukaryotic(class))
+    paste0("**", name, "** classified ", fmt_int(nrow(table)), " contigs, ", fmt_int(nrow(euk)), " of them (", fmt_pct(100 * nrow(euk) / nrow(table)), ") as eukaryotic, with ",
+           fmt_bp(sum(as.numeric(euk$length), na.rm = TRUE)), " of sequence.")
+  }
+  sentences <- c(describe(tiara, "Tiara"), describe(fourcac, "4CAC"), describe(remag, "REMAG"))
+  if (length(sentences) == 0) {
+    para("No output of this module was found. The module isn't part of the rule `all`, so run it with the target `eukaryote` or one of its tools.")
+  } else {
+    bullets(sentences)
+  }
+  if (nrow(remag_bins) > 0) {
+    found <- filter(remag_bins, !is.na(bin))
+    para("REMAG made **", nrow(found), " eukaryotic bins**", if (nrow(found) > 0) paste0(", with ", fmt_bp(sum(found$length)), " of sequence") else "", ".")
+  }
+})
+```
+
+```{r tiara}
+tool_section <- function(table, tool, intro, file_part) {
+  if (nrow(table) == 0) {
+    no_output(tool, paste0("results/eukaryote/", file_part, "/"))
+    return(invisible(NULL))
+  }
+  para(intro)
+  summary <- class_summary(table, tool)
+  show_table(
+    summary %>% transmute(Assembly = assembly_id, Class = class, Contigs = fmt_int(contigs), `Contigs %` = fmt_pct(contigs_pct), Length = fmt_bp(bases), `Length %` = fmt_pct(bases_pct)),
+    paste0("Contigs and bases per class from ", tool),
+    paste0(tolower(file_part), "_classes"),
+    export = summary,
+    max_rows = 40
+  )
+  levels_class <- names(sort(tapply(summary$bases, summary$class, sum), decreasing = TRUE))
+  show_figure(
+    summary %>%
+      mutate(class = factor(class, levels = rev(levels_class))) %>%
+      ggplot(aes(bases_pct, assembly_id, fill = class)) +
+      geom_col() +
+      scale_fill_manual(values = setNames(rep_len(PALETTE, length(levels_class)), levels_class), name = NULL, guide = guide_legend(reverse = TRUE)) +
+      labs(x = "Share of the classified bases (%)", y = NULL) +
+      theme_report(),
+    paste0(tolower(file_part), "_classes"),
+    paste0("Share of the classified bases per class from ", tool, ", per assembly."),
+    height = rows_height(n_distinct(summary$assembly_id), 0.3, 1.3)
+  )
+  invisible(NULL)
+}
+
+section("Classification with Tiara", {
+  tool_section(
+    tiara, "Tiara",
+    paste0(
+      "Tiara classifies each contig by deep learning on its k-mers. Its first stage says archaea, bacteria, prokarya (a prokaryote of neither group), eukarya, organelle or unknown, and its second stage tells organelles apart. Contigs shorter than ",
+      ctx$params$eukaryote$tiara$min_len %||% "?", " bp aren't classified, and so don't appear here. Short contigs carry little signal, so check the eukaryotic contigs before publishing them."
+    ),
+    "tiara"
+  )
+  if (nrow(tiara) > 0) {
+    table <- filter(tiara, !is.na(second), second != "n/a") %>% count(assembly_id, class, second)
+    if (nrow(table) > 0) {
+      show_table(rename(table, Assembly = assembly_id, `First stage` = class, `Second stage` = second, Contigs = n), "Second stage of Tiara", "tiara_second_stage")
+    }
+  }
+})
+```
+
+```{r fourcac}
+section("Classification with 4CAC", {
+  tool_section(
+    fourcac, "4CAC",
+    "4CAC combines machine learning on the sequence with the assembly graph: neighboring contigs in the graph often belong to the same element. It knows prokaryotes, eukaryotes, plasmids and viruses. It needs a graph, so it only runs on metaSPAdes assemblies.",
+    "4cac"
+  )
+})
+```
+
+```{r remag}
+section("Classification and binning with REMAG", {
+  tool_section(
+    remag, "REMAG",
+    "REMAG first filters contigs with its classifier for eukaryotic sequences, and then bins the eukaryotic ones.",
+    "remag"
+  )
+  if (nrow(remag_bins) > 0) {
+    found <- filter(remag_bins, !is.na(bin))
+    if (nrow(found) == 0) {
+      para("REMAG found too little eukaryotic sequence for a bin in any assembly. It needs at least ", fmt_bp(as.numeric(ctx$params$eukaryote$remag$min_bin_size %||% NA)), ".")
+    } else {
+      show_table(
+        found %>% arrange(desc(length)) %>% transmute(Assembly = assembly_id, Bin = bin, Contigs = fmt_int(contigs), Length = fmt_bp(length)),
+        "Eukaryotic bins from REMAG. Check them with a tool for eukaryotes, such as EukCC or BUSCO, before calling them genomes",
+        "remag_bins",
+        export = found,
+        max_rows = 40
+      )
+    }
+  }
+})
+```
+
+```{r agreement}
+section("Where the tools agree", {
+  pairs <- list(list("Tiara", tiara, "4CAC", fourcac), list("Tiara", tiara, "REMAG", remag), list("4CAC", fourcac, "REMAG", remag))
+  shown <- FALSE
+  for (pair in pairs) {
+    a <- pair[[2]]
+    b <- pair[[4]]
+    if (nrow(a) == 0 || nrow(b) == 0) next
+    joined <- inner_join(select(a, assembly_id, contig, first = class), select(b, assembly_id, contig, second = class), by = c("assembly_id", "contig"))
+    if (nrow(joined) == 0) next
+    table <- joined %>%
+      mutate(first = ifelse(is_eukaryotic(first), "eukaryotic", "other"), second = ifelse(is_eukaryotic(second), "eukaryotic", "other")) %>%
+      count(first, second)
+    both <- sum(table$n[table$first == "eukaryotic" & table$second == "eukaryotic"])
+    either <- sum(table$n[table$first == "eukaryotic" | table$second == "eukaryotic"])
+    para("**", pair[[1]], " and ", pair[[3]], ":** ", fmt_int(both), " contigs are eukaryotic in both, of ", fmt_int(either), " that are eukaryotic in at least one, over ", fmt_int(nrow(joined)), " contigs that both tools classified.")
+    write_tsv(table, file.path(ctx$tables, paste0("agreement_", tolower(pair[[1]]), "_", tolower(pair[[3]]), ".tsv")))
+    shown <- TRUE
+  }
+  if (!shown) para("Only one of the tools has output, so there is nothing to compare.")
+})
+```
+
+```{r methods}
+section("Methods text", {
+  para("You can use or adapt this text for a paper. It lists the tools with output in this project.")
+  s <- ctx$params$eukaryote
+  sentences <- c(
+    if (nrow(tiara) > 0) paste0("Contigs of at least ", s$tiara$min_len %||% "?", " bp were classified with ", tv("Tiara"), " (probability cutoffs ", paste(unlist(s$tiara$prob_cutoff), collapse = " and "), ")."),
+    if (nrow(fourcac) > 0) paste0("Contigs were also classified with 4CAC, using the metaSPAdes assembly graph (phage cutoff ", s$`4cac`$phage %||% "?", ", plasmid cutoff ", s$`4cac`$plasmid %||% "?", ")."),
+    if (nrow(remag) > 0) paste0("Eukaryotic contigs were filtered and binned with ", tv("REMAG"), " (minimum contig length ", s$remag$min_contig_length %||% "?", " bp, minimum bin size ", s$remag$min_bin_size %||% "?", " bp).")
+  )
+  if (length(sentences) > 0) para("> ", paste(sentences, collapse = " ")) else para("There is no output to describe yet.")
+})
+```
+
+```{r end}
+report_end(c(tiara = "Class of each contig", `4cac` = "Class of each contig", remag = "Class of each contig, bins"))
+```

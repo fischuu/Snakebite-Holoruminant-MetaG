@@ -1,123 +1,298 @@
 ---
-title: "Snakebite - Holoruminant - MetaG"
-subtitle: "mag_annotate module - report"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    fig_caption: true
+title: "Snakebite-Holoruminant-MetaG"
+subtitle: "Module report: mag_annotate"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+geometry: margin=2cm
+fontsize: 10pt
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                       fig.align = "center", fig.width = 7, fig.height = 4)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = "asis")
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"), local = knitr::knit_global())
+report_start("mag_annotate")
 
-if (!exists("project_folder")) {
-  project_folder <- getwd()
-  pipeline_folder <- getwd()
-  features_file <- "config/features.yaml"
-  sample_file <- "config/samples.tsv"
-}
+ma <- function(...) p("results", "mag_annotate", ...)
+read_if <- function(path, ...) if (file.exists(path)) read_table_quiet(path, ...) else NULL
 
-source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
-ma_dir <- file.path(project_folder, "results", "mag_annotate")
-```
+checkm2 <- read_if(ma("checkm2", "quality_report.tsv"))
+gtdbtk <- read_if(ma("gtdbtk", "gtdbtk.summary.tsv"))
+quast <- read_if(ma("quast", "report.tsv"))
+dram_stats <- read_if(ma("dram", "genome_stats.tsv"))
 
-# Genome quality (CheckM2)
-
-```{r checkm2-summary, results='asis'}
-checkm2_df <- safe_read_tsv(file.path(ma_dir, "checkm2", "quality_report.tsv"))
-
-if (nrow(checkm2_df) == 0) {
-  cat("_No CheckM2 output found yet._\n")
-} else {
-  n_hq <- sum(checkm2_df$Completeness >= 90 & checkm2_df$Contamination <= 5, na.rm = TRUE)
-  cat(sprintf(
-    "**%d** genomes assessed; mean completeness **%.1f%%**, mean contamination **%.1f%%**; **%d** meet the >=90%% complete / <=5%% contaminated (MIMAG high-quality draft) threshold.\n\n",
-    nrow(checkm2_df), mean(checkm2_df$Completeness, na.rm = TRUE),
-    mean(checkm2_df$Contamination, na.rm = TRUE), n_hq
-  ))
-  preview_table(
-    checkm2_df[, intersect(c("Name", "Completeness", "Contamination", "Genome_Size", "GC_Content"), colnames(checkm2_df))],
-    n = nrow(checkm2_df), caption = "CheckM2 quality per genome"
+# MIMAG needs rRNA and tRNA genes for "high quality", and only DRAM's table has those
+mimag_class <- function(completeness, contamination) {
+  case_when(
+    completeness >= 90 & contamination < 5 ~ "High",
+    completeness >= 50 & contamination < 10 ~ "Medium",
+    TRUE ~ "Low"
   )
 }
-```
+genomes <- if (!is.null(checkm2)) {
+  table <- checkm2 %>%
+    mutate(genome = sub("\\.fa(\\.gz)?$", "", Name), quality = mimag_class(Completeness, Contamination))
+  if (!is.null(gtdbtk)) {
+    taxonomy <- gtdbtk %>%
+      transmute(genome = sub("\\.fa(\\.gz)?$", "", user_genome), classification)
+    table <- left_join(table, taxonomy, by = "genome")
+  }
+  table
+} else {
+  tibble()
+}
 
-```{r checkm2-plot, fig.height=4}
-if (nrow(checkm2_df) > 0) {
-  ggplot(checkm2_df, aes(x = Contamination, y = Completeness)) +
-    geom_point(colour = "#00B5E2", size = 2) +
-    geom_hline(yintercept = 90, linetype = "dashed", colour = "grey50") +
-    geom_vline(xintercept = 5, linetype = "dashed", colour = "grey50") +
-    labs(title = "Genome quality (dashed lines = MIMAG high-quality draft threshold)",
-         x = "Contamination (%)", y = "Completeness (%)") +
-    theme_minimal(base_size = 11)
+rank_of <- function(classification, prefix) {
+  pattern <- paste0("(^|;)", prefix, "__[^;]*")
+  found <- regmatches(classification, regexpr(pattern, classification))
+  value <- rep(NA_character_, length(classification))
+  value[grepl(pattern, classification)] <- sub(paste0("^;?", prefix, "__"), "", found)
+  value
 }
 ```
 
-# Taxonomic classification (GTDB-Tk)
-
-```{r gtdbtk-summary}
-gtdbtk_df <- safe_read_tsv(file.path(ma_dir, "gtdbtk", "gtdbtk.summary.tsv"))
-
-if (nrow(gtdbtk_df) == 0) {
-  cat("_No GTDB-Tk output found yet._\n")
-} else {
-  gtdbtk_df$phylum <- sub(".*p__([^;]*);.*", "\\1", gtdbtk_df$classification)
-  preview_table(
-    gtdbtk_df[, intersect(c("user_genome", "classification"), colnames(gtdbtk_df))],
-    n = nrow(gtdbtk_df), caption = "GTDB-Tk taxonomy per genome"
+```{r brief}
+section("Results in brief", {
+  sentences <- c(
+    if (nrow(genomes) > 0) {
+      counts <- table(factor(genomes$quality, levels = c("High", "Medium", "Low")))
+      paste0("**", nrow(genomes), " genomes** were assessed with CheckM2: ", counts[["High"]], " high, ", counts[["Medium"]], " medium and ", counts[["Low"]],
+             " low quality by completeness and contamination. Mean completeness is ", fmt_pct(mean(genomes$Completeness)), ", mean contamination ", fmt_pct(mean(genomes$Contamination)), ".")
+    },
+    if (!is.null(gtdbtk)) {
+      phyla <- rank_of(gtdbtk$classification, "p")
+      species <- rank_of(gtdbtk$classification, "s")
+      paste0("GTDB-Tk placed the genomes in ", n_distinct(phyla[!is.na(phyla) & nzchar(phyla)]), " phyla, and ", sum(is.na(species) | !nzchar(species)), " of ", nrow(gtdbtk),
+             " have no species in GTDB, so they may be new species.")
+    },
+    if (!is.null(quast)) {
+      paste0("QUAST described the catalogue: ", paste(quast[[1]][quast[[1]] %in% c("N50", "Total length")], fmt_int(as.numeric(quast[[2]][quast[[1]] %in% c("N50", "Total length")])), sep = " ", collapse = ", "), ".")
+    }
   )
-}
+  if (length(sentences) > 0) bullets(sentences) else para("No genome annotation results were found yet.")
+})
 ```
 
-```{r gtdbtk-plot, fig.height=4}
-if (nrow(gtdbtk_df) > 0) {
-  phylum_counts <- gtdbtk_df %>% count(phylum, sort = TRUE)
-  ggplot(phylum_counts, aes(x = reorder(phylum, n), y = n)) +
-    geom_col(fill = "#78BE20") +
-    coord_flip() +
-    labs(title = "Genomes per phylum", x = NULL, y = "Number of genomes") +
-    theme_minimal(base_size = 11)
-}
+```{r checkm2}
+section("Genome quality with CheckM2", {
+  if (nrow(genomes) == 0) {
+    no_output("CheckM2", "results/mag_annotate/checkm2/quality_report.tsv")
+  } else {
+    para(
+      "CheckM2 estimates completeness and contamination by machine learning from gene content. The classes here follow the MIMAG standard (Bowers et al. 2017) for those two values only: ",
+      "**High** is at least 90% complete with less than 5% contamination, **Medium** at least 50% with less than 10%, and **Low** is the rest. MIMAG's high-quality class also requires ",
+      "rRNA and tRNA genes, and the DRAM section below has those."
+    )
+    show_table(
+      genomes %>% arrange(desc(Completeness - 5 * Contamination)) %>% transmute(
+        Genome = genome, Class = quality, Completeness = fmt_num(Completeness), Contamination = fmt_num(Contamination), Size = fmt_bp(Genome_Size),
+        N50 = fmt_int(Contig_N50), GC = fmt_num(100 * GC_Content), Genes = fmt_int(Total_Coding_Sequences)
+      ),
+      "Quality of the genomes, the best first",
+      "genome_quality",
+      export = genomes,
+      max_rows = 40
+    )
+    show_figure(
+      ggplot(genomes, aes(Contamination, Completeness, colour = quality, size = Genome_Size / 1e6)) +
+        annotate("rect", xmin = -Inf, xmax = 5, ymin = 90, ymax = Inf, fill = "#009E73", alpha = 0.08) +
+        geom_point(alpha = 0.8) +
+        scale_colour_manual(values = c(High = "#009E73", Medium = "#E69F00", Low = "#D55E00"), name = NULL) +
+        scale_size_continuous(name = "Size (Mb)", range = c(0.8, 4)) +
+        labs(x = "Contamination (%)", y = "Completeness (%)") +
+        theme_report(),
+      "genome_quality",
+      "Completeness and contamination of each genome. The shaded area holds high-quality genomes.",
+      height = 3.6
+    )
+    show_figure(
+      ggplot(genomes, aes(Genome_Size / 1e6, fill = quality)) +
+        geom_histogram(bins = 30) +
+        scale_fill_manual(values = c(High = "#009E73", Medium = "#E69F00", Low = "#D55E00"), name = NULL) +
+        labs(x = "Genome size (Mb)", y = "Genomes") +
+        theme_report(),
+      "genome_sizes",
+      "Size of the genomes. Incomplete genomes are shorter than the organism's real genome.",
+      height = 2.6
+    )
+  }
+})
 ```
 
-# Assembly quality (QUAST)
-
-```{r quast-summary}
-quast_report <- file.path(ma_dir, "quast", "report.tsv")
-if (file.exists(quast_report)) {
-  preview_table(safe_read_tsv(quast_report), n = 30, caption = "QUAST assembly statistics")
-} else {
-  cat("_No QUAST report found yet._\n")
-}
+```{r gtdbtk}
+section("Taxonomy with GTDB-Tk", {
+  if (is.null(gtdbtk)) {
+    no_output("GTDB-Tk", "results/mag_annotate/gtdbtk/gtdbtk.summary.tsv")
+  } else {
+    table <- gtdbtk %>%
+      transmute(
+        genome = user_genome, classification,
+        domain = rank_of(classification, "d"), phylum = rank_of(classification, "p"), class = rank_of(classification, "c"),
+        order = rank_of(classification, "o"), family = rank_of(classification, "f"), genus = rank_of(classification, "g"), species = rank_of(classification, "s"),
+        ani = if ("closest_genome_ani" %in% names(gtdbtk)) closest_genome_ani else if ("closest_placement_ani" %in% names(gtdbtk)) closest_placement_ani else NA
+      )
+    write_tsv(table, file.path(ctx$tables, "taxonomy.tsv"), na = "")
+    para("GTDB-Tk places each genome in the GTDB tree. A genome with an empty species has no close relative in GTDB, which often means a new species. An empty genus is rarer, and points further.")
+    levels_table <- tibble(
+      Rank = c("Phylum", "Class", "Order", "Family", "Genus", "Species"),
+      `Distinct taxa` = map_int(list(table$phylum, table$class, table$order, table$family, table$genus, table$species), ~ n_distinct(.x[!is.na(.x) & nzchar(.x)])),
+      `Genomes without a name` = map_int(list(table$phylum, table$class, table$order, table$family, table$genus, table$species), ~ sum(is.na(.x) | !nzchar(.x)))
+    )
+    show_table(levels_table, "Taxa among the genomes, per rank", "taxa_per_rank")
+    phyla <- table %>% count(phylum, sort = TRUE) %>% mutate(phylum = ifelse(is.na(phylum) | !nzchar(phylum), "(no name)", phylum))
+    show_figure(
+      phyla %>% head(25) %>% mutate(phylum = reorder(phylum, n)) %>%
+        ggplot(aes(n, phylum)) +
+        geom_col(fill = PALETTE[[3]]) +
+        labs(x = "Genomes", y = NULL) +
+        theme_report(),
+      "genomes_per_phylum",
+      "Genomes per phylum, from GTDB-Tk.",
+      height = rows_height(min(nrow(phyla), 25), 0.2, 1)
+    )
+    show_table(
+      table %>% count(phylum, family, genus, sort = TRUE) %>% transmute(Phylum = phylum, Family = family, Genus = genus, Genomes = n),
+      "The most frequent genera among the genomes",
+      "genera",
+      max_rows = 20
+    )
+  }
+})
 ```
 
-# Other MAG annotation tools
-
-```{r other-tools, results='asis'}
-generic_tool_section(project_folder, "mag_annotate", "dram/genome_stats.tsv", "DRAM (dereplicated genome catalogue)")
-generic_tool_section(project_folder, "mag_annotate", "dram_mag/*/genome_stats.tsv", "DRAM (per-assembly MAGs)")
-generic_tool_section(project_folder, "mag_annotate", "bakta/bakta.tsv", "Bakta (dereplicated genome catalogue)")
-generic_tool_section(project_folder, "mag_annotate", "camper/annotations.tsv", "CAMPER")
-generic_tool_section(project_folder, "mag_annotate", "proteinortho/*.tsv", "Proteinortho")
+```{r quast}
+section("Catalogue statistics with QUAST", {
+  if (is.null(quast)) {
+    no_output("QUAST", "results/mag_annotate/quast/report.tsv")
+  } else {
+    names(quast)[1] <- "Measure"
+    show_table(quast, "QUAST statistics of the genome catalogue, all genomes as one assembly", "quast", max_rows = 40,
+               note = "These numbers describe the catalogue as a whole, and CheckM2's table above has N50 and size per genome.")
+  }
+})
 ```
 
-# Runtime statistics
-
-```{r mag-annotate-runtime}
-bench <- discover_benchmarks(project_folder, "mag_annotate")
-runtime_table(bench, caption = "mag_annotate module: runtime and peak memory per rule")
+```{r dram}
+section("Metabolism with DRAM", {
+  if (is.null(dram_stats)) {
+    no_output("DRAM", "results/mag_annotate/dram/genome_stats.tsv")
+  } else {
+    para("DRAM annotates genes against several databases and summarizes them as metabolic functions. `results/mag_annotate/dram/product.html` is its interactive heat map, and ",
+         "`metabolism_summary.xlsx` has all genes behind it.")
+    show_table(dram_stats, "Genome statistics from DRAM, with rRNA and tRNA genes for MIMAG's high-quality class", "dram_genome_stats", max_rows = 30)
+    product <- read_if(ma("dram", "product.tsv"))
+    if (!is.null(product)) {
+      write_tsv(product, file.path(ctx$tables, "dram_product.tsv"))
+      numeric_columns <- names(product)[map_lgl(product, ~ is.numeric(.x) || is.logical(.x))]
+      if (length(numeric_columns) > 0 && nrow(product) > 0) {
+        per_function <- product %>%
+          mutate(across(all_of(numeric_columns), as.numeric)) %>%
+          summarise(across(all_of(numeric_columns), ~ mean(.x, na.rm = TRUE))) %>%
+          pivot_longer(everything(), names_to = "Function", values_to = "mean") %>%
+          arrange(desc(mean))
+        show_table(
+          per_function %>% transmute(Function = Function, `Mean over genomes` = fmt_num(mean, 2)),
+          "Functions with the highest mean score over all genomes, from DRAM's product table",
+          "dram_functions",
+          export = per_function,
+          max_rows = 25
+        )
+      }
+    }
+  }
+})
 ```
 
-```{r mag-annotate-resource-allocation}
-resource_allocation_table(bench, "mag_annotate", project_folder,
-                          caption = "mag_annotate module: allocated vs. actual resource usage (starting tier)")
+```{r bakta}
+section("Genome annotation with Bakta", {
+  file <- ma("bakta", "bakta.tsv")
+  if (!file.exists(file)) {
+    no_output("Bakta", "results/mag_annotate/bakta/bakta.tsv")
+  } else {
+    lines <- readLines(file, warn = FALSE)
+    header <- grep("^#Sequence Id", lines)[1]
+    rows <- lines[(header + 1):length(lines)]
+    table <- read_tsv(I(paste(c(sub("^#", "", lines[header]), rows), collapse = "\n")), show_col_types = FALSE)
+    by_type <- count(table, Type, sort = TRUE)
+    para("Bakta annotates the catalogue with a curated database of bacterial genes. The per-genome tables are in `results/mag_annotate/bakta_mags/`.")
+    show_table(by_type %>% transmute(`Feature type` = Type, Features = fmt_int(n)), "Features that Bakta found in the catalogue", "bakta_features", export = by_type)
+    products <- table %>% filter(Type == "cds") %>% mutate(hypothetical = grepl("hypothetical", Product, ignore.case = TRUE))
+    if (nrow(products) > 0) {
+      para(fmt_pct(100 * mean(products$hypothetical)), " of the coding sequences are hypothetical proteins, without a known function.")
+    }
+  }
+})
 ```
 
-```{r mag-annotate-runtime-plot, fig.height=6}
-runtime_plot(bench, title = "mag_annotate module: total runtime per rule")
+```{r others}
+section("Other annotations", {
+  camper <- read_if(ma("camper", "annotations.tsv"))
+  if (is.null(camper)) {
+    no_output("CAMPER", "results/mag_annotate/camper/annotations.tsv")
+  } else {
+    hits <- camper %>% filter(!is.na(CAMPER_hits), nzchar(CAMPER_hits))
+    para("**CAMPER** (polyphenol metabolism): ", fmt_int(nrow(hits)), " of ", fmt_int(nrow(camper)), " genes have a hit.")
+    if (nrow(hits) > 0 && "CAMPER_definition" %in% names(hits)) {
+      show_table(count(hits, CAMPER_definition, sort = TRUE) %>% transmute(Definition = CAMPER_definition, Genes = fmt_int(n)), "The most frequent CAMPER functions", "camper_functions", max_rows = 15)
+    }
+  }
+  ortho <- ma("proteinortho", "proteinortho.proteinortho.tsv")
+  if (!file.exists(ortho)) {
+    no_output("Proteinortho", "results/mag_annotate/proteinortho/")
+  } else {
+    table <- read_tsv(ortho, show_col_types = FALSE)
+    names(table)[1] <- "species"
+    per_size <- count(table, species)
+    para("**Proteinortho** found ", fmt_int(nrow(table)), " groups of orthologous proteins among the genomes.")
+    show_figure(
+      ggplot(per_size, aes(species, n)) +
+        geom_col(fill = PALETTE[[1]]) +
+        labs(x = "Genomes in the group", y = "Groups of orthologs") +
+        theme_report(),
+      "orthogroups",
+      "Groups of orthologous proteins by the number of genomes in them. Groups in all genomes are the core genome.",
+      height = 2.8
+    )
+    write_tsv(per_size, file.path(ctx$tables, "orthogroups_per_size.tsv"))
+  }
+  eggnog <- Sys.glob(ma("eggnog", "*"))
+  if (length(eggnog) == 0) {
+    no_output("eggNOG-mapper", "results/mag_annotate/eggnog/")
+  } else {
+    seeds <- grep("seed_orthologs$", eggnog, value = TRUE)
+    if (length(seeds) > 0) {
+      n <- sum(map_int(seeds, ~ sum(!startsWith(readLines(.x, warn = FALSE), "#"))))
+      para("**eggNOG-mapper** found homologs for ", fmt_int(n), " proteins. This rule only searches for homologs, so there are no functional classes here.")
+    }
+  }
+  sgb <- ma("phylophlan", "SGB", "SGB.tsv")
+  if (!file.exists(sgb)) {
+    no_output("PhyloPhlAn", "results/mag_annotate/phylophlan/")
+  } else {
+    para("**PhyloPhlAn** results are in `results/mag_annotate/phylophlan/SGB/SGB.tsv`, with ", fmt_int(length(readLines(sgb, warn = FALSE)) - 1), " lines.")
+  }
+})
+```
+
+```{r methods}
+section("Methods text", {
+  para("You can use or adapt this text for a paper. It lists the tools with output in this project. Add database versions from the reference report.")
+  f <- ctx$features$databases
+  sentences <- c(
+    if (nrow(genomes) > 0) paste0("Completeness and contamination were estimated with ", tv("CheckM2"), ", and genomes were classed following the MIMAG standard."),
+    if (!is.null(gtdbtk)) paste0("Taxonomy was assigned with ", tv("GTDB-Tk"), " and ", basename(as.character(f$gtdbtk %||% "?")), "."),
+    if (!is.null(quast)) paste0("Statistics of the catalogue were computed with ", tv("QUAST"), "."),
+    if (!is.null(dram_stats)) paste0("Genes were annotated and metabolism summarized with ", tv("DRAM"), "."),
+    if (file.exists(ma("bakta", "bakta.tsv"))) paste0("Genomes were annotated with ", tv("Bakta"), "."),
+    if (file.exists(ma("camper", "annotations.tsv"))) paste0("Polyphenol metabolism genes were identified with ", tv("CAMPER"), "."),
+    if (file.exists(ma("proteinortho", "proteinortho.proteinortho.tsv"))) paste0("Orthologous groups were computed with ", tv("Proteinortho"), ".")
+  )
+  if (length(sentences) > 0) para("> ", paste(sentences, collapse = " ")) else para("There is no output to describe yet.")
+})
+```
+
+```{r end}
+report_end(c(
+  checkm2 = "Quality estimates", gtdbtk = "Taxonomy", quast = "Statistics of the catalogue", dram = "Annotation and metabolism",
+  dram_mags = "DRAM per assembly", bakta = "Annotation of the catalogue", bakta_mags = "Annotation per assembly", camper = "Polyphenol genes",
+  eggnog = "Orthology search", phylophlan = "Phylogenetic placement", proteinortho = "Groups of orthologs"
+))
 ```

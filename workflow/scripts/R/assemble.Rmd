@@ -1,87 +1,341 @@
 ---
-title: "Snakebite - Holoruminant - MetaG"
-subtitle: "assemble module - report"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    fig_caption: true
+title: "Snakebite-Holoruminant-MetaG"
+subtitle: "Module report: assemble"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+geometry: margin=2cm
+fontsize: 10pt
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                       fig.align = "center", fig.width = 7, fig.height = 4)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = "asis")
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"), local = knitr::knit_global())
+report_start("assemble")
 
-if (!exists("project_folder")) {
-  project_folder <- getwd()
-  pipeline_folder <- getwd()
-  features_file <- "config/features.yaml"
-  sample_file <- "config/samples.tsv"
-}
+as_dir <- function(...) p("results", "assemble", ...)
+assembler <- ctx$config$assembler %||% "metaspades"
+assemblies <- ctx$assemblies
 
-source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
-samples <- read.delim(file.path(project_folder, sample_file), comment.char = "#")
-assembly_ids <- unique(unlist(strsplit(samples$assembly_ids, ",\\s*")))
-assemble_dir <- file.path(project_folder, "results", "assemble")
+contigs <- setNames(map(assemblies, function(a) {
+  file <- assembly_fasta(a)
+  if (file.exists(file)) fasta_table(file) else NULL
+}), assemblies)
+contigs <- compact(contigs)
 
-count_bins <- function(dir) {
-  if (!dir.exists(dir)) return(NA_integer_)
-  length(Sys.glob(file.path(dir, "*.fa.gz")))
-}
-```
+assembly_stats <- map_dfr(names(contigs), function(a) {
+  table <- contigs[[a]]
+  bind_cols(tibble(assembly_id = a, gc_pct = 100 * sum(as.numeric(table$gc)) / sum(as.numeric(table$length))), length_stats(table$length))
+})
 
-# Assembly and binning summary
-
-One row per assembly: number of bins produced by each binner, and the number
-of refined bins MAGScoT kept after combining them.
-
-```{r binning-summary}
-binning_df <- purrr::map_dfr(assembly_ids, function(a) {
-  magscot_refined <- file.path(assemble_dir, "magscot", a, "magscot.refined.contig_to_bin.out")
-  n_refined <- if (file.exists(magscot_refined) && file.size(magscot_refined) > 0) {
-    length(unique(read.delim(magscot_refined, header = FALSE)[[1]]))
-  } else {
-    0L
-  }
-  tibble::tibble(
-    assembly_id = a,
-    concoct_bins = count_bins(file.path(assemble_dir, "concoct", a)),
-    maxbin2_bins = count_bins(file.path(assemble_dir, "maxbin2", a)),
-    metabat2_bins = count_bins(file.path(assemble_dir, "metabat2", a)),
-    magscot_refined_bins = n_refined
+# Mapping back: bowtie2 writes its summary to the log of each mapping
+mapping <- map_dfr(seq_len(nrow(assembly_members())), function(i) {
+  row <- assembly_members()[i, ]
+  file <- as_dir("bowtie2", paste0(row$assembly_id, ".", row$library, ".log"))
+  if (!file.exists(file)) return(NULL)
+  lines <- readLines(file, warn = FALSE)
+  rate <- grep("overall alignment rate", lines, value = TRUE)
+  pairs <- grep("reads; of these:", lines, value = TRUE)
+  concordant <- grep("aligned concordantly exactly 1 time|aligned concordantly >1 times", lines[seq_len(min(20, length(lines)))], value = TRUE)
+  tibble(
+    assembly_id = row$assembly_id,
+    library = row$library,
+    pairs = if (length(pairs)) as.numeric(sub(" reads.*", "", trimws(pairs[[1]]))) else NA_real_,
+    overall_pct = if (length(rate)) as.numeric(sub("%.*", "", rate[[1]])) else NA_real_
   )
 })
-preview_table(binning_df, n = nrow(binning_df), caption = "Bins per assembly, by binner")
+
+count_bins <- function(binner, assembly) {
+  folder <- as_dir(binner, assembly)
+  if (!dir.exists(folder)) return(NA_integer_)
+  length(list.files(folder, pattern = "\\.fa(\\.gz)?$"))
+}
+binning <- map_dfr(assemblies, function(a) {
+  refined_file <- as_dir("magscot", a, "magscot.refined.contig_to_bin.out")
+  refined <- if (file.exists(refined_file)) read_table_quiet(refined_file) else NULL
+  bp <- if (!is.null(refined) && a %in% names(contigs)) {
+    sum(as.numeric(contigs[[a]]$length[contigs[[a]]$contig %in% refined$contig]))
+  } else {
+    NA_real_
+  }
+  tibble(
+    assembly_id = a,
+    metabat2 = count_bins("metabat2", a),
+    maxbin2 = count_bins("maxbin2", a),
+    concoct = count_bins("concoct", a),
+    magscot = if (is.null(refined)) NA_integer_ else n_distinct(refined$binnew),
+    binned_bp = bp,
+    binned_pct = if (a %in% names(contigs)) 100 * bp / sum(as.numeric(contigs[[a]]$length)) else NA_real_
+  )
+})
+
+magscot_bins <- map_dfr(assemblies, function(a) {
+  file <- as_dir("magscot", a, "magscot.refined.out")
+  if (!file.exists(file)) return(NULL)
+  mutate(read_table_quiet(file), assembly_id = a)
+})
+
+# dRep keeps its tables in an archive
+drep_tables <- list()
+archive <- as_dir("drep", "data_tables.tar.gz")
+if (file.exists(archive)) {
+  folder <- tempfile("drep")
+  dir.create(folder)
+  untar(archive, exdir = folder)
+  for (name in c("genomeInformation", "Cdb", "Wdb", "Widb")) {
+    file <- file.path(folder, "data_tables", paste0(name, ".csv"))
+    if (file.exists(file)) drep_tables[[name]] <- read_csv(file, show_col_types = FALSE)
+  }
+  unlink(folder, recursive = TRUE)
+}
+n_before <- length(list.files(as_dir("drep", "separated_bins"), pattern = "\\.fa"))
+n_after <- length(list.files(as_dir("drep", "dereplicated_genomes"), pattern = "\\.fa"))
+catalogue_fai <- as_dir("drep", "dereplicated_genomes.fa.gz.fai")
+catalogue <- if (file.exists(catalogue_fai)) read.delim(catalogue_fai, header = FALSE, quote = "", comment.char = "")[[2]] else NULL
 ```
 
-# Dereplication (dRep)
+```{r brief}
+section("Results in brief", {
+  if (nrow(assembly_stats) == 0) {
+    no_output("the assembler", paste0("results/assemble/", assembler, "/"))
+  } else {
+    para(
+      "**", nrow(assembly_stats), " assemblies** with ", assembler, " hold ", fmt_int(sum(assembly_stats$contigs)), " contigs and ",
+      fmt_bp(sum(assembly_stats$total_bp)), " in total. N50 ranges from ", fmt_int(min(assembly_stats$N50)), " to ", fmt_int(max(assembly_stats$N50)), " bp, and the longest contig has ",
+      fmt_int(max(assembly_stats$longest)), " bp."
+    )
+    sentences <- c(
+      if (nrow(mapping) > 0) {
+        paste0("Between ", fmt_pct(min(mapping$overall_pct, na.rm = TRUE)), " and ", fmt_pct(max(mapping$overall_pct, na.rm = TRUE)),
+               " of the reads map back to their assemblies. The rest is in genomes that could not be assembled, or in very short contigs.")
+      },
+      if (any(!is.na(binning$magscot))) {
+        paste0("MAGScoT refined the bins of the three binners to ", plural(sum(binning$magscot, na.rm = TRUE), "bin"), " over all assemblies.")
+      },
+      if (n_after > 0) {
+        paste0("dRep reduced ", plural(n_before, "bin"), " to **", plural(n_after, "representative genome"), "**",
+               if (!is.null(catalogue)) paste0(", which form a catalogue of ", fmt_int(length(catalogue)), " contigs and ", fmt_bp(sum(as.numeric(catalogue)))) else "", ".")
+      }
+    )
+    bullets(sentences)
+    para("Binning and dereplication depend on depth: a small test data set gives few bins, and says little about the full data.")
+  }
+})
+```
 
-```{r drep-summary, results='asis'}
-sep_dir <- file.path(assemble_dir, "drep", "separated_bins")
-derep_dir <- file.path(assemble_dir, "drep", "dereplicated_genomes")
-n_before <- if (dir.exists(sep_dir)) length(Sys.glob(file.path(sep_dir, "*.fa"))) else NA
-n_after <- if (dir.exists(derep_dir)) length(Sys.glob(file.path(derep_dir, "*"))) else NA
+```{r assembly}
+section("Assembly", {
+  if (nrow(assembly_stats) == 0) {
+    no_output("the assembler", paste0("results/assemble/", assembler, "/"))
+  } else {
+    members <- assembly_members() %>% count(assembly_id, name = "libraries")
+    table <- left_join(assembly_stats, members, by = "assembly_id")
+    para("**N50** is the length such that contigs of at least this length hold half of the assembly, and **L50** is the number of those contigs. Both describe ",
+         "contiguity and not correctness. Contigs shorter than the assembler's minimum length aren't in the assembly.")
+    show_table(
+      table %>% transmute(
+        Assembly = assembly_id, Libraries = fmt_int(libraries), Contigs = fmt_int(contigs), Length = fmt_bp(total_bp), Longest = fmt_int(longest), N50 = fmt_int(N50),
+        L50 = fmt_int(L50), N90 = fmt_int(N90), `>= 5 kb` = fmt_int(contigs_ge_5kb), `>= 10 kb` = fmt_int(contigs_ge_10kb), GC = fmt_pct(gc_pct)
+      ),
+      "Assembly statistics",
+      "assembly_statistics",
+      export = table,
+      max_rows = 60
+    )
+    curves <- map_dfr(names(contigs), function(a) {
+      lengths <- sort(contigs[[a]]$length, decreasing = TRUE)
+      keep <- unique(round(seq(1, length(lengths), length.out = min(length(lengths), 500))))
+      tibble(assembly_id = a, share = 100 * cumsum(as.numeric(lengths))[keep] / sum(as.numeric(lengths)), length = lengths[keep])
+    })
+    write_tsv(curves, file.path(ctx$tables, "nx_curves.tsv"))
+    show_figure(
+      ggplot(curves, aes(share, length, group = assembly_id, colour = assembly_id)) +
+        geom_line(linewidth = 0.4) +
+        geom_vline(xintercept = 50, linetype = "dashed", colour = "grey60") +
+        scale_y_log10() +
+        scale_colour_manual(values = rep_len(PALETTE, n_distinct(curves$assembly_id)), guide = if (length(contigs) > 12) "none" else guide_legend(ncol = 4), name = NULL) +
+        labs(x = "Share of the assembly (%)", y = "Contig length (bp, logarithmic scale)") +
+        theme_report(),
+      "nx_curves",
+      "Nx curves: a contig of length y and longer ones together hold x% of the assembly. At the dashed line, y is the N50. A curve further up means a more contiguous assembly."
+    )
+    lengths <- map_dfr(names(contigs), ~ tibble(assembly_id = .x, length = contigs[[.x]]$length))
+    show_figure(
+      ggplot(lengths, aes(length, fill = assembly_id)) +
+        geom_histogram(bins = 40, position = "identity", alpha = 0.6) +
+        scale_x_log10() +
+        scale_fill_manual(values = rep_len(PALETTE, length(contigs)), guide = if (length(contigs) > 12) "none" else guide_legend(ncol = 4), name = NULL) +
+        labs(x = "Contig length (bp, logarithmic scale)", y = "Contigs") +
+        theme_report(),
+      "contig_lengths",
+      "Distribution of contig lengths per assembly.",
+      height = 2.8
+    )
+  }
+})
+```
 
-cat(sprintf(
-  "**%s** bins went into dRep across all assemblies; **%s** representative genomes remained after dereplication.\n\n",
-  ifelse(is.na(n_before), "?", n_before), ifelse(is.na(n_after), "?", n_after)
+```{r mapping}
+section("Reads mapped back to the assemblies", {
+  if (nrow(mapping) == 0) {
+    no_output("Bowtie2", "results/assemble/bowtie2/")
+  } else {
+    para("This is the best single number for how much of the sequenced community an assembly represents. A low rate means that most reads are from ",
+         "genomes with too little coverage to be assembled. Compare this with the coverage from Nonpareil in the read_annotate report.")
+    show_table(
+      mapping %>% transmute(Assembly = assembly_id, Library = library, `Read pairs` = fmt_int(pairs), Mapped = fmt_pct(overall_pct, 2)),
+      "Overall alignment rate per library and assembly, from Bowtie2",
+      "mapping_rates",
+      export = mapping,
+      max_rows = 60
+    )
+    show_figure(
+      mapping %>%
+        mutate(library = factor(library, levels = rev(libraries()))) %>%
+        ggplot(aes(overall_pct, library)) +
+        geom_col(fill = PALETTE[[1]]) +
+        facet_wrap(~assembly_id) +
+        labs(x = "Reads mapped back (%)", y = NULL) +
+        theme_report() +
+        library_axis(n_distinct(mapping$library)),
+      "mapping_rates",
+      "Share of reads mapped back to each assembly.",
+      height = rows_height(n_distinct(mapping$library))
+    )
+  }
+})
+```
+
+```{r binning}
+section("Binning and refinement", {
+  if (all(is.na(binning$metabat2) & is.na(binning$maxbin2) & is.na(binning$concoct))) {
+    no_output("the binners", "results/assemble/")
+  } else {
+    para("Three binners group contigs into bins by their coverage and composition. MAGScoT then scores their bins with single-copy marker genes and builds a refined ",
+         "set. The share **binned** is the share of the assembly's bases in the refined bins.")
+    show_table(
+      binning %>% transmute(
+        Assembly = assembly_id, MetaBAT2 = fmt_int(metabat2), MaxBin2 = fmt_int(maxbin2), CONCOCT = fmt_int(concoct), MAGScoT = fmt_int(magscot),
+        `Binned length` = fmt_bp(binned_bp), Binned = fmt_pct(binned_pct)
+      ),
+      "Bins per binner, and after refinement",
+      "bins_per_assembly",
+      export = binning,
+      max_rows = 60
+    )
+    long <- binning %>%
+      select(assembly_id, MetaBAT2 = metabat2, MaxBin2 = maxbin2, CONCOCT = concoct, MAGScoT = magscot) %>%
+      pivot_longer(-assembly_id, names_to = "binner", values_to = "bins")
+    show_figure(
+      ggplot(long, aes(bins, assembly_id, fill = binner)) +
+        geom_col(position = position_dodge(0.8), width = 0.75, na.rm = TRUE) +
+        scale_fill_manual(values = setNames(PALETTE[1:4], c("MetaBAT2", "MaxBin2", "CONCOCT", "MAGScoT")), name = NULL) +
+        labs(x = "Bins", y = NULL) +
+        theme_report(),
+      "bins_per_binner",
+      "Bins per binner and assembly.",
+      height = rows_height(length(assemblies), 0.5, 1.2)
+    )
+  }
+  if (nrow(magscot_bins) > 0) {
+    bins <- magscot_bins %>%
+      transmute(assembly_id, bin = bin, source = bintool, marker_set = set, completeness = 100 * Completeness, contamination = 100 * Contamination,
+                contigs = n_contigs, score = score)
+    show_table(
+      bins %>% arrange(desc(score)) %>% transmute(
+        Assembly = assembly_id, Bin = bin, From = source, `Marker set` = marker_set,
+        Completeness = fmt_pct(completeness), Contamination = fmt_pct(contamination), Contigs = fmt_int(contigs)
+      ),
+      "Refined bins, as MAGScoT scored them with its own marker genes",
+      "refined_bins",
+      export = bins,
+      max_rows = 25,
+      note = "These are MAGScoT's estimates, used to choose bins. CheckM2 in the mag_annotate report is the estimate to publish."
+    )
+    show_figure(
+      ggplot(bins, aes(contamination, completeness, colour = source)) +
+        geom_point(size = 1.6, alpha = 0.8) +
+        scale_colour_manual(values = rep_len(PALETTE, n_distinct(bins$source)), name = NULL) +
+        labs(x = "Contamination (%)", y = "Completeness (%)") +
+        theme_report(),
+      "refined_bins_quality",
+      "Completeness and contamination of the refined bins, colored by the binner they came from.",
+      height = 3.2
+    )
+  }
+})
+```
+
+```{r drep}
+section("Dereplication and the genome catalogue", {
+  if (n_after == 0) {
+    no_output("dRep", "results/assemble/drep/dereplicated_genomes/")
+  } else {
+    settings <- ctx$params$assemble$drep
+    para(
+      "dRep groups similar bins of all assemblies and keeps the best of each group, so that the next modules work on a non-redundant catalogue. **",
+      plural(n_before, "bin"), "** went in, and **", plural(n_after, "representative genome"), "** came out. The thresholds were: ", settings$P_ani %||% "?",
+      " ANI for primary clusters, ", settings$S_ani %||% "?", " ANI for secondary clusters, at least ", settings$completeness %||% "?",
+      "% completeness and at most ", settings$contamination %||% "?", "% contamination."
+    )
+    if (!is.null(catalogue)) {
+      stats <- length_stats(catalogue)
+      show_table(
+        stats %>% transmute(Contigs = fmt_int(contigs), Length = fmt_bp(total_bp), Longest = fmt_int(longest), N50 = fmt_int(N50), L50 = fmt_int(L50), N90 = fmt_int(N90)),
+        "The genome catalogue, all genomes together",
+        "catalogue",
+        export = stats
+      )
+    }
+    if (!is.null(drep_tables$genomeInformation)) {
+      info <- drep_tables$genomeInformation
+      winners <- if (!is.null(drep_tables$Wdb)) drep_tables$Wdb$genome else character(0)
+      clusters <- drep_tables$Cdb
+      table <- info %>%
+        mutate(representative = genome %in% winners)
+      if (!is.null(clusters)) table <- left_join(table, select(clusters, genome, secondary_cluster), by = "genome")
+      # With --ignoreGenomeQuality, dRep has no quality values
+      if (!"secondary_cluster" %in% names(table)) table$secondary_cluster <- NA_character_
+      if (!"completeness" %in% names(table)) table$completeness <- NA_real_
+      if (!"contamination" %in% names(table)) table$contamination <- NA_real_
+      show_table(
+        table %>% arrange(desc(representative), desc(length)) %>% transmute(
+          Genome = genome, Cluster = secondary_cluster,
+          Representative = ifelse(representative, "yes", ""), Length = fmt_bp(length), N50 = fmt_int(N50),
+          Completeness = fmt_num(completeness), Contamination = fmt_num(contamination)
+        ),
+        "All bins in dRep, with their clusters. Quality values are those known to dRep, and are missing if its quality check was skipped",
+        "drep_genomes",
+        export = table,
+        max_rows = 30
+      )
+    }
+  }
+})
+```
+
+```{r methods}
+section("Methods text", {
+  para("You can use or adapt this text for a paper. It describes what the rules of this module did, with the settings of this project.")
+  s <- ctx$params$assemble
+  tool_text <- if (assembler == "megahit") {
+    paste0(tv("MEGAHIT"), " (k-mers ", s$megahit$kmin %||% "?", " to ", s$megahit$kmax %||% "?", " in steps of ", s$megahit$kstep %||% "?", ", minimum contig length ", s$megahit$min_contig_len %||% "?", " bp)")
+  } else if (assembler == "metaspades") {
+    paste0(tv("metaSPAdes"), " (k-mers ", s$metaspades$kmer_size %||% "?", ", options `", trimws(s$metaspades$additional_options %||% ""), "`)")
+  } else {
+    paste0("assemblies provided by the user (", assembler, ")")
+  }
+  para(
+    "> Clean reads were assembled per sample or co-assembled as set in the sample sheet with ", tool_text, ". Reads were mapped back to the assemblies with ", tv("Bowtie2"),
+    ", and alignments were sorted with ", tv("SAMtools"), ". Contigs were binned with ", tv("MetaBAT2"), ", ", tv("MaxBin2"), " and ", tv("CONCOCT"), ". Bins were refined with MAGScoT, using marker genes that ",
+    tv("Prodigal"), " and ", tv("HMMER"), " found (score threshold ", s$magscot$threshold %||% "?", "). Refined bins of all assemblies were dereplicated with ", tv("dRep"), " (primary ANI ", s$drep$P_ani %||% "?", ", secondary ANI ",
+    s$drep$S_ani %||% "?", ", minimum completeness ", s$drep$completeness %||% "?", "%, maximum contamination ", s$drep$contamination %||% "?", "%)."
+  )
+})
+```
+
+```{r end}
+report_end(c(
+  megahit = "Assemblies and work folders", metaspades = "Assemblies and work folders", bowtie2 = "Reads mapped to the assemblies",
+  index = "Bowtie2 indexes of the assemblies", metabat2 = "Bins", maxbin2 = "Bins", concoct = "Bins", magscot = "Refined bins and scores",
+  drep = "Dereplicated genomes and the catalogue"
 ))
-```
-
-# Runtime statistics
-
-```{r assemble-runtime}
-bench <- discover_benchmarks(project_folder, "assemble")
-runtime_table(bench, caption = "assemble module: runtime and peak memory per rule")
-```
-
-```{r assemble-resource-allocation}
-resource_allocation_table(bench, "assemble", project_folder,
-                          caption = "assemble module: allocated vs. actual resource usage (starting tier)")
-```
-
-```{r assemble-runtime-plot, fig.height=6}
-runtime_plot(bench, title = "assemble module: total runtime per rule")
 ```

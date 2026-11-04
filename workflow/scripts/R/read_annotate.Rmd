@@ -1,131 +1,516 @@
 ---
-title: "Snakebite - Holoruminant - MetaG"
-subtitle: "read_annotate module - report"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    fig_caption: true
+title: "Snakebite-Holoruminant-MetaG"
+subtitle: "Module report: read_annotate"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+geometry: margin=2cm
+fontsize: 10pt
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                       fig.align = "center", fig.width = 7, fig.height = 4)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = "asis")
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"), local = knitr::knit_global())
+report_start("read_annotate")
 
-if (!exists("project_folder")) {
-  project_folder <- getwd()
-  pipeline_folder <- getwd()
-  features_file <- "config/features.yaml"
-  sample_file <- "config/samples.tsv"
+ra <- function(...) p("results", "read_annotate", ...)
+n_libraries <- length(libraries())
+tool_ran <- character(0)
+
+# Stacked bars of relative abundance per library
+composition_plot <- function(table, value = "share", fill = "taxon", x_label = "Relative abundance (%)") {
+  levels_taxa <- c(setdiff(names(sort(tapply(table[[value]], table[[fill]], sum), decreasing = TRUE)), "Other"), "Other")
+  levels_taxa <- levels_taxa[levels_taxa %in% table[[fill]]]
+  table[[fill]] <- factor(table[[fill]], levels = rev(levels_taxa))
+  table$library <- factor(table$library, levels = rev(unique(libraries())))
+  ggplot(table, aes(.data[[value]], library, fill = .data[[fill]])) +
+    geom_col() +
+    scale_fill_manual(values = category_colours(levels_taxa), name = NULL, guide = guide_legend(reverse = TRUE, ncol = 3)) +
+    labs(x = x_label, y = NULL) +
+    theme_report() +
+    library_axis(n_distinct(table$library))
 }
 
-source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
-samples <- read.delim(file.path(project_folder, sample_file), comment.char = "#")
-features <- yaml::read_yaml(file.path(project_folder, features_file))
-ra_dir <- file.path(project_folder, "results", "read_annotate")
-```
+heatmap_plot <- function(table, x = "library", y = "feature", value = "value", legend = "log10(value + 1)") {
+  table[[y]] <- factor(table[[y]], levels = rev(unique(table[[y]])))
+  table[[x]] <- factor(table[[x]], levels = unique(table[[x]]))
+  ggplot(table, aes(.data[[x]], .data[[y]], fill = .data[[value]])) +
+    geom_tile() +
+    scale_fill_viridis_c(name = legend) +
+    labs(x = NULL, y = NULL) +
+    theme_report() +
+    theme(axis.text.x = element_text(angle = 40, hjust = 1))
+}
 
-# Kraken2 taxonomic classification
+shannon <- function(x) {
+  x <- x[x > 0]
+  if (length(x) == 0) return(NA_real_)
+  share <- x / sum(x)
+  -sum(share * log(share))
+}
 
-```{r kraken2-summary}
-kraken_dbs <- names(features$databases$kraken2)
-kraken_dir <- file.path(ra_dir, "kraken2")
-
-top_taxa <- purrr::map_dfr(kraken_dbs, function(db) {
-  purrr::pmap_dfr(samples[, c("sample_id", "library_id")], function(sample_id, library_id) {
-    f <- file.path(kraken_dir, db, paste0(sample_id, ".", library_id, ".report"))
-    df <- parse_kraken2_report(f, top_n = 5)
-    if (nrow(df) == 0) return(NULL)
-    dplyr::bind_cols(database = db, library = paste(sample_id, library_id, sep = "."), df)
+# ---- Kraken2 ----
+kraken_dbs <- names(ctx$features$databases$kraken2)
+kraken <- map_dfr(kraken_dbs, function(db) {
+  map_dfr(libraries(), function(library) {
+    file <- ra("kraken2", db, paste0(library, ".report"))
+    if (!file.exists(file)) return(NULL)
+    read.delim(file, header = FALSE, quote = "", comment.char = "", stringsAsFactors = FALSE,
+               col.names = c("pct", "clade", "direct", "rank", "taxid", "name")) %>%
+      mutate(name = trimws(name), database = db, library = library)
   })
 })
-
-if (nrow(top_taxa) == 0) {
-  cat("_No kraken2 output found yet._\n")
+kraken_summary <- if (nrow(kraken) > 0) {
+  kraken %>%
+    group_by(database, library) %>%
+    summarise(
+      total = sum(direct),
+      unclassified = sum(direct[name == "unclassified"]),
+      classified = total - unclassified,
+      classified_pct = 100 * classified / total,
+      species = sum(rank == "S" & clade > 0),
+      genera = sum(rank == "G" & clade > 0),
+      shannon_species = shannon(clade[rank == "S"]),
+      .groups = "drop"
+    )
 } else {
-  preview_table(
-    top_taxa[, c("database", "library", "name", "rank", "pct", "reads_clade")],
-    n = min(30, nrow(top_taxa)),
-    caption = "Top 5 taxa by clade percentage, per library and database"
+  tibble()
+}
+
+# ---- Nonpareil ----
+nonpareil_file <- ra("nonpareil", "nonpareil.tsv")
+nonpareil <- if (file.exists(nonpareil_file)) read_table_quiet(nonpareil_file) else tibble()
+
+# ---- NCyc ----
+read_ncyc <- function(file) {
+  lines <- readLines(file, warn = FALSE)
+  sampling <- suppressWarnings(as.numeric(sub("^#random sampling: ", "", grep("^#random sampling", lines, value = TRUE)[1])))
+  list(sampling = sampling, table = read_tsv(I(paste(lines[!grepl("^#", lines)], collapse = "\n")), show_col_types = FALSE))
+}
+ncyc_file <- ra("ncyc", "ncyc_results.tsv")
+ncyc <- if (file.exists(ncyc_file)) read_ncyc(ncyc_file) else NULL
+
+# ---- MetaPhlAn ----
+metaphlan_file <- ra("metaphlan", "metaphlan_profiled.tsv")
+read_metaphlan <- function(file) {
+  lines <- readLines(file, warn = FALSE)
+  header <- grep("clade_name|^ID\t|^#SampleID", lines)[1]
+  if (is.na(header)) header <- 1
+  table <- read_tsv(I(paste(sub("^#", "", lines[header:length(lines)]), collapse = "\n")), show_col_types = FALSE)
+  names(table)[1] <- "clade"
+  table
+}
+metaphlan <- if (file.exists(metaphlan_file)) read_metaphlan(metaphlan_file) else NULL
+
+# ---- SingleM ----
+singlem_file <- ra("singlem", "singlem.tsv")
+singlem <- if (file.exists(singlem_file)) read_table_quiet(singlem_file) else NULL
+fraction_file <- ra("singlem", "microbial_fraction.tsv")
+microbial_fraction <- if (file.exists(fraction_file)) read_table_quiet(fraction_file) else NULL
+
+# ---- sylph ----
+sylph_files <- setNames(ra("sylph", paste0(libraries(), ".profiling.tsv")), libraries())
+sylph_files <- sylph_files[file.exists(sylph_files)]
+sylph <- map_dfr(names(sylph_files), ~ mutate(read_table_quiet(sylph_files[[.x]]), library = .x))
+
+# ---- HUMAnN: the files per library, since the merged file repeats their headers ----
+humann_files <- setNames(ra("humann", paste0(libraries(), "_genefamilies.tsv")), libraries())
+humann_files <- humann_files[file.exists(humann_files)]
+humann <- map_dfr(names(humann_files), function(library) {
+  table <- read_tsv(humann_files[[library]], show_col_types = FALSE, col_names = c("feature", "rpk"), skip = 1)
+  unstratified <- filter(table, !grepl("|", feature, fixed = TRUE))
+  families <- filter(unstratified, !feature %in% c("UNMAPPED", "UNGROUPED"))
+  tibble(
+    library = library,
+    total_rpk = sum(unstratified$rpk),
+    unmapped_rpk = sum(unstratified$rpk[unstratified$feature == "UNMAPPED"]),
+    gene_families = sum(families$rpk > 0),
+    top = list(arrange(families, desc(rpk)) %>% head(100))
   )
-}
+})
+
+# ---- DIAMOND ----
+diamond_dbs <- names(ctx$features$databases$diamond)
+diamond <- map_dfr(diamond_dbs, function(db) {
+  file <- ra("diamond", db, "summary_a.tsv")
+  if (!file.exists(file)) return(NULL)
+  read_table_quiet(file) %>%
+    pivot_longer(-1, names_to = "file", values_to = "hits") %>%
+    rename(feature = 1) %>%
+    mutate(database = db, hits = replace_na(as.numeric(hits), 0))
+})
+
+phyloflash_html <- ra("phyloflash", paste0(gsub(".", "_", libraries(), fixed = TRUE), ".phyloFlash.html"))
+phyloflash_html <- phyloflash_html[file.exists(phyloflash_html)]
 ```
 
-# Sequence diversity / coverage (Nonpareil)
-
-```{r nonpareil-summary}
-nonpareil_tsv <- file.path(ra_dir, "nonpareil", "nonpareil.tsv")
-preview_table(safe_read_tsv(nonpareil_tsv), n = 50, caption = "Nonpareil diversity/coverage estimates per sample")
+```{r brief}
+section("Results in brief", {
+  para("This module describes the community from the clean reads, without an assembly. Each tool answers another question, and ",
+       "their databases differ, so their numbers don't have to agree.")
+  brief <- c(
+    if (nrow(kraken_summary) > 0) {
+      paste0("**Kraken2** classified between ", fmt_pct(min(kraken_summary$classified_pct)), " and ", fmt_pct(max(kraken_summary$classified_pct)),
+             " of the read pairs, with the database", if (length(kraken_dbs) > 1) "s " else " ", paste0("`", unique(kraken_summary$database), "`", collapse = ", "), ".")
+    },
+    if (nrow(nonpareil) > 0) {
+      paste0("**Nonpareil** estimates a sequencing coverage of ", fmt_pct(100 * min(nonpareil$C, na.rm = TRUE), 0), " to ", fmt_pct(100 * max(nonpareil$C, na.rm = TRUE), 0),
+             " of the community per library.")
+    },
+    if (!is.null(ncyc)) paste0("**NCycDB** found ", nrow(ncyc$table), " nitrogen-cycle genes, after a random sample of ", fmt_int(ncyc$sampling), " reads per file."),
+    if (!is.null(metaphlan)) paste0("**MetaPhlAn** detected ", sum(grepl("s__", metaphlan$clade) & !grepl("t__", metaphlan$clade)), " species."),
+    if (!is.null(singlem)) paste0("**SingleM** profiled ", n_distinct(singlem$sample), " libraries."),
+    if (nrow(sylph) > 0) paste0("**sylph** detected ", n_distinct(sylph$Genome_file), " reference genomes."),
+    if (nrow(humann) > 0) paste0("**HUMAnN** left a mean of ", fmt_pct(100 * mean(humann$unmapped_rpk / humann$total_rpk)), " of the abundance unmapped.")
+  )
+  if (length(brief) > 0) bullets(brief) else para("No output of a read-based tool was found yet.")
+})
 ```
 
-# Marker-gene taxonomic profiling (SingleM)
-
-```{r singlem-summary}
-mf_tsv <- file.path(ra_dir, "singlem", "microbial_fraction.tsv")
-mf_df <- safe_read_tsv(mf_tsv)
-if (nrow(mf_df) > 0) {
-  preview_table(mf_df, n = nrow(mf_df), caption = "SingleM microbial fraction per library")
-} else {
-  cat("_No SingleM microbial_fraction output found yet._\n")
-}
+```{r kraken2}
+section("Taxonomic classification with Kraken2", {
+  if (nrow(kraken) == 0) {
+    no_output("Kraken2", "results/read_annotate/kraken2/")
+  } else {
+    para("Kraken2 assigns each read pair to a taxon by its k-mers. The share of classified reads depends strongly on the database: a low share ",
+         "often means that the database lacks the community, not that the reads are bad. These numbers count reads, so large genomes count more ",
+         "than small genomes.")
+    show_table(
+      kraken_summary %>% transmute(
+        Database = database, Library = library, `Read pairs` = fmt_int(total), Classified = fmt_pct(classified_pct),
+        Genera = fmt_int(genera), Species = fmt_int(species), `Shannon (species)` = fmt_num(shannon_species, 2)
+      ),
+      "Kraken2 per library and database",
+      "kraken2_summary",
+      export = kraken_summary,
+      max_rows = 60
+    )
+    for (db in unique(kraken$database)) {
+      subset <- filter(kraken, database == db)
+      for (level in list(c("P", "phylum"), c("G", "genus"), c("S", "species"))) {
+        wide <- subset %>%
+          filter(rank == level[[1]]) %>%
+          select(name, taxid, library, clade) %>%
+          pivot_wider(names_from = library, values_from = clade, values_fill = 0)
+        write_tsv(wide, file.path(ctx$tables, paste0("kraken2_", db, "_", level[[2]], "_reads.tsv")))
+      }
+      for (level in list(c("P", "phylum", "Phylum"), c("G", "genus", "Genus"))) {
+        table <- filter(subset, rank == level[[1]], clade > 0)
+        if (nrow(table) == 0) next
+        table <- table %>%
+          group_by(library) %>%
+          mutate(share = 100 * clade / sum(clade)) %>%
+          ungroup() %>%
+          mutate(taxon = top_n_other(name, share, n = 10)) %>%
+          group_by(library, taxon) %>%
+          summarise(share = sum(share), .groups = "drop")
+        show_figure(
+          composition_plot(table),
+          paste0("kraken2_", db, "_", level[[2]]),
+          paste0(level[[3]], " composition from Kraken2 with the database ", db, ", as a share of the reads classified at this rank."),
+          height = rows_height(n_distinct(table$library), 0.17, 2)
+        )
+      }
+    }
+    krona <- Sys.glob(ra("krona", "*", "*.html"))
+    if (length(krona) > 0) {
+      para("Interactive Krona charts of all ", length(krona), " reports are in `results/read_annotate/krona/`.")
+    }
+  }
+})
 ```
 
-# Functional profiling (HUMAnN)
-
-```{r humann-summary}
-humann_top <- parse_humann_top_features(file.path(ra_dir, "humann", "humann_genefamilies.tsv"))
-if (nrow(humann_top) == 0) {
-  cat("_No HUMAnN output found yet._\n")
-} else {
-  preview_table(humann_top[, 1:2], n = nrow(humann_top),
-                caption = "Top gene families by total abundance across samples (UNMAPPED/UNGROUPED excluded)")
-}
+```{r nonpareil}
+section("Sequencing coverage with Nonpareil", {
+  if (nrow(nonpareil) == 0) {
+    no_output("Nonpareil", "results/read_annotate/nonpareil/nonpareil.tsv")
+  } else {
+    para(
+      "Nonpareil estimates how much of the community the reads have covered, from how often reads overlap. **Coverage** is that estimate (C in Nonpareil), ",
+      "and **Effort** the sequencing effort behind it (LR). **Effort for 95%** is what would reach 95% coverage (LR*), and **Diversity** is Nonpareil's sequence diversity ",
+      "index. If coverage is low, many rare genomes can't be assembled, and more sequencing would help. If a curve has no model, shown here as `-`, the effort for 95% can't ",
+      "be estimated: this is common at a low coverage."
+    )
+    show_table(
+      nonpareil %>% transmute(
+        Library = sample_id, Coverage = fmt_pct(100 * C), Effort = fmt_bp(LR), `Effort for 95%` = fmt_bp(LRstar), `Model fit (R)` = fmt_num(modelR, 3),
+        Diversity = ifelse(is.na(LRstar), "-", fmt_num(diversity, 2)), `More sequencing for 95%` = ifelse(is.na(LRstar), "-", paste0(fmt_num(LRstar / LR), " times"))
+      ),
+      "Nonpareil coverage, sequencing effort and diversity",
+      "nonpareil",
+      export = nonpareil,
+      max_rows = 60
+    )
+    curves <- map_dfr(libraries(), function(library) {
+      file <- ra("nonpareil", paste0(library, ".npo"))
+      if (!file.exists(file)) return(NULL)
+      table <- read.table(file, comment.char = "#", col.names = c("effort", "coverage", "sd", "q1", "q2", "q3"))
+      filter(mutate(table, library = library), effort > 0)
+    })
+    if (nrow(curves) > 0) {
+      write_tsv(curves, file.path(ctx$tables, "nonpareil_curves.tsv"))
+      show_figure(
+        ggplot(curves, aes(effort, coverage, group = library, colour = library)) +
+          geom_line(linewidth = 0.4) +
+          scale_x_log10() +
+          scale_colour_manual(values = rep_len(PALETTE, n_distinct(curves$library)), guide = if (n_libraries > 12) "none" else guide_legend(ncol = 3), name = NULL) +
+          labs(x = "Sequencing effort (reads, logarithmic scale)", y = "Estimated coverage") +
+          theme_report(),
+        "nonpareil_curves",
+        "Nonpareil curves: estimated coverage at growing sequencing effort, one line per library."
+      )
+    }
+  }
+})
 ```
 
-# Taxonomic profiling (MetaPhlAn)
-
-```{r metaphlan-summary}
-metaphlan_top <- parse_metaphlan_top_taxa(file.path(ra_dir, "metaphlan", "metaphlan_profiled.tsv"))
-if (nrow(metaphlan_top) == 0) {
-  cat("_No MetaPhlAn output found yet._\n")
-} else {
-  preview_table(metaphlan_top[, 1:2], n = nrow(metaphlan_top),
-                caption = "Top species by mean relative abundance across samples")
-}
+```{r singlem}
+section("Marker-gene profile with SingleM", {
+  if (is.null(singlem)) {
+    no_output("SingleM", "results/read_annotate/singlem/singlem.tsv")
+  } else {
+    para("SingleM counts conserved marker genes in the reads, so its profile doesn't depend on a complete genome in a database, and it gives ",
+         "coverage per genome and not a read count.")
+    write_tsv(singlem, file.path(ctx$tables, "singlem_profile.tsv"))
+    phyla <- singlem %>%
+      mutate(levels = lengths(strsplit(taxonomy, ";"))) %>%
+      filter(levels == 3) %>%
+      mutate(phylum = sub("^.*; *", "", taxonomy), library = sub("\\.lib.*$", "", sample)) %>%
+      group_by(sample) %>%
+      mutate(share = 100 * coverage / sum(coverage)) %>%
+      ungroup()
+    if (nrow(phyla) > 0) {
+      phyla <- phyla %>%
+        transmute(library = sample, taxon = top_n_other(phylum, share, n = 10), share) %>%
+        group_by(library, taxon) %>%
+        summarise(share = sum(share), .groups = "drop")
+      show_figure(
+        composition_plot(phyla),
+        "singlem_phylum",
+        "Phylum composition from SingleM, as a share of the coverage assigned to a phylum in the condensed profile.",
+        height = rows_height(n_distinct(phyla$library), 0.17, 2)
+      )
+    }
+    if (!is.null(microbial_fraction)) {
+      para("The microbial fraction estimates how much of the reads comes from bacteria and archaea. A low value points to host, plant or other ",
+           "eukaryotic DNA, and to the need for a deeper look at the host removal.")
+      show_table(microbial_fraction, "Microbial fraction of each library", "singlem_microbial_fraction", max_rows = 60)
+    }
+  }
+})
 ```
 
-```{r metaphlan-plot, fig.height=4}
-if (nrow(metaphlan_top) > 0) {
-  ggplot(metaphlan_top, aes(x = reorder(species, mean_abundance), y = mean_abundance)) +
-    geom_col(fill = "#7F3F98") +
-    coord_flip() +
-    labs(title = "Top species by mean relative abundance", x = NULL, y = "Mean relative abundance (%)") +
-    theme_minimal(base_size = 11)
-}
+```{r sylph}
+section("Genome-based profile with sylph", {
+  if (nrow(sylph) == 0) {
+    no_output("sylph", "results/read_annotate/sylph/")
+  } else {
+    para("sylph looks for k-mers of reference genomes in the reads. **Sequence abundance** is the share of reads, and **taxonomic abundance** the share of ",
+         "genome copies. The sum of sequence abundance shows how much of the reads the database explains.")
+    per_library <- sylph %>%
+      group_by(library) %>%
+      summarise(genomes = n(), explained_pct = sum(Sequence_abundance), median_ani = median(Adjusted_ANI), .groups = "drop")
+    show_table(
+      per_library %>% transmute(Library = library, Genomes = fmt_int(genomes), `Reads explained` = fmt_pct(explained_pct), `Median ANI` = fmt_num(median_ani, 1)),
+      "sylph per library",
+      "sylph_per_library",
+      export = per_library,
+      max_rows = 60
+    )
+    top <- sylph %>%
+      group_by(genome = basename(Genome_file), name = Contig_name) %>%
+      summarise(libraries = n(), mean_abundance = sum(Taxonomic_abundance) / n_libraries, .groups = "drop") %>%
+      arrange(desc(mean_abundance))
+    show_table(
+      top %>% transmute(Genome = genome, Name = substr(name, 1, 45), Libraries = libraries, `Mean abundance` = fmt_pct(mean_abundance, 2)),
+      "The most abundant genomes in sylph, by mean taxonomic abundance",
+      "sylph_top_genomes",
+      export = top,
+      max_rows = 20
+    )
+  }
+})
 ```
 
-# Other read-based annotation tools
-
-```{r other-tools, results='asis'}
-generic_tool_section(project_folder, "read_annotate", "sylph/*.tsv", "Sylph (containment-based profiling)")
-generic_tool_section(project_folder, "read_annotate", "diamond/*/*.tsv", "DIAMOND (protein-level read annotation)")
-generic_tool_section(project_folder, "read_annotate", "ncyc/*.tsv", "NCyc (nitrogen-cycling genes)")
+```{r metaphlan}
+section("Taxonomic profile with MetaPhlAn", {
+  if (is.null(metaphlan)) {
+    no_output("MetaPhlAn", "results/read_annotate/metaphlan/metaphlan_profiled.tsv")
+  } else {
+    para("MetaPhlAn estimates the relative abundance of species from clade-specific marker genes. It can only report what its database contains, ",
+         "and that is less for rumen or soil than for human samples.")
+    species <- metaphlan %>%
+      filter(grepl("s__", clade), !grepl("t__", clade)) %>%
+      mutate(species = sub("^.*s__", "", clade)) %>%
+      select(-clade) %>%
+      select(species, everything())
+    long <- pivot_longer(species, -species, names_to = "library", values_to = "abundance")
+    write_tsv(species, file.path(ctx$tables, "metaphlan_species.tsv"))
+    diversity <- long %>%
+      group_by(library) %>%
+      summarise(species = sum(abundance > 0), shannon = shannon(abundance), .groups = "drop")
+    show_table(
+      diversity %>% transmute(Library = library, Species = fmt_int(species), Shannon = fmt_num(shannon, 2)),
+      "Species detected and Shannon diversity per library, from MetaPhlAn",
+      "metaphlan_diversity",
+      export = diversity,
+      max_rows = 60
+    )
+    top <- long %>% group_by(species) %>% summarise(mean = mean(abundance), .groups = "drop") %>% arrange(desc(mean)) %>% head(25)
+    if (nrow(top) > 0) {
+      show_figure(
+        long %>%
+          filter(species %in% top$species) %>%
+          mutate(species = factor(species, levels = top$species), value = log10(abundance + 0.01)) %>%
+          arrange(species) %>%
+          mutate(species = as.character(species)) %>%
+          heatmap_plot(y = "species", legend = "log10(% + 0.01)"),
+        "metaphlan_heatmap",
+        "The 25 species with the highest mean abundance in MetaPhlAn.",
+        height = 5.5
+      )
+    }
+  }
+})
 ```
 
-# Runtime statistics
-
-```{r read-annotate-runtime}
-bench <- discover_benchmarks(project_folder, "read_annotate")
-runtime_table(bench, caption = "read_annotate module: runtime and peak memory per rule")
+```{r humann}
+section("Functional profile with HUMAnN", {
+  if (nrow(humann) == 0) {
+    no_output("HUMAnN", "results/read_annotate/humann/")
+  } else {
+    para("HUMAnN maps reads to pangenomes of the species that MetaPhlAn found, and then to a protein database. A high share of unmapped abundance is ",
+         "common in communities with many unknown genomes. Abundance is in RPK, reads per kilobase of gene.")
+    summary <- humann %>% transmute(library, gene_families, total_rpk, unmapped_rpk, unmapped_pct = 100 * unmapped_rpk / total_rpk)
+    show_table(
+      summary %>% transmute(Library = library, `Gene families` = fmt_int(gene_families), `Total RPK` = fmt_int(total_rpk), Unmapped = fmt_pct(unmapped_pct)),
+      "HUMAnN per library",
+      "humann_per_library",
+      export = summary,
+      max_rows = 60
+    )
+    top <- humann %>%
+      select(library, top) %>%
+      unnest(top) %>%
+      group_by(feature) %>%
+      summarise(mean_rpk = sum(rpk) / nrow(humann), libraries = n(), .groups = "drop") %>%
+      arrange(desc(mean_rpk))
+    show_table(
+      top %>% transmute(`Gene family` = feature, `Mean RPK` = fmt_int(mean_rpk), Libraries = libraries),
+      "The most abundant gene families, among the top 100 of each library",
+      "humann_top_families",
+      export = top,
+      max_rows = 15
+    )
+  }
+})
 ```
 
-```{r read-annotate-resource-allocation}
-resource_allocation_table(bench, "read_annotate", project_folder,
-                          caption = "read_annotate module: allocated vs. actual resource usage (starting tier)")
+```{r phyloflash}
+section("SSU rRNA with phyloFlash", {
+  if (length(phyloflash_html) == 0) {
+    no_output("phyloFlash", "results/read_annotate/phyloflash/")
+  } else {
+    para("phyloFlash extracts small-subunit rRNA reads and classifies them with SILVA, so it also sees eukaryotes. Its HTML reports have the details per library:")
+    files <- tibble(file = rel(phyloflash_html), bytes = file.size(phyloflash_html))
+    show_table(files %>% transmute(Report = file, Size = fmt_bytes(bytes)), "phyloFlash reports", "phyloflash_reports", export = files, max_rows = 40)
+  }
+})
 ```
 
-```{r read-annotate-runtime-plot, fig.height=5}
-runtime_plot(bench, title = "read_annotate module: total runtime per rule")
+```{r diamond}
+section("Protein-level annotation with DIAMOND", {
+  if (nrow(diamond) == 0) {
+    no_output("DIAMOND", "results/read_annotate/diamond/")
+  } else {
+    for (db in unique(diamond$database)) {
+      subset <- filter(diamond, database == db)
+      per_file <- subset %>%
+        group_by(file) %>%
+        summarise(features = sum(hits > 0), hits = sum(hits), .groups = "drop")
+      show_table(
+        per_file %>% transmute(File = file, Hits = fmt_int(hits), Features = fmt_int(features)),
+        paste0("DIAMOND hits per read file, database ", db),
+        paste0("diamond_", db, "_per_file"),
+        export = per_file,
+        max_rows = 40
+      )
+      top <- subset %>%
+        group_by(feature) %>%
+        summarise(total = sum(hits), .groups = "drop") %>%
+        arrange(desc(total))
+      show_table(
+        top %>% transmute(Feature = feature, `All hits` = fmt_int(total)),
+        paste0("The most frequent features, database ", db),
+        paste0("diamond_", db, "_top_features"),
+        export = top,
+        max_rows = 15
+      )
+    }
+  }
+})
+```
+
+```{r ncyc}
+section("Nitrogen-cycle genes with NCycDB", {
+  if (is.null(ncyc)) {
+    no_output("NCycProfiler", "results/read_annotate/ncyc/ncyc_results.tsv")
+  } else {
+    para("NCycProfiler searches a random sample of ", fmt_int(ncyc$sampling), " reads of each file against NCycDB, which makes the files comparable. ",
+         "The table adds the two read files of each library.")
+    long <- ncyc$table %>%
+      pivot_longer(-Gene, names_to = "file", values_to = "hits") %>%
+      mutate(library = sub("_[12]$", "", file)) %>%
+      group_by(Gene, library) %>%
+      summarise(hits = sum(hits), .groups = "drop")
+    wide <- pivot_wider(long, names_from = library, values_from = hits)
+    write_tsv(wide, file.path(ctx$tables, "ncyc_hits_per_library.tsv"))
+    per_library <- long %>%
+      group_by(library) %>%
+      summarise(genes = sum(hits > 0), hits = sum(hits), .groups = "drop")
+    show_table(
+      per_library %>% transmute(Library = library, Hits = fmt_int(hits), `Genes found` = fmt_int(genes)),
+      "Nitrogen-cycle genes per library",
+      "ncyc_per_library",
+      export = per_library,
+      max_rows = 60
+    )
+    top <- long %>% group_by(Gene) %>% summarise(total = sum(hits), .groups = "drop") %>% arrange(desc(total)) %>% head(25)
+    show_figure(
+      long %>%
+        filter(Gene %in% top$Gene) %>%
+        mutate(rank = match(Gene, top$Gene), value = log10(hits + 1)) %>%
+        arrange(rank) %>%
+        heatmap_plot(y = "Gene", legend = "log10(hits + 1)"),
+      "ncyc_heatmap",
+      "The most frequent nitrogen-cycle genes per library.",
+      height = max(3, nrow(top) * 0.17 + 1.5)
+    )
+  }
+})
+```
+
+```{r methods}
+section("Methods text", {
+  para("You can use or adapt this text for a paper. It lists the tools with output in this project. Add database versions from the reference report.")
+  features <- ctx$features$databases
+  sentences <- c(
+    if (nrow(kraken) > 0) paste0("Reads were classified with ", tv("Kraken2"), " against ", paste0(basename(unlist(features$kraken2)), collapse = ", "), ", and visualized with ", tv("Krona"), "."),
+    if (nrow(nonpareil) > 0) paste0("Sequencing coverage was estimated with ", tv("Nonpareil"), " in k-mer mode, using the forward reads (", ctx$params$read_annotate$nonpareil$X %||% "?", " query reads)."),
+    if (!is.null(singlem)) paste0("A taxonomic profile and the microbial fraction were obtained with ", tv("SingleM"), " and the metapackage ", basename(features$singlem %||% "?"), "."),
+    if (nrow(sylph) > 0) paste0("Genomes were profiled with ", tv("sylph"), " and ", basename(features$sylph %||% "?"), "."),
+    if (!is.null(metaphlan)) paste0("Species were profiled with ", tv("MetaPhlAn"), "."),
+    if (nrow(humann) > 0) paste0("Functional profiles were computed with ", tv("HUMAnN"), "."),
+    if (length(phyloflash_html) > 0) paste0("SSU rRNA was analysed with ", tv("phyloFlash"), "."),
+    if (nrow(diamond) > 0) paste0("Reads were searched against ", paste(names(features$diamond), collapse = ", "), " with ", tv("DIAMOND"), " (blastx, ", ctx$params$read_annotate$diamond$`max-target-seqs` %||% "?", " target per query)."),
+    if (!is.null(ncyc)) paste0("Nitrogen-cycle genes were counted with NCycProfiler and NCycDB, using ", tv("DIAMOND"), ".")
+  )
+  if (length(sentences) > 0) para("> ", paste(sentences, collapse = " ")) else para("There is no output to describe yet.")
+})
+```
+
+```{r end}
+report_end(c(
+  kraken2 = "Classification of each read, reports", krona = "Interactive taxonomy charts", nonpareil = "Coverage curves and summary",
+  singlem = "Marker-gene tables and profile", sylph = "Genome profiles", metaphlan = "Species profiles", humann = "Gene families",
+  phyloflash = "SSU rRNA reports", diamond = "Protein hits of the reads", ncyc = "Nitrogen-cycle genes"
+))
 ```

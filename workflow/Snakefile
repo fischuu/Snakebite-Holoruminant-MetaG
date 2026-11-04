@@ -188,27 +188,10 @@ debug(f"Host names: {HOST_NAMES}, last host: {LAST_HOST}")
 config["pipeline_folder"] = config["pipeline_folder"].rstrip('/') + '/'
 debug(f"Used pipeline folder: " + config["pipeline_folder"])
 
-ASSEMBLE_R = os.path.join(config["pipeline_folder"], "workflow/scripts/R/assemble.Rmd")
-CONTIG_ANNOTATE_R = os.path.join(
-    config["pipeline_folder"], "workflow/scripts/R/contig_annotate.Rmd"
+REPORT_SCRIPT = os.path.join(
+    config["pipeline_folder"], "workflow/scripts/R/render_report.R"
 )
-MAG_ANNOTATE_R = os.path.join(
-    config["pipeline_folder"], "workflow/scripts/R/mag_annotate.Rmd"
-)
-PREPROCESS_R = os.path.join(
-    config["pipeline_folder"], "workflow/scripts/R/preprocess.Rmd"
-)
-QUANTIFY_R = os.path.join(config["pipeline_folder"], "workflow/scripts/R/quantify.Rmd")
-READ_ANNOTATE_R = os.path.join(
-    config["pipeline_folder"], "workflow/scripts/R/read_annotate.Rmd"
-)
-READS_R = os.path.join(config["pipeline_folder"], "workflow/scripts/R/reads.Rmd")
-REFERENCE_R = os.path.join(
-    config["pipeline_folder"], "workflow/scripts/R/reference.Rmd"
-)
-
-debug(f"R script for reads: {READS_R}")
-debug(f"R script for preprocessing: {PREPROCESS_R}")
+debug(f"R script for the reports: {REPORT_SCRIPT}")
 
 # Import the escalation orders
 import yaml
@@ -269,9 +252,7 @@ rule all:
         rules.mag_annotate.input,
         rules.contig_annotate.input,
         rules.quantify.input,
-
-
-#      rules.report.input,
+        rules.report.input,
 
 
 # ------------------------------------------------------------------------------

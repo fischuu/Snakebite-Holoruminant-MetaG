@@ -1,66 +1,127 @@
 ---
-title: "Snakebite - Holoruminant - MetaG"
-subtitle: "reference module - report"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    fig_caption: true
+title: "Snakebite-Holoruminant-MetaG"
+subtitle: "Module report: reference"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+geometry: margin=2cm
+fontsize: 10pt
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                       fig.align = "center", fig.width = 7, fig.height = 4)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = "asis")
+source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"), local = knitr::knit_global())
+report_start("reference")
 
-if (!exists("project_folder")) {
-  project_folder <- getwd()
-  pipeline_folder <- getwd()
-  features_file <- "config/features.yaml"
-  sample_file <- "config/samples.tsv"
-}
-
-source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"))
-features <- yaml::read_yaml(file.path(project_folder, features_file))
-```
-
-# Configured host genomes
-
-Each configured host genome is sequentially decontaminated against in the
-`preprocess` module, in the order listed here.
-
-```{r hosts-table}
-hosts <- features$hosts
-if (is.null(hosts) || length(hosts) == 0) {
-  cat("_No host genomes configured -- this is an environmental-sample run with no decontamination step._\n")
-} else {
-  host_dir <- file.path(project_folder, "results", "reference", "hosts")
-  host_df <- tibble::tibble(
-    order = seq_along(hosts),
-    host = names(hosts),
-    configured_path = unlist(hosts),
-    recompressed_size_mb = purrr::map_dbl(names(hosts), function(h) {
-      p <- file.path(host_dir, paste0(h, ".fa.gz"))
-      if (file.exists(p)) round(file.size(p) / 1024^2, 1) else NA
-    })
+hosts <- ctx$features$hosts
+host_table <- map_dfr(names(hosts), function(host) {
+  fasta <- p("results", "reference", "hosts", paste0(host, ".fa.gz"))
+  fai <- paste0(fasta, ".fai")
+  numbers <- if (file.exists(fai)) {
+    lengths <- read.delim(fai, header = FALSE, quote = "", comment.char = "")[[2]]
+    length_stats(lengths)
+  } else {
+    length_stats(numeric(0))
+  }
+  bind_cols(
+    tibble(order = match(host, names(hosts)), host = host, configured = as.character(hosts[[host]]),
+           bytes = if (file.exists(fasta)) file.size(fasta) else NA_real_),
+    select(numbers, sequences = contigs, total_bp, longest, N50)
   )
-  preview_table(host_df, n = nrow(host_df), caption = "Configured hosts, in decontamination order")
-}
+})
 ```
 
-# Runtime statistics
-
-```{r reference-runtime}
-bench <- discover_benchmarks(project_folder, "reference")
-runtime_table(bench, caption = "reference module: runtime and peak memory per rule")
+```{r brief}
+section("Results in brief", {
+  if (nrow(host_table) == 0) {
+    para("No host genomes are configured in `", features_file, "`, so reads aren't filtered for host DNA. This is usual for ",
+         "environmental samples.")
+  } else {
+    para(
+      "**", plural(nrow(host_table), "host genome"), "** configured, with ", fmt_bp(sum(host_table$total_bp, na.rm = TRUE)),
+      " of sequence in total. The preprocess module removes reads of each of them, in this order: ",
+      paste0("`", host_table$host, "`", collapse = ", "), "."
+    )
+  }
+})
 ```
 
-```{r reference-resource-allocation}
-resource_allocation_table(bench, "reference", project_folder,
-                          caption = "reference module: allocated vs. actual resource usage (starting tier)")
+```{r hosts}
+section("Host genomes", {
+  if (nrow(host_table) > 0) {
+    para("The order matters for the numbers, not for the result: a read that fits two hosts counts for the first of them. ",
+         "The module recompresses each genome with bgzip, because `samtools faidx` needs that format.")
+    show_table(
+      host_table %>% transmute(
+        Order = order, Host = host, Sequences = fmt_int(sequences), Length = fmt_bp(total_bp), Longest = fmt_bp(longest),
+        N50 = fmt_bp(N50), `Size on disk` = fmt_bytes(bytes)
+      ),
+      "Host genomes, in the order of decontamination",
+      "hosts",
+      export = host_table
+    )
+    show_table(
+      host_table %>% transmute(Host = host, `Configured file` = configured),
+      "Where each host genome comes from",
+      "host_sources"
+    )
+    if (nrow(host_table) > 1) {
+      show_figure(
+        host_table %>%
+          mutate(host = factor(host, levels = rev(host))) %>%
+          ggplot(aes(total_bp / 1e6, host)) +
+          geom_col(fill = PALETTE[[1]]) +
+          scale_x_log10() +
+          labs(x = "Genome length (Mb, logarithmic scale)", y = NULL) +
+          theme_report(),
+        "host_lengths",
+        "Length of the host genomes.",
+        height = rows_height(nrow(host_table), 0.25)
+      )
+    }
+  } else {
+    para("There are no host genomes to report.")
+  }
+})
 ```
 
-```{r reference-runtime-plot, fig.height=3}
-runtime_plot(bench, title = "reference module: total runtime per rule")
+```{r databases}
+section("Reference databases of this project", {
+  para(
+    "Other modules use these databases. For a paper, their names and folders tell you which release you used. ",
+    "**Available** shows whether the path exists now."
+  )
+  flatten <- function(x, prefix = "") {
+    imap(x, function(value, key) {
+      name <- if (nzchar(prefix)) paste0(prefix, " / ", key) else key
+      if (is.list(value)) flatten(value, name) else tibble(database = name, path = as.character(value))
+    }) %>%
+      list_rbind()
+  }
+  databases <- flatten(c(ctx$features$databases, list(magscot = ctx$features$magscot))) %>%
+    mutate(available = file.exists(p(path)) | file.exists(path))
+  show_table(
+    databases %>% transmute(Database = database, Path = path, Available = ifelse(available, "yes", "no")),
+    "Databases configured in features.yaml",
+    "databases",
+    export = databases,
+    max_rows = 60
+  )
+})
+```
+
+```{r methods}
+section("Methods text", {
+  para("You can use or adapt this text for a paper. It describes what the rules of this module did.")
+  if (nrow(host_table) > 0) {
+    para(
+      "> Host reference sequences (", paste(host_table$host, collapse = ", "), ") were recompressed with ", tv("bgzip (HTSlib)"),
+      " and indexed with ", tv("SAMtools"), ". [Add the accession and release of each genome here.]"
+    )
+  } else {
+    para("> No host reference sequences were used.")
+  }
+})
+```
+
+```{r end}
+report_end(c(hosts = "Recompressed host genomes and their indexes"))
 ```
