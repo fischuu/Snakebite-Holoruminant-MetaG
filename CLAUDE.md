@@ -17,7 +17,8 @@ dependency mechanism, see `config/.docker.yml`).
 `book/` holds the handbook of this pipeline (Markdown chapters, PDF, examples), and it is a living document: **any change to
 `workflow/` or `config/` has to update the book too.** Update the affected tool and module chapters, then run
 `python3 book/tools/rule_reference.py`, `python3 book/tools/check_sync.py` and `python3 book/tools/check_transcripts.py`, and rebuild
-the PDF with `bash book/build.sh`. Terminal output in a chapter must come from a real run: see `book/README.md`.
+the PDF with `bash book/build.sh`. If an image in `config/.docker.yml` changed, run `book/tools/container_versions.sh` and `book/tools/versions_table.py`.
+After changing a rule that the real run covers, compare a project with `python3 tests/real_tools/check_results.py <project>`. Terminal output in a chapter must come from a real run: see `book/README.md`.
 
 ## Running the pipeline
 

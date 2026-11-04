@@ -52,6 +52,10 @@ The first uses `parallel`, as Prodigal only has a single thread, and it needs ju
 
 Bakta, DRAM and eggNOG-mapper each run their own gene prediction, which also uses Prodigal.
 
+## On real data
+
+@sec-tutorial-contig-annotate shows real output of this tool, and how to read it.
+
 ## Pitfalls
 
 - **Single-threaded.** A large assembly takes hours. `parallel` is a good way to speed it up, as long as you keep the order.
@@ -110,6 +114,10 @@ Use it when you search for a certain protein family, and particularly for famili
 | `contig_annotate__hmmer__assign` | The hydrogenases of HydDB | Which genes are hydrogenases? |
 
 In the second rule, `--domT` sets a minimum score per domain, a separate value per database, as @sec-module-contig-annotate shows. This option only filters the domains: `--tblout` still reports sequences with a lower score, down to an E-value of 10.
+
+## On real data
+
+@sec-tutorial-assemble and @sec-tutorial-contig-annotate show real output of this tool, and how to read it.
 
 ## Pitfalls
 

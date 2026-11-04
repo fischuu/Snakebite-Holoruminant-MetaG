@@ -91,6 +91,10 @@ Both can have an index, `.bai` for BAM and `.crai` for CRAM, for jumping to a ce
 
 `parallel` runs a command many times at once. The pipeline uses it for Prodigal, which only has one thread: with `--pipe --recstart '>'`, it cuts the stream of FASTA records into blocks, and it gives each block to one Prodigal. See `assemble__magscot__prodigal`.
 
+## On real data
+
+@sec-tutorial-preprocess shows real output of this tool, and how to read it.
+
 ## Pitfalls
 
 - **Memory of `samtools sort`.** `-m` is per thread. With `-m 8G` and 20 threads, it can take 160 GB, so check that this fits into the job. This is a common reason for jobs being killed, and `params.yaml` has this setting for each module.

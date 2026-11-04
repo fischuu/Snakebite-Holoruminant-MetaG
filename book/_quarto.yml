@@ -73,6 +73,7 @@ book:
         - part4/02-tests.md
   appendices:
     - appendix/rule-reference.md
+    - appendix/references.md
 
 engine: markdown
 
@@ -80,12 +81,22 @@ number-sections: true
 number-depth: 3
 toc-depth: 3
 
+filters:
+  - tools/break_code.lua
+
 format:
   pdf:
     documentclass: scrbook
     classoption: [oneside, 11pt]
     papersize: a4
     pdf-engine: xelatex
+    # Comes with TeX Live, and unlike the default it has the characters of the trees and flow diagrams
+    monofont: "DejaVuSansMono.ttf"
+    monofontoptions:
+      - "Scale=0.87"
+      - "BoldFont=DejaVuSansMono-Bold.ttf"
+      - "ItalicFont=DejaVuSansMono-Oblique.ttf"
+      - "BoldItalicFont=DejaVuSansMono-BoldOblique.ttf"
     toc: true
     colorlinks: true
     code-block-bg: "#f5f5f5"
@@ -98,3 +109,8 @@ format:
         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,breakanywhere,commandchars=\\\{\}}
         \fvset{breaklines=true,breakanywhere=true}
         \sloppy
+        \AtBeginDocument{%
+          \renewcommand{\NormalTok}[1]{\FancyVerbBreakStart#1\FancyVerbBreakStop}%
+          \let\origStringTok\StringTok%
+          \renewcommand{\StringTok}[1]{\origStringTok{\FancyVerbBreakStart#1\FancyVerbBreakStop}}%
+        }

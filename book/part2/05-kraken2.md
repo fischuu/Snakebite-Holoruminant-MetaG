@@ -63,6 +63,10 @@ No `--confidence` is set, so the default of 0 applies, and you should keep that 
 
 Databases are listed in `features.yaml`. The `standard` database needs about 140 GB of memory, and `refseq500` about 1.4 TB.
 
+## On real data
+
+@sec-tutorial-read-annotate shows its real output formats, with a toy database that holds a single genome. Results on these data with a real database will come from a complete run on a cluster, as @sec-tutorial-waiting says.
+
 ## Pitfalls
 
 - **False positives at low abundance.** With `--confidence 0`, you'll see many taxa with a few reads each. Most of them aren't real. Look at the upper part of the report first.

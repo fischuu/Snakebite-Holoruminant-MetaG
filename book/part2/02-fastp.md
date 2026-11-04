@@ -60,6 +60,10 @@ The rule lets fastp write plain files and then compresses them with `bgzip`, as 
 
 The unpaired files are kept, but no later rule reads them.
 
+## On real data
+
+@sec-tutorial-preprocess shows real output of this tool, and how to read it.
+
 ## Pitfalls
 
 - **Wrong adapters.** If the sequences in your sample table are wrong, nothing is trimmed, and there's no error. Check the adapter curve in the FastQC report after fastp. It's flat if the adapters are gone.

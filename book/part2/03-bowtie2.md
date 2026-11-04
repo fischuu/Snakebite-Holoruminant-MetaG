@@ -57,6 +57,10 @@ All mapping rules add a read group, `--rg-id` and `--rg`, which marks the reads 
 
 The output goes straight into `samtools sort`, to save disk space, as @sec-module-preprocess shows.
 
+## On real data
+
+@sec-tutorial-preprocess and @sec-tutorial-assemble show real output of this tool, and how to read it.
+
 ## Pitfalls
 
 - **The prefix isn't a file.** `-x` wants the common prefix of the index files, and not a file name. The pipeline uses an empty placeholder for this, and you shouldn't delete it, or Snakemake will rebuild the index.

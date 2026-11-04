@@ -6,7 +6,7 @@ DRAM (Distilled and Refined Annotation of Metabolism) annotates genomes with a f
 
 ## How it works
 
-**Annotate.** DRAM takes the contigs, predicts genes with Prodigal, and compares them with many databases: Pfam, dbCAN for carbohydrate-active enzymes, MEROPS for peptidases, VOGDB for viruses, UniRef90, and optionally KEGG, which needs a licence. KOfam is used in its place in this pipeline. It also finds tRNA genes with tRNAscan-SE, and rRNA genes with barrnap.
+**Annotate.** DRAM takes the contigs, predicts genes with Prodigal, and compares them with many databases: Pfam, dbCAN for carbohydrate-active enzymes, MEROPS for peptidases, VOGDB for viruses, UniRef90, and optionally KEGG, which needs a licence. KOfam is used in its place in this pipeline. The searches run with MMseqs2 and HMMER. It also finds tRNA genes with tRNAscan-SE, and rRNA genes with barrnap.
 
 **Distill.** It then uses hand-curated tables to turn the annotation into a list of metabolic functions, and it summarizes them per genome.
 
@@ -43,6 +43,10 @@ Each of the two runs has three steps. `mag_annotate__dram__annotate`, `mag_annot
 
 `config/dram_config.txt` holds the paths to the databases, all relative to the project folder. `kegg` is `null`, so KEGG isn't used.
 
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+
 ## Pitfalls
 
 - **Temporary files.** DRAM starts tRNAscan-SE, which reads `$TMPDIR`, and on the cluster the inherited value points to a place that the container can't see. Without the rule's fix, DRAM would crash in this step. The comment in the rule explains this.
@@ -63,7 +67,7 @@ General annotation tools hardly cover these functions. That's why this special d
 
 ## How it works
 
-It has two sets of references: protein sequences with score cutoffs for a DIAMOND search, and protein profiles for an HMMER search, each with cutoffs by hand. It searches with both, and then it writes a summary, called distillate.
+It has two sets of references: protein sequences for a search with MMseqs2, and protein profiles for a search with HMMER, each with curated score cutoffs. It searches with both, and then it writes a summary, called the distillate.
 
 ## Input
 
@@ -89,7 +93,11 @@ It runs twice, and both runs use the same commands:
 | `mag_annotate__camper__annotate` | DRAM, on the catalogue |
 | `contig_annotate__camper__annotate` | Prodigal, on all contigs of each assembly |
 
-The rules copy the database first, to `nvme_storage`, and they run in a temporary folder that has to not exist yet. This is the strange step `mkdir -p`, then `rm -rf`, which a comment in the rule calls "a strange camper requirement".
+The rules copy the database to `nvme_storage` first. CAMPER also insists on creating its output folder itself, which explains the odd pair of `mkdir -p` and `rm -rf` in the rules.
+
+## On real data
+
+@sec-tutorial-contig-annotate shows real output of this tool, and how to read it.
 
 ## Pitfalls
 
@@ -144,6 +152,10 @@ So it doesn't run per genome. The catalogue looks like one large genome to Bakta
 The proteins from `mag_annotate__bakta_mags__run` are the input for Proteinortho.
 
 As in DRAM, the rule sets its own `TMPDIR`, because of tRNAscan-SE. The comment explains why.
+
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
 
 ## Pitfalls
 
@@ -219,6 +231,10 @@ It's used in two ways, and these differ.
 
 The rule `contig_annotate__eggnog7__run` uses a newer annotator for version 7 of the database, through `workflow/scripts/eggnog7_annotator.sh`. This script is simpler: it searches a DIAMOND database (`_proteins.dmnd`) with an E-value of `1e-5`, and it looks up the hits in a table (`_master_search_table.tsv.gz`). The result is `{assembly_id}.eggnog.tsv.gz`. Note that it's a separate, newer data set, so the results don't exactly match the classic one.
 
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+
 ## Pitfalls
 
 - **Comment lines.** `--no_file_comments` removes the headers that start with `##`. That's useful when you concatenate chunks.
@@ -278,6 +294,10 @@ mv proteinortho.* {params.outdir}
 Note what the sets are: **each set is one assembly, not one genome**. So the table shows what's shared between assemblies. To compare genomes, you'd have to split the proteins by genome first.
 
 The rule needs at least two assemblies, so with a single assembly, it fails.
+
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
 
 ## Reference
 

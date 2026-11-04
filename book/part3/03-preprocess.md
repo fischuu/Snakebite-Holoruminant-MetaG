@@ -170,6 +170,10 @@ These two rules ask for FastQC reports of the reads after fastp and after each h
 3. How many reads mapped to each host? Look at `flagstats`.
 4. How many clean reads does each sample have? A sample with far fewer than the others will produce less of everything later on.
 
+## Real output
+
+@sec-tutorial-preprocess goes through the real output of this module, and how to read it.
+
 ## Summary
 
 - fastp trims the reads with the adapters from the sample table.

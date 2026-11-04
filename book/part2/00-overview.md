@@ -89,7 +89,7 @@ Each tool runs in a container, so its version is fixed by the image in `config/.
 
 <!-- versions table: start -->
 | Tool | Version | Image | Used in |
-|------|---------|-------|---------|
+|-------------------|--------|--------------------------------|----------------------|
 | FastQC | 0.12.1 | `fischuu/hrp_helpers:0.1` | All FastQC reports |
 | fastp | 0.23.4 | `fischuu/hrp_preprocess:0.8` | `preprocess` |
 | Bowtie2 | 2.5.1 | `fischuu/hrp_bowtie2:0.1` | `preprocess`, `quantify` |

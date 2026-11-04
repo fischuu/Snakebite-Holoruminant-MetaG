@@ -21,22 +21,22 @@ The reads of a metagenome come from thousands of organisms, all mixed. To get ge
 clean reads of the libraries of one assembly
         │  assemble__megahit__run or assemble__metaspades__run
         ▼
-results/assemble/{assembler}/{assembly_id}.fa.gz                    the contigs
+results/assemble/{assembler}/{assembly_id}.fa.gz  (contigs)
         │  assemble__bowtie2__build__run, assemble__bowtie2__map
         ▼
 results/assemble/bowtie2/{assembly_id}.{sample_id}.{library_id}.cram
         │  assemble__concoct__run, assemble__maxbin2__run, assemble__metabat2__run
         ▼
-results/assemble/{concoct,maxbin2,metabat2}/{assembly_id}/*.fa.gz   the bins of each binner
+results/assemble/{binner}/{assembly_id}/*.fa.gz  (bins)
         │  the six MAGScoT rules, see below
         ▼
-results/assemble/magscot/{assembly_id}.fa.gz                        the contigs in refined bins
+results/assemble/magscot/{assembly_id}.fa.gz  (refined bins)
         │  assemble__drep__split_bins, assemble__drep__run, assemble__drep__catalogue
         ▼
-results/assemble/drep/dereplicated_genomes.fa.gz                    the MAG catalogue
+results/assemble/drep/dereplicated_genomes.fa.gz  (catalogue)
 ```
 
-Note that the last steps collect all assemblies: the wildcard `{assembly_id}` disappears at dRep, and there is one catalogue in the end, however many assemblies you have.
+Here `{binner}` stands for `concoct`, `maxbin2` and `metabat2`. Note that the last steps collect all assemblies: the wildcard `{assembly_id}` disappears at dRep, and there is one catalogue in the end, however many assemblies you have.
 
 The final target only asks for the catalogue:
 
@@ -58,7 +58,7 @@ Contigs and mappings are linked through the constant `CONTIGS`. It holds `result
 
 ## Assembling
 
-Only one of the two assemblers runs in a project, namely the one in `config.yaml`. @sec-tool-metaspades and @sec-tool-megahit compare them. In short, metaSPAdes tends to give better assemblies, and it needs much more memory. MEGAHIT is the economical choice, and it's a fall-back if metaSPAdes doesn't finish.
+Only one of the two assemblers runs in a project, the one named in `config.yaml`. @sec-tool-metaspades and @sec-tool-megahit compare them. In short, metaSPAdes tends to give better assemblies, and it needs much more memory. MEGAHIT is the economical choice, and it's a fall-back if metaSPAdes doesn't finish.
 
 ### `assemble__metaspades__run`
 
@@ -325,6 +325,10 @@ This rule concatenates all genomes into one file, `dereplicated_genomes.fa.gz`, 
 2. **Mapping rate:** how many clean reads map back to their assembly? If only a small share does, much of the community isn't assembled.
 3. **MAGScoT logs:** did every assembly give bins?
 4. **dRep:** how many genomes came in, and how many are left?
+
+## Real output
+
+@sec-tutorial-assemble goes through the real output of this module, and how to read it.
 
 ## Summary
 

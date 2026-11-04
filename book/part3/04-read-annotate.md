@@ -273,6 +273,10 @@ All options of this module in `params.yaml` are listed above. Everything else, s
 3. **Nonpareil:** is the coverage high enough? If it's low, a deeper sequencing would find many more organisms, and few MAGs are to be expected.
 4. **Compare the profilers:** do they agree on the dominant groups?
 
+## Real output
+
+@sec-tutorial-read-annotate goes through the real output of this module, and how to read it.
+
 ## Summary
 
 - The tools work on the reads, and each answers another question. You can run each on its own.

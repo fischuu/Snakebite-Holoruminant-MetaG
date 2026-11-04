@@ -2,7 +2,7 @@
 
 ## What it does
 
-DIAMOND compares DNA or protein sequences with a protein database, as BLAST does, but thousands of times faster. It's the tool to use when you want to know which known proteins your reads or genes resemble. It's often a hidden component of other tools too, like eggNOG-mapper, HUMAnN, CAMPER and DRAM.
+DIAMOND compares DNA or protein sequences with a protein database, as BLAST does, but thousands of times faster. It's the tool to use when you want to know which known proteins your reads or genes resemble. It's often a hidden component of other tools too, like eggNOG-mapper, HUMAnN and CheckM2.
 
 ## Why compare at the protein level
 
@@ -57,6 +57,10 @@ The rule for reads uses `--max-target-seqs 1`, so it reports just one hit per re
 Sensitivity stays at the default, so distant homologs may be missed.
 
 An R script turns the hits of the reads into feature tables, in `read_annotate__diamond__summarise`. It's chosen by the name of the database, so for a new database you have to provide such a script.
+
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
 
 ## Pitfalls
 

@@ -41,6 +41,10 @@ Use it as a fast filter for eukaryotic contigs. It has only modest resource need
 
 The rule `eukaryote__tiara__run` runs it per assembly, as @sec-module-eukaryote shows. `min_len` is 1000 here, and the comment in `params.yaml` explains that this is the tool's documented lower limit, chosen so that assemblies with short contigs, such as those from soil, don't get thinned out.
 
+## On real data
+
+@sec-tutorial-eukaryote shows real output of this tool, and how to read it.
+
 ## Pitfalls
 
 - **Short contigs.** With `min_len` 1000, the shortest contigs get the least reliable labels.
@@ -93,6 +97,10 @@ Two rules run it: `eukaryote__4cac__extract_graph` gets the files from the archi
 | Four more | The scores of the first step |
 
 This comes from a third-party image, `metagenlab/4cac:1.0`, with the scripts in `/pkg/4CAC`. `workflow/scripts/fourcac_to_contig_ids.py` translates the names, by repeating the numbering of `contig_ids.py`. So if you ever change one of the two, change the other too.
+
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
 
 ## Pitfalls
 
@@ -150,6 +158,10 @@ Two precautions in these rules are worth noting:
 
 - REMAG doesn't stop with an error when its classifier can't be loaded or a batch fails. It keeps the contigs as eukaryotic, and it only writes this to the log. So the rule looks for these messages and fails by itself.
 - If the contigs called eukaryotic add up to less than `min_bin_size`, then the rule skips the binning, as REMAG would stop with an error.
+
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
 
 ## Pitfalls
 

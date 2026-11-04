@@ -59,6 +59,10 @@ The rule `assemble__concoct__run` follows the steps of the manual, as @sec-modul
 
 The rule uses the default settings of CONCOCT, and it doesn't filter bins by size. Small bins are filtered out later on, by MAGScoT.
 
+## On real data
+
+@sec-tutorial-assemble shows real output of this tool, and how to read it.
+
 ## Pitfalls
 
 - **Few samples.** With a single sample, the coverage signal is nearly useless.
@@ -115,6 +119,10 @@ There are two things to note here. First, column 5 is the number of covered base
 
 The rest of the rule renames the bins to `.fa` and compresses them. Other files of MaxBin2 are removed.
 
+## On real data
+
+@sec-tutorial-assemble shows real output of this tool, and how to read it.
+
 ## Pitfalls
 
 - **Few marker genes.** With a small assembly, it may find too few marker genes to start, and it then produces no bins. On small test data, this is what to expect.
@@ -161,6 +169,10 @@ metabat2 -i {input.contigs} -a "$depth" -o {output}/bin -m {params.min_contig} -
 ```
 
 `-m 1500` is the smallest value MetaBAT2 accepts. Also note that MetaBAT2 drops bins smaller than 200 kb by default, and it doesn't report unbinned contigs.
+
+## On real data
+
+@sec-tutorial-assemble shows real output of this tool, and how to read it.
 
 ## Pitfalls
 

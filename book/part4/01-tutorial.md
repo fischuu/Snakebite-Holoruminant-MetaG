@@ -6,7 +6,7 @@ This part runs the pipeline on real data, and it shows what comes out and how to
 ## Where the output in this part comes from
 All the output here is real. It comes from the pipeline's own rules, with the real tools in their containers, on **1 million read pairs per sample**. That's about a sixtieth of the data, on a computer with only Docker and 8 GB of memory. It's enough to see every file and to read every table, but the biology is thin, as you'll see.
 
-The tools that need large databases couldn't run there, and neither could metaSPAdes. @sec-tutorial-waiting lists them, and those sections will be added from a complete run on a cluster.
+The tools that need large databases couldn't run there, and neither could metaSPAdes. @sec-tutorial-waiting lists them, and those sections will be added from a complete run on a cluster. FastQC, Kraken2 and Krona ran by hand on a part of the reads, and the text says so where it applies.
 :::
 
 ## The data
@@ -72,7 +72,7 @@ ERR2019415	lib1	reads/ERR2019415_1.fastq.gz	coasm
 
 So there are two assemblies: `ERR2019410`, from one sample, and `coasm`, a co-assembly of all three. Comparing them shows what a co-assembly brings.
 
-## Stage `reads`
+## Stage `reads` {#sec-tutorial-reads}
 
 @sec-module-reads explains this stage. Here's the first read:
 
@@ -94,9 +94,57 @@ ERR2019410.lib1.log
 ERR2019410.lib1_1.fq.gz
 ```
 
-FastQC is part of this stage too. Its Java runs very slowly under emulation, so its report isn't shown here.
+### FastQC
 
-## Stage `reference`
+FastQC is part of this stage too. Under emulation it's very slow on all the reads, so this report comes from running the same version by hand on the first 100,000 reads of `ERR2019410`. @sec-tool-fastqc explains the checks.
+
+```text
+$ unzip -p demos/raw_fastqc.zip raw_fastqc/summary.txt | cut -f 1,2
+PASS	Basic Statistics
+PASS	Per base sequence quality
+PASS	Per tile sequence quality
+PASS	Per sequence quality scores
+PASS	Per base sequence content
+FAIL	Per sequence GC content
+PASS	Per base N content
+PASS	Sequence Length Distribution
+PASS	Sequence Duplication Levels
+WARN	Overrepresented sequences
+PASS	Adapter Content
+```
+
+Don't let the `FAIL` alarm you. FastQC compares the GC content with a normal distribution, which fits a single genome, and a community of many organisms doesn't have to follow it. This is exactly the kind of `FAIL` that is normal in a metagenome.
+
+The `WARN` deserves a look, and FastQC says what it found:
+
+```text
+$ unzip -p demos/raw_fastqc.zip raw_fastqc/fastqc_data.txt | sed -n '/^>>Overrepresented/,/^>>END_MODULE/p'
+>>Overrepresented sequences	warn
+#Sequence	Count	Percentage	Possible Source
+GATCGGAAGAGCACACGTCTGAACTCCAGTCACGTGAAACGATCTCGTAT	340	0.33999999999999997	TruSeq Adapter, Index 19 (97% over 40bp)
+>>END_MODULE
+```
+
+0.34% of the reads are nothing but adapter. They are fragments with no real insert, and fastp should remove them, as we'll check below. Note that this sequence starts like the adapter given in `samples.tsv`.
+
+The basic statistics confirm what the name of the run promises:
+
+```text
+$ unzip -p demos/raw_fastqc.zip raw_fastqc/fastqc_data.txt | sed -n '/^>>Basic Statistics/,/^>>END_MODULE/p' | cut -f 1,2
+>>Basic Statistics	pass
+#Measure	Value
+Filename	raw.fq.gz
+File type	Conventional base calls
+Encoding	Sanger / Illumina 1.9
+Total Sequences	100000
+Total Bases	10.1 Mbp
+Sequences flagged as poor quality	0
+Sequence length	101
+%GC	44
+>>END_MODULE
+```
+
+## Stage `reference` {#sec-tutorial-reference}
 
 @sec-module-reference explains this stage. It recompresses each host genome. The generic rules then make the index files `.fai` and `.gzi`:
 
@@ -110,7 +158,7 @@ phix.fa.gz.log
 phix.log
 ```
 
-## Stage `preprocess`
+## Stage `preprocess` {#sec-tutorial-preprocess}
 
 @sec-module-preprocess explains this stage.
 
@@ -176,6 +224,27 @@ $ grep -E '^reads passed filter|^reads failed due to low' results/preprocess/fas
 reads passed filter: 1910824
 reads failed due to low quality: 83680
 ```
+
+### FastQC after trimming
+
+The same 100,000 reads after fastp look like this:
+
+```text
+$ unzip -p demos/trimmed_fastqc.zip trimmed_fastqc/summary.txt | cut -f 1,2
+PASS	Basic Statistics
+PASS	Per base sequence quality
+PASS	Per tile sequence quality
+PASS	Per sequence quality scores
+PASS	Per base sequence content
+WARN	Per sequence GC content
+PASS	Per base N content
+WARN	Sequence Length Distribution
+PASS	Sequence Duplication Levels
+PASS	Overrepresented sequences
+PASS	Adapter Content
+```
+
+Compare the two reports. The warning about overrepresented sequences is gone, so fastp removed those adapters. The length distribution now has a warning, and this is expected: trimming makes reads shorter by different amounts, so they no longer all have the same length. This is why you have to read these marks and not simply count them.
 
 ### What host removal did
 
@@ -261,9 +330,9 @@ $ gzip -dc results/preprocess/bowtie2/decontaminated_reads/ERR2019410.lib1_1.fq.
 @ERR2019410.1/1
 ```
 
-## Stage `read_annotate`
+## Stage `read_annotate` {#sec-tutorial-read-annotate}
 
-@sec-module-read-annotate explains this stage. Most of it needs large databases, so here we can only look at two tools.
+@sec-module-read-annotate explains this stage. Most of it needs large databases. Here we look at two tools that need little, and at Kraken2 with a toy database.
 
 ### Nonpareil
 
@@ -300,7 +369,78 @@ gdh_K00261	25	24	20
 
 There's one row per gene family and one column per read file, not per library. All files were sampled to the same depth, as the first line says, so that the columns can be compared. `asnB` is an asparagine synthetase, which turns up in many organisms, so it's no surprise that it's the most frequent here.
 
-## Stage `assemble`
+### Kraken2 and Krona, on a toy database
+
+The database of Kraken2 needs about 140 GB of memory, but its output formats can be shown with a toy database that holds only the genome of PhiX. This ran by hand on the first 100,000 read pairs after fastp, with the options of the rule. **The percentages here say nothing about the sample**, as only one genome is in the database.
+
+Kraken2 prints this to its log:
+
+```text
+$ cat demos/sample.log
+Loading database information... done.
+100000 sequences (20.18 Mbp) processed in 3.168s (1894.0 Kseq/m, 382.26 Mbp/m).
+  228 sequences classified (0.23%)
+  99772 sequences unclassified (99.77%)
+```
+
+The report has a line per taxon, with the columns that @sec-tool-kraken2 lists:
+
+```text
+$ cat demos/sample.report
+ 99.77	99772	99772	U	0	unclassified
+  0.23	228	0	R	1	root
+  0.23	228	0	D	10239	  Viruses
+  0.23	228	228	S	10847	    Escherichia virus phiX174
+```
+
+Note the difference between columns 2 and 3. All 228 pairs are in the clade of `root`, but only the species has them directly.
+
+The per-read output has one line per pair, and it's complete, as the fixed rule writes it through a plain pipe:
+
+```text
+$ gzip -t demos/sample.out.gz && echo complete
+complete
+```
+
+```text
+$ gzip -dc demos/sample.out.gz | grep -m 2 '^C'
+C	ERR2019410.1393	10847	101|101	10847:67 |:| 10847:67
+C	ERR2019410.2997	10847	101|101	10847:67 |:| 10847:67
+```
+
+This says: classified, the name of the read, taxon 10847, two mates of 101 bases each, and for each mate, 67 k-mers that hit this taxon. A read of 101 bases has 67 k-mers of 35 bases, so here every k-mer agrees. And an unclassified one:
+
+```text
+$ gzip -dc demos/sample.out.gz | head -n 1
+U	ERR2019410.1	0	101|101	0:67 |:| 0:67
+```
+
+Krona then draws the report, with the options of the rule. These are the levels in the chart:
+
+```text
+$ grep -oE '<node name="[^"]+"' demos/chart.html
+<node name="Root"
+<node name="No hits"
+<node name="Viruses"
+<node name="Monodnaviria"
+<node name="Sangervirae"
+<node name="Phixviricota"
+<node name="Malgrandaviricetes"
+<node name="Petitvirales"
+<node name="Microviridae"
+<node name="Bullavirinae"
+<node name="Sinsheimervirus"
+<node name="Sinsheimervirus phiX174"
+```
+
+It finds the lineage in its own taxonomy, from nothing but the taxon number, and it gives the species its 228 pairs:
+
+```text
+$ grep -A 6 'phiX174">' demos/chart.html | grep -oE '<magnitude><val>[0-9]+' | head -n 1
+<magnitude><val>228
+```
+
+## Stage `assemble` {#sec-tutorial-assemble}
 
 @sec-module-assemble explains this stage, step by step.
 
@@ -528,7 +668,7 @@ $ gzip -dc results/assemble/drep/dereplicated_genomes.fa.gz | grep -v '>' | tr -
 
 So 554 contigs and 1.65 Mb, from one organism that's abundant enough to be assembled from a few million reads.
 
-## Stage `quantify`
+## Stage `quantify` {#sec-tutorial-quantify}
 
 @sec-module-quantify explains this stage. All reads go to the catalogue:
 
@@ -578,7 +718,7 @@ coasm:bin_000001@contig_00000001	78	10	2
 coasm:bin_000001@contig_00000005	184	28	10
 ```
 
-## Stage `contig_annotate`
+## Stage `contig_annotate` {#sec-tutorial-contig-annotate}
 
 @sec-module-contig-annotate explains this stage. It looks at all contigs of the assemblies, not only those in bins.
 
@@ -666,7 +806,7 @@ asnB	0	0
 gdh_K00262	0	1
 ```
 
-## Stage `mag_annotate`
+## Stage `mag_annotate` {#sec-tutorial-mag-annotate}
 
 @sec-module-mag-annotate explains this stage. Nearly all of it needs databases. Only QUAST could run here:
 
@@ -696,7 +836,7 @@ auN	4161.0
 
 An N50 of 3,208 bases says that the genome is in very small pieces. A good MAG from real sequencing depth has an N50 of tens of kilobases.
 
-## Stage `eukaryote`
+## Stage `eukaryote` {#sec-tutorial-eukaryote}
 
 @sec-module-eukaryote explains this stage. Of its tools, Tiara could run here:
 
@@ -737,12 +877,12 @@ The lesson is general: **stand-ins test your plumbing, and only real tools test 
 
 ## What's still waiting for the complete run {#sec-tutorial-waiting}
 
-These parts need a large database, or more memory than this run had, so they have no real output in this book yet. When the complete run on a cluster is done, its archive from `tests/real_run/collect.py` will fill them in. Their tool chapters in Part II describe the output formats.
+These parts need a large database, or more memory than this run had, so they have no real output on these data in this book yet. When the complete run on a cluster is done, its archive from `tests/real_run/collect.py` will fill them in. Their tool chapters in Part II describe the output formats.
 
 | Stage | Tools | Why they couldn't run here |
 |-------|-------|----------------------------|
-| `reads`, `preprocess` | FastQC | Far too slow under emulation |
-| `read_annotate` | Kraken2, Krona | Database of about 140 GB of memory |
+| `reads`, `preprocess` | FastQC on all reads | Too slow under emulation. Shown here on 100,000 reads |
+| `read_annotate` | Kraken2, Krona with a real database | About 140 GB of memory. Shown here with a toy database |
 | `read_annotate` | SingleM, MetaPhlAn | Crash under emulation, and large databases |
 | `read_annotate` | sylph, HUMAnN, phyloFlash, DIAMOND with CAZy | Databases |
 | `assemble` | metaSPAdes | Memory |

@@ -70,7 +70,7 @@ def render():
     rows = list(csv.DictReader(VERSIONS.open(), delimiter="\t"))
     versions = {(row["key"], row["tool"]): row["version"] for row in rows}
     images = {row["key"]: row["image"] for row in rows}
-    lines = ["| Tool | Version | Image | Used in |", "|------|---------|-------|---------|"]
+    lines = ["| Tool | Version | Image | Used in |", "|-------------------|--------|--------------------------------|----------------------|"]
     missing = []
     for tool, package, key, used in TOOLS:
         version = versions.get((key, package))

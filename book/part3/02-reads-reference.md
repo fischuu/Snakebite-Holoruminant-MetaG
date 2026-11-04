@@ -89,6 +89,10 @@ input:
 
 The index files `.fai` and `.gzi` aren't made here. The generic rule `helpers__samtools__faidx_fagz` makes them when a later rule asks for them.
 
+## Real output
+
+@sec-tutorial-reads and @sec-tutorial-reference show the real output of these modules.
+
 ## Summary
 
 - `reads` links your files to the names `{sample}.{library}_{1,2}.fq.gz` and runs FastQC on them.

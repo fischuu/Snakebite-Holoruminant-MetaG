@@ -55,6 +55,10 @@ Two settings are worth a look:
 
 If MAGScoT finds no viable bin, it fails, and the rule accepts this and continues with empty tables. This means that real errors are hidden too, so check the log.
 
+## On real data
+
+@sec-tutorial-assemble shows real output of this tool, and how to read it.
+
 ## Pitfalls
 
 - **Names.** The contig names must match exactly between the files. The pipeline's `bin_NA@contig_…` format takes care of this.
@@ -117,6 +121,10 @@ The rule `assemble__drep__run`, explained in @sec-module-assemble, reads the sin
 Note `-con 50`. dRep's own default is 25, and a genome with up to 50% contamination can get through this filter. The limit is permissive on purpose, and quality filtering is left to you, based on CheckM2, in @sec-tool-checkm2.
 
 The container `hrp_assemble` holds CheckM with its reference data, so dRep can run it without a separate database.
+
+## On real data
+
+@sec-tutorial-assemble shows real output of this tool, and how to read it.
 
 ## Pitfalls
 

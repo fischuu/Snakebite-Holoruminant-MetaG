@@ -45,6 +45,10 @@ quast -o {output} -t {threads} {input}
 
 So the numbers describe the set of contigs in the catalogue as a whole, and not each genome. The value of `# contigs` isn't per genome, and N50 is over all genomes. It doesn't evaluate the individual assemblies. To do that, run it by hand on `results/assemble/<assembler>/*.fa.gz`. For the quality of single genomes, CheckM2 is the right tool, and its table also gives an N50 per genome.
 
+## On real data
+
+@sec-tutorial-mag-annotate shows real output of this tool, and how to read it.
+
 ## Reference
 
 Gurevich A, Saveliev V, Vyahhi N, Tesler G (2013). QUAST: quality assessment tool for genome assemblies. *Bioinformatics*. <https://doi.org/10.1093/bioinformatics/btt086>
@@ -101,6 +105,10 @@ Use it on every MAG you want to use. It doesn't work for eukaryotes or viruses, 
 The rule `mag_annotate__checkm2__predict` runs it on the dereplicated genomes. The result is at `results/mag_annotate/checkm2/quality_report.tsv`.
 
 dRep uses the older CheckM for its filter, as @sec-tool-drep explains, so you can see two sets of values for a genome. Use CheckM2's for your report.
+
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
 
 ## Pitfalls
 
@@ -175,6 +183,10 @@ GTDBTK_DATA_PATH={input.reference_data} gtdbtk classify_wf \
 
 `--skip_ani_screen` skips the first quick comparison, which would need one more database. It joins the two tables into `gtdbtk.summary.tsv`, and packs the folders with intermediate results into archives. DRAM uses the table.
 
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+
 ## Pitfalls
 
 - **Memory.** It can use a lot, and the amount depends on the database release. This rule runs in the resource set `large`.
@@ -227,6 +239,10 @@ phylophlan_assign_sgbs -i {input} \
 ```
 
 As the comment in the rule says, the database name and folder are written into the rule. The list under `phylophlan` in `features.yaml` has no effect on it, nor do `phylophlan-config` in `config.yaml` and `diversity` in `params.yaml`.
+
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
 
 ## Reference
 

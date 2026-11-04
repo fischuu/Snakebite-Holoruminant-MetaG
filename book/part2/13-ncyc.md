@@ -40,6 +40,10 @@ It runs twice, and both are outside the default run. You call them with `read_an
 
 `workflow/scripts/prepare_ncyc_inputs.sh` writes the sample table. The Perl script comes with the pipeline, in `workflow/scripts/NCycProfiler.PL`, so that the version is fixed. The database is the entry `ncyc` in `features.yaml`, and all its files have to be in the same folder as `NCyc_100.faa`, as the rule assumes.
 
+## On real data
+
+@sec-tutorial-read-annotate and @sec-tutorial-contig-annotate show real output of this tool, and how to read it.
+
 ## Pitfalls
 
 - **All samples at once.** Both rules run all samples in one job. It has to finish as a whole, so a failure late in the job costs the time for all samples.

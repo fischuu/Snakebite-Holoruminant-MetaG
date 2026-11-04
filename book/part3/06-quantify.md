@@ -109,6 +109,10 @@ These do the same as on the genome level. `quantify__coverm` asks for both level
 
 Note that a value of TPM is relative: the sum over a sample is fixed, and it covers the mapped reads only. Comparing it between samples tells you about the shares, not the absolute amount.
 
+## Real output
+
+@sec-tutorial-quantify goes through the real output of this module, and how to read it.
+
 ## Summary
 
 - All libraries are mapped to the same catalogue, so the values are comparable between samples.

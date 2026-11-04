@@ -54,6 +54,10 @@ nonpareil -s "${{prefix}}_1.fq" -T kmer -b "$prefix" -f fastq -t {threads} -X {p
 
 `-X` is the number of query reads, and the default in `params.yaml` is 100, for quick testing. The comment there says so. Fewer query reads make the estimate less precise, so raise this value for an analysis you want to report.
 
+## On real data
+
+@sec-tutorial-read-annotate shows real output of this tool, and how to read it.
+
 ## Pitfalls
 
 - **`-X` too low**, as just explained.

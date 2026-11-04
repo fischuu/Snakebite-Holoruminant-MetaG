@@ -48,6 +48,10 @@ The rule `read_annotate__metaphlan__run` maps the clean reads of each library, a
 
 The database comes from `features.yaml`, and it is the MetaPhlAn database in version 4.
 
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+
 ## Pitfalls
 
 - **A profile that adds up to 100%** can suggest that everything is known, as said above.

@@ -8,6 +8,7 @@ Docker but no Apptainer and no cluster. Part IV of the book quotes the results.
   databases small enough for a laptop.
 - `run.sh` runs targets in that project, one job at a time.
 - `show_results.sh` records what the book quotes into `../transcripts/real_tools.txt`.
+- `small_demos.sh` runs FastQC, Kraken2 and Krona by hand on a part of the reads, and records that into `../transcripts/real_tools_small_demos.txt`.
 
 To use them, you need the subsets from the example archive, see `tests/real_run/README.md`:
 

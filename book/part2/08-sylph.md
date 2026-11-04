@@ -49,6 +49,10 @@ There's no step that combines the libraries. You get one table per library, and 
 
 The rule still contains a commented part for testing the escalation, and you can ignore it.
 
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+
 ## Pitfalls
 
 - **The genome names are file names.** To get a taxonomy, you need the metadata of the database. For GTDB, the accession in `Genome_file` is the link.

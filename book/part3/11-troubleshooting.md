@@ -60,7 +60,7 @@ Long jobs can hit the limit of a partition. On Puhti, `small` allows 3 days, and
 
 The tools run in containers, and they see only folders that are bound. The list is in the run script, under `--singularity-args`. If you link `resources` or `reads` to another place, that place has to be bound too. From the login node, the link looks fine, so this is confusing at first.
 
-A related trap is `$TMPDIR`. The run script binds the project's `tmp/` to `/tmp` in the container, while SLURM often sets `$TMPDIR` to a path on the real `/tmp` of the node, and this doesn't exist in the container. Programs that use it fail, often deep inside another program. Several rules set their own `TMPDIR` for this reason, namely those of MAGScoT, Bakta, CAMPER and DRAM. The comments in these rules explain it. If you see such an error in another rule, this is the first thing to check.
+A related trap is `$TMPDIR`. The run script binds the project's `tmp/` to `/tmp` in the container, while SLURM often sets `$TMPDIR` to a path on the real `/tmp` of the node, and this doesn't exist in the container. Programs that use it fail, often deep inside another program. Several rules set their own `TMPDIR` for this reason: those of MAGScoT, Bakta, CAMPER and DRAM. The comments in these rules explain it. If you see such an error in another rule, this is the first thing to check.
 
 ## Disk space
 

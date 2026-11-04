@@ -50,6 +50,10 @@ Each method runs as its own job, per library, and `workflow/scripts/coverm_wide_
 
 **Note that `min_covered_fraction` is 0 here**, so even a genome with a single read gets a value. You'll want to filter these yourself, using `covered_bases` divided by `length`.
 
+## On real data
+
+@sec-tutorial-quantify shows real output of this tool, and how to read it.
+
 ## Pitfalls
 
 - **`min_covered_fraction`**, as above.
@@ -111,6 +115,10 @@ featureCounts -p -T {threads} -F GFF3 \
 The file with the positions comes from Prodigal, which marks genes as `CDS` and gives each an `ID` like `1_5`, the fifth gene on the first contig in the file. So the names in this table differ from the names in the protein file. Each gene's ID is built from the position of the contig in the file. To join the tables, use the contig and the gene number.
 
 The image `subread` holds version 2.0.1.
+
+## On real data
+
+@sec-tutorial-contig-annotate shows real output of this tool, and how to read it.
 
 ## Pitfalls
 

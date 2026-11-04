@@ -141,9 +141,9 @@ Note that 4CAC, in the module `eukaryote`, needs the assembly graph of metaSPAde
 
 `metaspades_slots: 10` is the limit mentioned above.
 
-`resource_sets` is the list of job sizes. These are the defaults, written for CSC's Puhti:
+`resource_sets` is the list of job sizes. These are the defaults, written for CSC's Puhti, with the time limit in minutes, the memory in MB and the local disk in GB:
 
-| Set | Time (min) | Memory (MB) | CPUs | Partition | Local disk (GB) |
+| Set | Minutes | MB | CPUs | Partition | Disk (GB) |
 |-----|------|--------|------|-----------|------|
 | `small` | 300 | 16000 | 1 | `small` | 0 |
 | `medium` | 4000 | 160000 | 10 | `small` | 0 |

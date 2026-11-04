@@ -113,6 +113,10 @@ You get three tables that use the same contig names, so you can join them. A con
 
 Be careful with short contigs: all three classifiers are least reliable there. And note what is **not** in this module: REMAG's bins aren't part of the catalogue of @sec-module-assemble, so they aren't quantified or annotated by the other modules. Check them with a tool for eukaryotes, such as EukCC or BUSCO, as CheckM2 doesn't apply to them.
 
+## Real output
+
+@sec-tutorial-eukaryote goes through the real output of this module, and how to read it.
+
 ## Summary
 
 - This module is optional, and useful in samples with a real share of eukaryotes.

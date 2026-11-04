@@ -175,6 +175,10 @@ This compares the proteins of all assemblies from Bakta. It needs at least two a
 2. **GTDB-Tk:** which groups are there, and do they fit the habitat? Are some classified only up to the family or the genus? These may be new species.
 3. **DRAM:** `product.html` gives you the overview of what your genomes can do.
 
+## Real output
+
+@sec-tutorial-mag-annotate goes through the real output of this module, and how to read it.
+
 ## Summary
 
 - Run CheckM2 first, and use it to decide which genomes to trust.

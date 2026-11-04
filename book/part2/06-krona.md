@@ -46,6 +46,10 @@ The rule used to say `-q 2 -t 3`. These options fit the per-read output of Krake
 In a test with the real tool and the pipeline's taxonomy database, on a small report written by hand, 800 reads assigned to *Escherichia coli* (taxon 562) appeared as *Ancylobacter aquaticus*. `tests/krona/run_test.sh` now checks this. The Kraken2 reports themselves were always right.
 :::
 
+## On real data
+
+@sec-tutorial-read-annotate shows it drawing a real report of Kraken2, with a toy database. Charts on these data with a real database will come from a complete run on a cluster, as @sec-tutorial-waiting says.
+
 ## Pitfalls
 
 - **A wrong column gives no error**, as this bug shows. Krona draws whatever it gets, so check a chart against the table it comes from.

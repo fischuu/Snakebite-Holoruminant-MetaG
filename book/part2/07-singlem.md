@@ -50,6 +50,10 @@ It doesn't look at eukaryotes or viruses. It says nothing about function. And an
 
 As the comment in the rule says, SingleM's documentation recommends using raw reads, because it doesn't need trimming. The pipeline gives it the clean reads, so that all profilers see the same data. This also means that host reads are gone before the microbial fraction is computed. **So in this pipeline, this share refers to the reads after host removal, and it doesn't tell you how much of the raw sample was host.** For that, look at the mapping to the host genomes in @sec-module-preprocess.
 
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+
 ## Pitfalls
 
 - **Temporary space.** `singlem pipe` can write a lot to `$TMPDIR`, which is why the rule writes the free space there to its log.

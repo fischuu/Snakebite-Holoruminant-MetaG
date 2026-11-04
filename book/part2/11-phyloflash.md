@@ -50,6 +50,10 @@ The library name has an underscore instead of the usual dot, as in `ERR2019410_l
 
 `read_annotate__phyloflash__condense` concatenates the logs into `phyloflash_all.log`.
 
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+
 ## Pitfalls
 
 - **Host rRNA.** Eukaryotic SSU reads of the host would dominate, if host reads were still there. This pipeline removes them first, so this isn't an issue here, as long as the host genome is in `features.yaml` and it contains those genes.

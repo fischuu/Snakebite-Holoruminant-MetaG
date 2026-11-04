@@ -57,6 +57,10 @@ The option `--remove-temp-output` deletes the large intermediate files at the en
 
 Only the gene families are declared as output, but the pathway tables are also in the same folder.
 
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+
 ## Pitfalls
 
 - **Temporary space.** The rule warns about this: `TMPDIR` has to be large enough for big data sets.

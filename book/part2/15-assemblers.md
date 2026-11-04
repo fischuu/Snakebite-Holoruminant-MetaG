@@ -75,6 +75,10 @@ The rule `assemble__megahit__run` runs it when `assembler` is `"megahit"`, as @s
 - `--min-contig-len 1500` removes short contigs right away. MEGAHIT's own default is 200, but the binners use contigs from about 1500 bases, so shorter ones would mostly be ballast here. If you want the short contigs too, for gene-based work, then lower this value. The comment in `params.yaml` says the same.
 - `--force` is needed because the folder exists already, and `--continue` lets it resume.
 
+## On real data
+
+@sec-tutorial-assemble shows real output of this tool, and how to read it.
+
 ## Pitfalls
 
 - **`--memory`.** By default, MEGAHIT may use 90% of the machine's memory. In a SLURM job, this means the node's memory, not the job's, and so it can go beyond the allocation and get killed. If this happens, give it a limit through `additional_options` in `params.yaml`.
@@ -126,6 +130,10 @@ Three settings are important:
 - **`-m`.** metaSPAdes takes this in gigabytes, and it stops when it reaches that limit. The rule gives it `{resources.mem_mb}`, which is in megabytes, so the value is about a thousand times too high. In effect it's no limit, and it's the job's memory limit that counts. The job then gets killed by SLURM, instead of metaSPAdes stopping by itself.
 
 `metaspades_slots` in `config.yaml` limits how many run at the same time.
+
+## On real data
+
+This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
 
 ## Pitfalls
 

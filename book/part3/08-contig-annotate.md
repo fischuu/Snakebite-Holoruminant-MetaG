@@ -161,6 +161,10 @@ If you add your own profiles, set a score for them that makes sense, as 10.0 is 
 
 To get the amount of a function in a sample, you join two tables: the annotation of a gene from eggNOG, and the count of that gene from featureCounts.
 
+## Real output
+
+@sec-tutorial-contig-annotate goes through the real output of this module, and how to read it.
+
 ## Summary
 
 - This module works on all contigs of each assembly, whether binned or not.

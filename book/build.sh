@@ -13,6 +13,7 @@ else
 fi
 
 python3 tools/rule_reference.py
+python3 tools/references.py
 "$quarto_bin" render --to pdf
 cp _build/*.pdf Snakebite-MetaG-book.pdf
 echo "Book written to book/Snakebite-MetaG-book.pdf"

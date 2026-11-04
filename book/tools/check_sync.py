@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BOOK = ROOT / "book"
 RULES = ROOT / "workflow/rules"
 DOCKER = ROOT / "config/.docker.yml"
-GENERATED = {BOOK / "appendix/rule-reference.md"}
+GENERATED = {BOOK / "appendix/rule-reference.md", BOOK / "appendix/references.md"}
 # Rule names that only exist inside the examples or as illustrations in the text
 NOT_PIPELINE_RULES = {"qc__filter", "qc__report", "qc__fragile__run", "qc__filter__run", "stats__count"}
 

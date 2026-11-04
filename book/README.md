@@ -25,6 +25,7 @@ data. The finished book is [Snakebite-MetaG-book.pdf](Snakebite-MetaG-book.pdf),
 | `tools/container_versions.sh` | Reads those versions out of the images |
 | `tools/versions_table.py` | Writes the table of versions into Part II from them |
 | `tools/rule_reference.py` | Writes `appendix/rule-reference.md` from the rule files |
+| `tools/references.py` | Writes `appendix/references.md` from the tool chapters |
 | `tools/check_sync.py` | Fails when the book doesn't cover the pipeline as it is now |
 | `tools/check_transcripts.py` | Fails when a chapter quotes output that isn't in a transcript |
 
@@ -37,6 +38,7 @@ The book is a living document, and it has to change together with the pipeline. 
 
    ```bash
    python3 book/tools/rule_reference.py
+   python3 book/tools/references.py
    python3 book/tools/versions_table.py --check
    python3 book/tools/check_sync.py
    python3 book/tools/check_transcripts.py

@@ -61,6 +61,10 @@ The generic rule `helpers__fastqc` makes a report for any file ending in `.fq.gz
 
 The rule simply calls `fastqc {input}`, which runs with one thread per file.
 
+## On real data
+
+@sec-tutorial-reads shows the real report of this tool on 100,000 reads, and @sec-tutorial-preprocess shows it after trimming. Its `FAIL` for the GC content is an example of what the section above says about metagenomes.
+
 ## Pitfalls
 
 - **Judging a metagenome by the marks alone.** See above.
