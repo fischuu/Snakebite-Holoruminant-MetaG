@@ -861,6 +861,12 @@ coasm:bin_NA@contig_00000001	bacteria	n/a
 coasm:bin_NA@contig_00000002	bacteria	n/a
 ```
 
+## The reports of this run {#sec-tutorial-reports}
+
+The reports in `Rreports/` sum up all of the above, and @sec-module-report explains them. For this run, `tests/reports/run_test.sh` compares their tables with the numbers that this chapter took from the tools' own files. For example, the preprocess report has the 933,448 clean pairs of `ERR2019410`, and the assemble report has 900 contigs in the co-assembly with an N50 of 2,858.
+
+Two things are different on a real cluster. Here, the reports can't show any memory use or CPU time, and they say so, because Snakemake's benchmark sees only Docker's client process when the containers run through the stand-in for Apptainer of this chapter. And the reports describe only what has run here: the sections of tools from @sec-tutorial-waiting say that they have no output.
+
 ## What this run found {#sec-tutorial-found}
 
 Before these real runs, the rewritten pipeline had only been tested with stand-ins for its tools. Its first contact with the real ones found these problems, all of which are fixed now:

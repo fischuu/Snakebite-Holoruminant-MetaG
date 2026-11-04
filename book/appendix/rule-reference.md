@@ -1892,7 +1892,7 @@ Target rule: it runs nothing itself and only asks for these files.
 
 **`report`**
 
-Generate the report for every module
+Generate the report of every module of the rule all. The module eukaryote is optional, and has its own target report_eukaryote
 
 Target rule: it runs nothing itself and only asks for these files.
 
@@ -1907,7 +1907,7 @@ Target rule: it runs nothing itself and only asks for these files.
 
 **`report_assemble`**
 
-Report assemble module
+Report on the module assemble
 
 Target rule: it runs nothing itself and only asks for these files.
 
@@ -1915,15 +1915,23 @@ Target rule: it runs nothing itself and only asks for these files.
 
 **`report_contig_annotate`**
 
-Report contig_annotate module
+Report on the module contig_annotate
 
 Target rule: it runs nothing itself and only asks for these files.
 
 - input: `rules.report__contig_annotate.output`
 
+**`report_eukaryote`**
+
+Report on the module eukaryote
+
+Target rule: it runs nothing itself and only asks for these files.
+
+- input: `rules.report__eukaryote.output`
+
 **`report_mag_annotate`**
 
-Report mag_annotate module
+Report on the module mag_annotate
 
 Target rule: it runs nothing itself and only asks for these files.
 
@@ -1931,7 +1939,7 @@ Target rule: it runs nothing itself and only asks for these files.
 
 **`report_preprocess`**
 
-Report preprocess module
+Report on the module preprocess
 
 Target rule: it runs nothing itself and only asks for these files.
 
@@ -1939,7 +1947,7 @@ Target rule: it runs nothing itself and only asks for these files.
 
 **`report_quantify`**
 
-Report preprocess module
+Report on the module quantify
 
 Target rule: it runs nothing itself and only asks for these files.
 
@@ -1947,7 +1955,7 @@ Target rule: it runs nothing itself and only asks for these files.
 
 **`report_read_annotate`**
 
-Report read_annotate module
+Report on the module read_annotate
 
 Target rule: it runs nothing itself and only asks for these files.
 
@@ -1955,7 +1963,7 @@ Target rule: it runs nothing itself and only asks for these files.
 
 **`report_reads`**
 
-Report reads module
+Report on the module reads
 
 Target rule: it runs nothing itself and only asks for these files.
 
@@ -1963,7 +1971,7 @@ Target rule: it runs nothing itself and only asks for these files.
 
 **`report_reference`**
 
-Report reference module
+Report on the module reference
 
 Target rule: it runs nothing itself and only asks for these files.
 
@@ -1973,145 +1981,190 @@ Target rule: it runs nothing itself and only asks for these files.
 
 **`report__assemble`**
 
-Render the assemble module PDF report: assembly/binning/dereplication summary, runtime
+Report on assembly, binning and the genome catalogue, data volume and resources
 
 - input: `rules.assemble.input`
 - output: `pdf=PIPELINE_REPORT / "assemble.pdf"`
+- output: `folder=directory(PIPELINE_REPORT / "assemble")`
 - log: `PIPELINE_REPORT / "assemble.log"`
 - benchmark: `PIPELINE_REPORT / "assemble_benchmark.tsv"`
-- params: `script=ASSEMBLE_R`
+- params: `script=REPORT_SCRIPT`
 - params: `pipeline_folder=config["pipeline_folder"]`
 - params: `features=config["features-file"]`
 - params: `sample_file=config["sample-file"]`
 - params: `project_folder=WD`
-- container: `r_report` (see `config/.docker.yml`)
-- escalation: small
+- params: `rule_table=lambda wc: report_rule_table("assemble")`
+- params: `version=version`
+- params: `snakemake_version=SNAKEMAKE_VERSION`
+- escalation: small, medium
 
 ### `report/contig_annotate.smk`
 
 **`report__contig_annotate`**
 
-Render the contig_annotate module PDF report: gene prediction/annotation summary, runtime
+Report on genes and annotation of the contigs, data volume and resources
 
 - input: `rules.contig_annotate.input`
 - output: `pdf=PIPELINE_REPORT / "contig_annotate.pdf"`
+- output: `folder=directory(PIPELINE_REPORT / "contig_annotate")`
 - log: `PIPELINE_REPORT / "contig_annotate.log"`
 - benchmark: `PIPELINE_REPORT / "contig_annotate_benchmark.tsv"`
-- params: `script=CONTIG_ANNOTATE_R`
+- params: `script=REPORT_SCRIPT`
 - params: `pipeline_folder=config["pipeline_folder"]`
 - params: `features=config["features-file"]`
 - params: `sample_file=config["sample-file"]`
 - params: `project_folder=WD`
-- container: `r_report` (see `config/.docker.yml`)
-- escalation: small
+- params: `rule_table=lambda wc: report_rule_table("contig_annotate")`
+- params: `version=version`
+- params: `snakemake_version=SNAKEMAKE_VERSION`
+- escalation: small, medium
+
+### `report/eukaryote.smk`
+
+**`report__eukaryote`**
+
+Report on eukaryotic contigs and bins, data volume and resources
+
+- input: `rules.eukaryote.input`
+- output: `pdf=PIPELINE_REPORT / "eukaryote.pdf"`
+- output: `folder=directory(PIPELINE_REPORT / "eukaryote")`
+- log: `PIPELINE_REPORT / "eukaryote.log"`
+- benchmark: `PIPELINE_REPORT / "eukaryote_benchmark.tsv"`
+- params: `script=REPORT_SCRIPT`
+- params: `pipeline_folder=config["pipeline_folder"]`
+- params: `features=config["features-file"]`
+- params: `sample_file=config["sample-file"]`
+- params: `project_folder=WD`
+- params: `rule_table=lambda wc: report_rule_table("eukaryote")`
+- params: `version=version`
+- params: `snakemake_version=SNAKEMAKE_VERSION`
+- escalation: small, medium
 
 ### `report/mag_annotate.smk`
 
 **`report__mag_annotate`**
 
-Render the mag_annotate module PDF report: CheckM2/GTDB-Tk/QUAST/DRAM summaries, runtime
+Report on genome quality, taxonomy and annotation, data volume and resources
 
 - input: `rules.mag_annotate.input`
 - output: `pdf=PIPELINE_REPORT / "mag_annotate.pdf"`
+- output: `folder=directory(PIPELINE_REPORT / "mag_annotate")`
 - log: `PIPELINE_REPORT / "mag_annotate.log"`
 - benchmark: `PIPELINE_REPORT / "mag_annotate_benchmark.tsv"`
-- params: `script=MAG_ANNOTATE_R`
+- params: `script=REPORT_SCRIPT`
 - params: `pipeline_folder=config["pipeline_folder"]`
 - params: `features=config["features-file"]`
 - params: `sample_file=config["sample-file"]`
 - params: `project_folder=WD`
-- container: `r_report` (see `config/.docker.yml`)
-- escalation: small
+- params: `rule_table=lambda wc: report_rule_table("mag_annotate")`
+- params: `version=version`
+- params: `snakemake_version=SNAKEMAKE_VERSION`
+- escalation: small, medium
 
 ### `report/preprocess.smk`
 
 **`report__preprocess`**
 
-Render the preprocess module PDF report: fastp + host-decontamination stats, runtime
+Report on trimming and host removal: what happened to the reads, data volume and resources
 
 - input: `rules.preprocess.input`
 - output: `pdf=PIPELINE_REPORT / "preprocess.pdf"`
+- output: `folder=directory(PIPELINE_REPORT / "preprocess")`
 - log: `PIPELINE_REPORT / "preprocess.log"`
 - benchmark: `PIPELINE_REPORT / "preprocess_benchmark.tsv"`
-- params: `script=PREPROCESS_R`
+- params: `script=REPORT_SCRIPT`
 - params: `pipeline_folder=config["pipeline_folder"]`
 - params: `features=config["features-file"]`
 - params: `sample_file=config["sample-file"]`
 - params: `project_folder=WD`
-- container: `r_report` (see `config/.docker.yml`)
-- escalation: small
+- params: `rule_table=lambda wc: report_rule_table("preprocess")`
+- params: `version=version`
+- params: `snakemake_version=SNAKEMAKE_VERSION`
+- escalation: small, medium
 
 ### `report/quantify.smk`
 
 **`report__quantify`**
 
-Render the quantify module PDF report: CoverM genome/contig abundance summary, runtime
+Report on the abundance of genomes and contigs, data volume and resources
 
 - input: `rules.quantify.input`
 - output: `pdf=PIPELINE_REPORT / "quantify.pdf"`
+- output: `folder=directory(PIPELINE_REPORT / "quantify")`
 - log: `PIPELINE_REPORT / "quantify.log"`
 - benchmark: `PIPELINE_REPORT / "quantify_benchmark.tsv"`
-- params: `script=QUANTIFY_R`
+- params: `script=REPORT_SCRIPT`
 - params: `pipeline_folder=config["pipeline_folder"]`
 - params: `features=config["features-file"]`
 - params: `sample_file=config["sample-file"]`
 - params: `project_folder=WD`
-- container: `r_report` (see `config/.docker.yml`)
-- escalation: small
+- params: `rule_table=lambda wc: report_rule_table("quantify")`
+- params: `version=version`
+- params: `snakemake_version=SNAKEMAKE_VERSION`
+- escalation: small, medium
 
 ### `report/read_annotate.smk`
 
 **`report__read_annotate`**
 
-Render the read_annotate module PDF report: kraken2/nonpareil/singlem summaries, runtime
+Report on the read-based taxonomy and function, data volume and resources
 
 - input: `rules.read_annotate.input`
 - output: `pdf=PIPELINE_REPORT / "read_annotate.pdf"`
+- output: `folder=directory(PIPELINE_REPORT / "read_annotate")`
 - log: `PIPELINE_REPORT / "read_annotate.log"`
 - benchmark: `PIPELINE_REPORT / "read_annotate_benchmark.tsv"`
-- params: `script=READ_ANNOTATE_R`
+- params: `script=REPORT_SCRIPT`
 - params: `pipeline_folder=config["pipeline_folder"]`
 - params: `features=config["features-file"]`
 - params: `sample_file=config["sample-file"]`
 - params: `project_folder=WD`
-- container: `r_report` (see `config/.docker.yml`)
-- escalation: small
+- params: `rule_table=lambda wc: report_rule_table("read_annotate")`
+- params: `version=version`
+- params: `snakemake_version=SNAKEMAKE_VERSION`
+- escalation: small, medium
 
 ### `report/reads.smk`
 
 **`report__reads`**
 
-Render the reads module PDF report: sample sheet summary, FastQC overview, runtime stats
+Report on the raw reads: samples, read numbers, quality, data volume and resources
 
 - input: `rules.reads.input`
 - output: `pdf=PIPELINE_REPORT / "reads.pdf"`
+- output: `folder=directory(PIPELINE_REPORT / "reads")`
 - log: `PIPELINE_REPORT / "reads.log"`
 - benchmark: `PIPELINE_REPORT / "reads_benchmark.tsv"`
-- params: `script=READS_R`
+- params: `script=REPORT_SCRIPT`
 - params: `pipeline_folder=config["pipeline_folder"]`
 - params: `features=config["features-file"]`
 - params: `sample_file=config["sample-file"]`
 - params: `project_folder=WD`
-- container: `r_report` (see `config/.docker.yml`)
-- escalation: small
+- params: `rule_table=lambda wc: report_rule_table("reads")`
+- params: `version=version`
+- params: `snakemake_version=SNAKEMAKE_VERSION`
+- escalation: small, medium
 
 ### `report/reference.smk`
 
 **`report__reference`**
 
-Render the reference module PDF report: configured hosts, recompression runtime
+Report on the host genomes and the configured databases, data volume and resources
 
 - input: `rules.reference.input`
 - output: `pdf=PIPELINE_REPORT / "reference.pdf"`
+- output: `folder=directory(PIPELINE_REPORT / "reference")`
 - log: `PIPELINE_REPORT / "reference.log"`
 - benchmark: `PIPELINE_REPORT / "reference_benchmark.tsv"`
-- params: `script=REFERENCE_R`
+- params: `script=REPORT_SCRIPT`
 - params: `pipeline_folder=config["pipeline_folder"]`
 - params: `features=config["features-file"]`
 - params: `sample_file=config["sample-file"]`
 - params: `project_folder=WD`
-- container: `r_report` (see `config/.docker.yml`)
-- escalation: small
+- params: `rule_table=lambda wc: report_rule_table("reference")`
+- params: `version=version`
+- params: `snakemake_version=SNAKEMAKE_VERSION`
+- escalation: small, medium
 
 ## Module `helpers`
 
@@ -2212,4 +2265,4 @@ samtools flagstats of a CRAM
 
 ---
 
-This reference lists 171 rules.
+This reference lists 173 rules.

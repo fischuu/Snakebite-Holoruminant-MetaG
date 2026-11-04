@@ -4,42 +4,77 @@ The last two groups of rules are different from the others. They don't add a sci
 
 ## The module `report`
 
-::: {.callout-warning}
-## Under development
-These reports aren't finished. They may not produce anything useful and they may crash. The rule `all` doesn't include them for this reason.
-:::
-
-Each module has one report, an R Markdown file in `workflow/scripts/R/`, which is rendered to a PDF in the folder `Rreports/`:
+Each module has one report, a PDF in the folder `Rreports/` that you can use as a basis for a paper and to plan the next run. The rule `all` makes the first eight reports of this table at the end of a run. You can also make one on its own:
 
 ```bash
 bash run_Snakebite-Holoruminant-MetaG.sh report_preprocess
 ```
 
-All these rules are built in the same way. For example, `report__assemble` asks for all results of the module `assemble`, and runs:
-
-```bash
-R -e "project_folder <- '{params.project_folder}'; \
-      pipeline_folder <- '{params.pipeline_folder}'; \
-      features_file <- '{params.features}'; \
-      sample_file <- '{params.sample_file}'; \
-      rmarkdown::render('{params.script}', output_format='pdf_document', \
-                         output_file=file.path('{params.project_folder}', '{output.pdf}'))"
-```
-
-**Careful:** since a report asks for all results of its module, calling it starts that module if it's not done yet.
+**Careful:** a report asks for all results of its module, so calling it starts that module if it hasn't finished.
 
 | Rule doing the work | Short target | Report on |
 |------|------|------|
-| `report__reads` | `report_reads` | Raw reads |
-| `report__reference` | `report_reference` | Host genomes |
-| `report__preprocess` | `report_preprocess` | Trimming and host removal |
-| `report__read_annotate` | `report_read_annotate` | Read-based annotation |
-| `report__assemble` | `report_assemble` | Assembly and binning |
-| `report__quantify` | `report_quantify` | Quantification |
-| `report__mag_annotate` | `report_mag_annotate` | Annotation of MAGs |
-| `report__contig_annotate` | `report_contig_annotate` | Annotation of contigs |
+| `report__reads` | `report_reads` | Samples, reads per sample, read quality |
+| `report__reference` | `report_reference` | Host genomes and the project's databases |
+| `report__preprocess` | `report_preprocess` | Trimming, host removal, what happened to the reads |
+| `report__read_annotate` | `report_read_annotate` | Taxonomy and function from the reads |
+| `report__assemble` | `report_assemble` | Assembly, binning, the genome catalogue |
+| `report__quantify` | `report_quantify` | Abundance of genomes and contigs |
+| `report__mag_annotate` | `report_mag_annotate` | Quality, taxonomy and annotation of the genomes |
+| `report__contig_annotate` | `report_contig_annotate` | Genes and annotation of the contigs |
+| `report__eukaryote` | `report_eukaryote` | Eukaryotic contigs and bins. The module is optional, so `all` and `report` leave this out |
 
-The target `report` asks for all of them. The container `r_report` is used only here, and for the R scripts of the DIAMOND summaries.
+The target `report` asks for all of them, except the last.
+
+### What a report has
+
+Every report has these parts:
+
+1. **Results in brief**: the main numbers in sentences, with warnings, for example about a library with far fewer reads than the others.
+2. **The results of each tool**: tables and figures. A tool without output gets a sentence saying so.
+3. **Methods text**: a paragraph with tools, versions and the settings of this project, to adapt for a paper.
+4. **How much data this module wrote, and where**: per folder and file type, and the largest files.
+5. **Resources**: requested and used, with suggestions for the next run. The next section explains these.
+6. **Tools, versions and references**.
+
+Next to `Rreports/<module>.pdf`, the folder `Rreports/<module>/` has all tables in `tables/` as TSV files with unrounded numbers, all figures in `figures/` as PDF and PNG, and the suggestions in `escalation_suggestions.yaml`.
+
+### Requested and used resources
+
+*Requested* comes from Snakemake's logs. `.snakemake/log/` has a block for each job, with its rule, benchmark file and resources, including the attempt. For a job whose log is gone, the report takes the first resource set of the rule in `config/escalation.yaml`, and it says so. *Used* comes from the job's benchmark file, which @sec-pipeline-patterns describes.
+
+From these, the report compares the highest memory, the longest run time and the most cores of any job of a rule with the sets in `config/config.yaml`. With a margin of 30% on memory and 50% on run time, each rule gets one of these results:
+
+| Result | Meaning |
+|--------|---------|
+| `start higher` | Jobs failed on the first set and finished on a later one. Starting there saves the failed attempts |
+| `raise` | A job used 85% or more of its memory or its run time |
+| `reduce` | A smaller set would be enough. The former sets stay in the line as a fallback, so a suggestion that is too low costs one failed attempt, not the run |
+| `keep` | The set fits |
+| `not measured` | The benchmark has no memory, so nothing can be said |
+
+Two kinds of rules keep something even if they used little. A rule that stages a database in `/dev/shm` keeps its memory: the cluster counts those files against the job, and the benchmark doesn't see them, as they belong to no process. A rule on a set with local disk keeps that disk.
+
+If no set fits well, the report says what size of a new set would. The lines to copy to `config/escalation.yaml` are in `Rreports/<module>/escalation_suggestions.yaml`.
+
+**The suggestions hold for data like this run's.** A test on a subset says little about the memory that an assembler needs for the full data.
+
+### How the reports work
+
+Each rule runs `workflow/scripts/R/render_report.R`, which renders `workflow/scripts/R/<module>.Rmd`, with the shared parts in `report_helpers.R`:
+
+```bash
+Rscript {params.script} module=reads project={params.project_folder} \
+    pipeline={params.pipeline_folder} features={params.features} samples={params.sample_file} \
+    output={output.pdf} version={params.version} snakemake={params.snakemake_version} \
+    rules={params.rule_table:q}
+```
+
+`rules` is a list of the module's rules with their benchmark patterns, which `report_rule_table()` takes from the workflow itself. So a new rule's resources appear without a change to the report. The generic helper rules, such as `helpers__fastqc`, count for the module in whose folder their files are.
+
+A report must not fail at the end of a long run because a tool wrote something unexpected. So every part runs in `section()`, which turns an error into a sentence in the PDF and a line in `Rreports/<module>/section_errors.txt`.
+
+The container is `rocker/verse`, with the key `report`. Its LaTeX is small, and it can't download what's missing on a compute node without network. This is why a report uses `pdflatex` and only a few LaTeX packages. `tests/reports/run_test.sh` renders all reports without network, and that's the test to run after any change, since a computer with a full LaTeX hides such problems.
 
 ## The module `helpers` {#sec-module-helpers}
 

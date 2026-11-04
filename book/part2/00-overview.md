@@ -78,7 +78,8 @@ Most of the formats are shared between many tools, so it's enough to explain the
 | `krona` | `fischuu/hrp_krona:0.1` | Krona |
 | `phyloflash` | `fischuu/hrp_phyloflash:0.2` | phyloFlash |
 | `sylph` | `fischuu/sylph:0.8.1_0.1` | sylph |
-| `r_report` | `fischuu/r-gbs:4.2.1-0.7` | The reports and the summaries of DIAMOND |
+| `r_report` | `fischuu/r-gbs:4.2.1-0.7` | The summaries of DIAMOND |
+| `report` | `rocker/verse:4.4.2` | The module reports |
 | `tiara` | `quay.io/biocontainers/tiara:1.0.3` | Tiara |
 | `4cac` | `metagenlab/4cac:1.0` | 4CAC |
 | `remag` | `quay.io/biocontainers/remag:0.5.1--pyhdfd78af_0` | REMAG |

@@ -176,3 +176,6 @@ concoct	fischuu/hrp_concoct:0.1	python	3.11.9
 concoct	fischuu/hrp_concoct:0.1	samtools	1.20
 dram	fischuu/hrp_dram:0.4	dram	1.5.0
 camper	fischuu/hrp_camper:0.1	camper_dram	1.0.13
+report	rocker/verse:4.4.2	R	4.4.2
+report	rocker/verse:4.4.2	rmarkdown	2.29
+report	rocker/verse:4.4.2	ggplot2	3.5.1

@@ -130,6 +130,10 @@ def main():
             if size and not is_binary(path) and sample(path, os.path.join(name, "samples", path)):
                 samples += 1
 
+    # The reports are small, and they are useful whole
+    if os.path.isdir("Rreports"):
+        shutil.copytree("Rreports", os.path.join(name, "Rreports"))
+
     archive = name + ".tar.gz"
     with tarfile.open(archive, "w:gz") as tar:
         tar.add(name)

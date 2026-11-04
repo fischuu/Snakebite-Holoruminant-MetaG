@@ -62,11 +62,13 @@ Each call first prints a dry run's job table, then runs the jobs. The stages in 
 | `eukaryote` | Separates eukaryotic contigs. Not part of `all` |
 | `read_annotate_extra` | nCycDB on the reads. Not part of `all` |
 | `contig_annotate_extra` | nCycDB on the contigs. Not part of `all` |
+| `report` | The PDF report of each module of `all`, in `Rreports/` |
+| `report_eukaryote` | The report of the module `eukaryote` |
 
 All in one go, stopping at the first failure:
 
 ```bash
-for stage in reads reference preprocess read_annotate assemble quantify contig_annotate mag_annotate eukaryote read_annotate_extra contig_annotate_extra; do
+for stage in reads reference preprocess read_annotate assemble quantify contig_annotate mag_annotate eukaryote read_annotate_extra contig_annotate_extra report report_eukaryote; do
     bash $PIPELINE/tests/real_run/run_stage.sh "$stage" || break
 done
 ```
