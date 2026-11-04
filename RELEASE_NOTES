@@ -1,3 +1,16 @@
+# Version 0.4.70
+################################################################################
+
+Check results/read_annotate/nonpareil/nonpareil.tsv in your projects. If its columns are empty, delete the file, and
+Snakemake makes it again from the existing results:
+
+   bash run_Snakebite-Holoruminant-MetaG.sh read_annotate__nonpareil
+
+If a library has too little coverage for a model, its LRstar and modelR are NA, and its diversity is 0.
+
+If dRep leaves no genomes, assemble__drep__run now stops and says so. Read the log in results/assemble/drep/. The usual
+reason is CheckM, inside dRep, running out of memory.
+
 # Version 0.4.69
 ################################################################################
 

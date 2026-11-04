@@ -3,6 +3,11 @@
 
 Version 0.4.*:
 -----------
+70: Three more fixes from running the real tools.
+    assemble__drep__run now stops with a clear message if dRep leaves no genomes. dRep can report that CheckM
+    failed and still exit with 0, and only the next rule failed then, with a misleading error.
+    nonpareil.tsv no longer loses all its values if a single library has too little coverage for a model.
+    The target contig_annotate__featurecounts works now. It couldn't start, as a string lacked its f.
 69: Fixed four problems that a run with the real tools and a look through the rules brought up. Please read
     RELEASE_NOTES, in particular about the clean reads.
     Clean reads could end up truncated, as preprocess__bowtie2__extract_nonhost__run wrote them through

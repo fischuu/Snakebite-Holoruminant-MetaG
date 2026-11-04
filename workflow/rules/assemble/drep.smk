@@ -68,6 +68,12 @@ rule assemble__drep__run:
             -pa {params.settings[P_ani]} -sa {params.settings[S_ani]} -nc {params.settings[nc]} \
             {params.settings[extra]}
 
+        # dRep can report that CheckM failed, still exit with 0, and leave no genomes
+        if [ -z "$(find {output.genomes} -type f -name '*.fa*' -print -quit 2>/dev/null)" ]; then
+            echo "dRep wrote no genomes. Its messages are above, and {DREP}/log/logger.log has the details."
+            exit 1
+        fi
+
         for section in data data_tables; do
             tar -C {DREP} -cv -I "pigz -p {threads}" --remove-files -f {DREP}/$section.tar.gz $section
         done
