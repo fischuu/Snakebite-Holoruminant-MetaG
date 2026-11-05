@@ -11,7 +11,7 @@ rule assemble__bowtie2__build__run:
     log:
         ASSEMBLY_INDEX / "{assembly_id}.log",
     benchmark:
-        ASSEMBLY_INDEX / "benchmark/{assembly_id}.tsv",
+        ASSEMBLY_INDEX / "benchmark/{assembly_id}.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__bowtie2__build")
@@ -22,7 +22,6 @@ rule assemble__bowtie2__build__run:
         slurm_partition=esc("partition", "assemble__bowtie2__build"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__bowtie2__build')['nvme']}",
         attempt=esc("attempt", "assemble__bowtie2__build"),
-    retries: len(get_escalation_order("assemble__bowtie2__build"))
     shell:
         """
         try_log={log}.try{resources.attempt}
@@ -52,7 +51,7 @@ rule assemble__bowtie2__map:
     log:
         ASSEMBLY_MAPPING / f"{_LIBRARY_ON_ASSEMBLY}.log",
     benchmark:
-        ASSEMBLY_MAPPING / f"benchmark/{_LIBRARY_ON_ASSEMBLY}.tsv",
+        ASSEMBLY_MAPPING / f"benchmark/{_LIBRARY_ON_ASSEMBLY}.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__bowtie2__map")
@@ -63,7 +62,6 @@ rule assemble__bowtie2__map:
         slurm_partition=esc("partition", "assemble__bowtie2__map"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__bowtie2__map')['nvme']}",
         attempt=esc("attempt", "assemble__bowtie2__map"),
-    retries: len(get_escalation_order("assemble__bowtie2__map"))
     params:
         sort_memory=params["assemble"]["samtools"]["mem"],
         rg_id=compose_rg_id,

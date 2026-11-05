@@ -17,12 +17,12 @@ rule read_annotate__nonpareil__run:
     log:
         NONPAREIL / f"{LIBRARY}.log",
     benchmark:
-        NONPAREIL / f"benchmark/{LIBRARY}.tsv",
+        NONPAREIL / f"benchmark/{LIBRARY}.tsv"
     container:
         docker["preprocess"]
     params:
         X=params["read_annotate"]["nonpareil"]["X"],
-        tmp = config["tmp_storage"]
+        tmp=config["tmp_storage"],
     threads: esc("cpus", "read_annotate__nonpareil__run")
     resources:
         runtime=esc("runtime", "read_annotate__nonpareil__run"),
@@ -31,7 +31,6 @@ rule read_annotate__nonpareil__run:
         slurm_partition=esc("partition", "read_annotate__nonpareil__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__nonpareil__run')['nvme']}",
         attempt=esc("attempt", "read_annotate__nonpareil__run"),
-    retries: len(get_escalation_order("read_annotate__nonpareil__run"))
     shell:
         """
         export TMPDIR={params.tmp}
@@ -48,13 +47,16 @@ rule read_annotate__nonpareil__run:
 rule read_annotate__nonpareil__aggregate:
     """Aggregate all the nonpareil results into a single table"""
     input:
-        [f"{NONPAREIL}/{sample_id}.{library_id}.npo" for sample_id, library_id in SAMPLE_LIBRARY],
+        [
+            f"{NONPAREIL}/{sample_id}.{library_id}.npo"
+            for sample_id, library_id in SAMPLE_LIBRARY
+        ],
     output:
         NONPAREIL / "nonpareil.tsv",
     log:
         NONPAREIL / "nonpareil.log",
     benchmark:
-        NONPAREIL / "benchmark/nonpareil.tsv",
+        NONPAREIL / "benchmark/nonpareil.tsv"
     container:
         docker["preprocess"]
     threads: esc("cpus", "read_annotate__nonpareil__aggregate")
@@ -65,7 +67,6 @@ rule read_annotate__nonpareil__aggregate:
         slurm_partition=esc("partition", "read_annotate__nonpareil__aggregate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__nonpareil__aggregate')['nvme']}",
         attempt=esc("attempt", "read_annotate__nonpareil__aggregate"),
-    retries: len(get_escalation_order("read_annotate__nonpareil__aggregate"))
     params:
         input_dir=NONPAREIL,
         script_folder=SCRIPT_FOLDER,

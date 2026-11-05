@@ -8,7 +8,7 @@ rule read_annotate__singlem__pipe:
     input:
         forward_=CLEAN_FORWARD,
         reverse_=CLEAN_REVERSE,
-        data=features["databases"]["singlem"], 
+        data=features["databases"]["singlem"],
     output:
         archive_otu_table=SINGLEM / "pipe" / "{sample_id}.{library_id}.archive.json",
         otu_table=SINGLEM / "pipe" / "{sample_id}.{library_id}.otu_table.tsv",
@@ -16,7 +16,7 @@ rule read_annotate__singlem__pipe:
     log:
         SINGLEM / "pipe" / "{sample_id}.{library_id}.log",
     benchmark:
-        SINGLEM / "benchmark/pipe" / "{sample_id}.{library_id}.tsv",
+        SINGLEM / "benchmark/pipe" / "{sample_id}.{library_id}.tsv"
     container:
         docker["preprocess"]
     threads: esc("cpus", "read_annotate__singlem__pipe")
@@ -27,9 +27,8 @@ rule read_annotate__singlem__pipe:
         slurm_partition=esc("partition", "read_annotate__singlem__pipe"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__singlem__pipe')['nvme']}",
         attempt=esc("attempt", "read_annotate__singlem__pipe"),
-    retries: len(get_escalation_order("read_annotate__singlem__pipe"))
     params:
-        tmp = config["tmp_storage"]
+        tmp=config["tmp_storage"],
     shell:
         """
         export TMPDIR={params.tmp}
@@ -64,7 +63,7 @@ rule read_annotate__singlem__condense:
     log:
         SINGLEM / "singlem.log",
     benchmark:
-        SINGLEM / "benchmark/singlem.tsv",
+        SINGLEM / "benchmark/singlem.tsv"
     container:
         docker["preprocess"]
     params:
@@ -77,7 +76,6 @@ rule read_annotate__singlem__condense:
         slurm_partition=esc("partition", "read_annotate__singlem__condense"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__singlem__condense')['nvme']}",
         attempt=esc("attempt", "read_annotate__singlem__condense"),
-    retries: len(get_escalation_order("read_annotate__singlem__condense"))
     shell:
         """
         exec > {log} 2>&1
@@ -114,7 +112,6 @@ rule read_annotate__singlem__microbial_fraction:
         slurm_partition=esc("partition", "read_annotate__singlem__microbial_fraction"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__singlem__microbial_fraction')['nvme']}",
         attempt=esc("attempt", "read_annotate__singlem__microbial_fraction"),
-    retries: len(get_escalation_order("read_annotate__singlem__microbial_fraction"))
     shell:
         """
         exec > {log} 2>&1
@@ -147,17 +144,21 @@ rule read_annotate__singlem__aggregate_microbial_fraction:
     resources:
         runtime=esc("runtime", "read_annotate__singlem__aggregate_microbial_fraction"),
         mem_mb=esc("mem_mb", "read_annotate__singlem__aggregate_microbial_fraction"),
-        cpus_per_task=esc("cpus", "read_annotate__singlem__aggregate_microbial_fraction"),
-        slurm_partition=esc("partition", "read_annotate__singlem__aggregate_microbial_fraction"),
+        cpus_per_task=esc(
+            "cpus", "read_annotate__singlem__aggregate_microbial_fraction"
+        ),
+        slurm_partition=esc(
+            "partition", "read_annotate__singlem__aggregate_microbial_fraction"
+        ),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__singlem__aggregate_microbial_fraction')['nvme']}",
         attempt=esc("attempt", "read_annotate__singlem__aggregate_microbial_fraction"),
-    retries: len(get_escalation_order("read_annotate__singlem__aggregate_microbial_fraction"))
     shell:
         """
         exec 2> {log}
         debug "tsv_count=$(echo {input.tsvs} | wc -w) output={output.tsv}"
         csvstack --tabs {input.tsvs} | csvformat --out-tabs > {output.tsv}
         """
+
 
 rule read_annotate__singlem:
     """Aggregate the SingleM taxonomic profile and microbial-fraction results"""

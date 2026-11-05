@@ -7,7 +7,7 @@ rule mag_annotate__quast:
     log:
         QUAST / "quast.log",
     benchmark:
-        QUAST / "benchmark.tsv",
+        QUAST / "benchmark.tsv"
     container:
         docker["mag_annotate"]
     threads: esc("cpus", "mag_annotate__quast")
@@ -18,7 +18,6 @@ rule mag_annotate__quast:
         slurm_partition=esc("partition", "mag_annotate__quast"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__quast')['nvme']}",
         attempt=esc("attempt", "mag_annotate__quast"),
-    retries: len(get_escalation_order("mag_annotate__quast"))
     shell:
         """
         exec > {log} 2>&1

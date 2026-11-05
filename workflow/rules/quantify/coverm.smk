@@ -17,11 +17,10 @@ rule quantify__coverm__genome__run:
         slurm_partition=esc("partition", "quantify__coverm__genome__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__coverm__genome__run')['nvme']}",
         attempt=esc("attempt", "quantify__coverm__genome__run"),
-    retries: len(get_escalation_order("quantify__coverm__genome__run"))
     log:
         COVERM / "genome" / "{method}" / f"{LIBRARY}.log",
     benchmark:
-        COVERM / "genome" / "{method}" / "benchmark" / f"{LIBRARY}.tsv",
+        COVERM / "genome" / "{method}" / "benchmark" / f"{LIBRARY}.tsv"
     params:
         settings=params["quantify"]["coverm"]["genome"],
     shell:
@@ -46,7 +45,7 @@ rule quantify__coverm__genome_aggregate:
     log:
         COVERM / "genome.{method}.log",
     benchmark:
-        COVERM / "benchmark_genome.{method}.tsv",
+        COVERM / "benchmark_genome.{method}.tsv"
     container:
         docker["quantify"]
     params:
@@ -59,7 +58,6 @@ rule quantify__coverm__genome_aggregate:
         slurm_partition=esc("partition", "quantify__coverm__genome_aggregate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__coverm__genome_aggregate')['nvme']}",
         attempt=esc("attempt", "quantify__coverm__genome_aggregate"),
-    retries: len(get_escalation_order("quantify__coverm__genome_aggregate"))
     shell:
         """
         exec > {log} 2>&1
@@ -71,7 +69,10 @@ rule quantify__coverm__genome_aggregate:
 rule quantify__coverm__genome:
     """Run genome-level CoverM for every configured method"""
     input:
-        expand(COVERM / "genome.{method}.tsv", method=params["quantify"]["coverm"]["genome"]["methods"]),
+        expand(
+            COVERM / "genome.{method}.tsv",
+            method=params["quantify"]["coverm"]["genome"]["methods"],
+        ),
 
 
 rule quantify__coverm__contig_one:
@@ -93,11 +94,10 @@ rule quantify__coverm__contig_one:
         slurm_partition=esc("partition", "quantify__coverm__contig_one"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__coverm__contig_one')['nvme']}",
         attempt=esc("attempt", "quantify__coverm__contig_one"),
-    retries: len(get_escalation_order("quantify__coverm__contig_one"))
     log:
         COVERM / "contig" / "{method}" / f"{LIBRARY}.log",
     benchmark:
-        COVERM / "contig" / "{method}" / "benchmark" / f"{LIBRARY}.tsv",
+        COVERM / "contig" / "{method}" / "benchmark" / f"{LIBRARY}.tsv"
     shell:
         """
         exec 2> {log}
@@ -117,7 +117,7 @@ rule quantify__coverm__contig_aggregate:
     log:
         COVERM / "contig.{method}.log",
     benchmark:
-        COVERM / "benchmark_contig.{method}.tsv",
+        COVERM / "benchmark_contig.{method}.tsv"
     container:
         docker["quantify"]
     params:
@@ -130,7 +130,6 @@ rule quantify__coverm__contig_aggregate:
         slurm_partition=esc("partition", "quantify__coverm__contig_aggregate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__coverm__contig_aggregate')['nvme']}",
         attempt=esc("attempt", "quantify__coverm__contig_aggregate"),
-    retries: len(get_escalation_order("quantify__coverm__contig_aggregate"))
     shell:
         """
         exec > {log} 2>&1
@@ -142,7 +141,10 @@ rule quantify__coverm__contig_aggregate:
 rule quantify__coverm__contig:
     """Run contig-level CoverM for every configured method"""
     input:
-        expand(COVERM / "contig.{method}.tsv", method=params["quantify"]["coverm"]["contig"]["methods"]),
+        expand(
+            COVERM / "contig.{method}.tsv",
+            method=params["quantify"]["coverm"]["contig"]["methods"],
+        ),
 
 
 rule quantify__coverm:

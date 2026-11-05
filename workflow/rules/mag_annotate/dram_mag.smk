@@ -16,7 +16,7 @@ rule mag_annotate__dram_mag__annotate:
     log:
         _DRAM_ASSEMBLY / "annotate_{assembly_id}.log",
     benchmark:
-        _DRAM_ASSEMBLY / "benchmark_annotate.tsv",
+        _DRAM_ASSEMBLY / "benchmark_annotate.tsv"
     container:
         docker["dram"]
     params:
@@ -30,7 +30,6 @@ rule mag_annotate__dram_mag__annotate:
         slurm_partition=esc("partition", "mag_annotate__dram_mag__annotate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__dram_mag__annotate')['nvme']}",
         attempt=esc("attempt", "mag_annotate__dram_mag__annotate"),
-    retries: len(get_escalation_order("mag_annotate__dram_mag__annotate"))
     shell:
         """
         exec > {log} 2>&1
@@ -104,7 +103,7 @@ rule mag_annotate__dram_mag__distill:
     log:
         _DRAM_ASSEMBLY / "distill.log2",
     benchmark:
-        _DRAM_ASSEMBLY / "benchmark_distill.tsv",
+        _DRAM_ASSEMBLY / "benchmark_distill.tsv"
     container:
         docker["dram"]
     threads: esc("cpus", "mag_annotate__dram_mag__distill")
@@ -115,7 +114,6 @@ rule mag_annotate__dram_mag__distill:
         slurm_partition=esc("partition", "mag_annotate__dram_mag__distill"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__dram_mag__distill')['nvme']}",
         attempt=esc("attempt", "mag_annotate__dram_mag__distill"),
-    retries: len(get_escalation_order("mag_annotate__dram_mag__distill"))
     params:
         dram_config=config["dram-config"],
         assembly_folder=lambda wildcards: DRAMMAG / wildcards.assembly_id,

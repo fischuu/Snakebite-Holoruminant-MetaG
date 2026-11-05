@@ -8,7 +8,7 @@ rule mag_annotate__checkm2__predict:
     log:
         CHECKM2 / "quality_report.log",
     benchmark:
-        CHECKM2 / "benchmark.tsv",
+        CHECKM2 / "benchmark.tsv"
     container:
         docker["checkm2"]
     threads: esc("cpus", "mag_annotate__checkm2__predict")
@@ -18,7 +18,6 @@ rule mag_annotate__checkm2__predict:
         cpus_per_task=esc("cpus", "mag_annotate__checkm2__predict"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__checkm2__predict')['nvme']}",
         attempt=esc("attempt", "mag_annotate__checkm2__predict"),
-    retries: len(get_escalation_order("mag_annotate__checkm2__predict"))
     shell:
         """
         exec > {log} 2>&1

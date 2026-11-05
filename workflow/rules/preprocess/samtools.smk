@@ -10,7 +10,7 @@ rule preprocess__samtools__stats_cram:
     log:
         HOST_MAPPING / "{genome}" / f"{LIBRARY}.stats.log",
     benchmark:
-        HOST_MAPPING / "benchmark/{genome}" / f"{LIBRARY}.stats.tsv",
+        HOST_MAPPING / "benchmark/{genome}" / f"{LIBRARY}.stats.tsv"
     container:
         docker["preprocess"]
     threads: esc("cpus", "preprocess__samtools__stats_cram")
@@ -21,7 +21,6 @@ rule preprocess__samtools__stats_cram:
         slurm_partition=esc("partition", "preprocess__samtools__stats_cram"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'preprocess__samtools__stats_cram')['nvme']}",
         attempt=esc("attempt", "preprocess__samtools__stats_cram"),
-    retries: len(get_escalation_order("preprocess__samtools__stats_cram"))
     shell:
         """
         exec 2> {log}

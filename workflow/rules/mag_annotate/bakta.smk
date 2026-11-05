@@ -8,7 +8,7 @@ rule mag_annotate__bakta:
     log:
         BAKTA / "bakta.log",
     benchmark:
-        BAKTA / "benchmark.tsv",
+        BAKTA / "benchmark.tsv"
     container:
         docker["mag_annotate"]
     params:
@@ -23,7 +23,6 @@ rule mag_annotate__bakta:
         slurm_partition=esc("partition", "mag_annotate__bakta"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__bakta')['nvme']}",
         attempt=esc("attempt", "mag_annotate__bakta"),
-    retries: len(get_escalation_order("mag_annotate__bakta"))
     shell:
         """
         # bakta's own tempfile handling is fine with the container's default
@@ -55,6 +54,7 @@ rule mag_annotate__bakta:
         debug "db={params.db} out_dir={params.out_dir} threads={threads} contigs={input.contigs} tmp_dir=$tmp_dir" 2>> {log}
         """
 
+
 rule mag_annotate__bakta_mags__run:
     """Run Bakta over the dereplicated mags"""
     input:
@@ -65,7 +65,7 @@ rule mag_annotate__bakta_mags__run:
     log:
         BAKTAMAG / "bakta_{assembly_id}.log",
     benchmark:
-        BAKTAMAG / "benchmark_{assembly_id}.tsv",
+        BAKTAMAG / "benchmark_{assembly_id}.tsv"
     container:
         docker["mag_annotate"]
     params:
@@ -80,7 +80,6 @@ rule mag_annotate__bakta_mags__run:
         slurm_partition=esc("partition", "mag_annotate__bakta_mags__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__bakta_mags__run')['nvme']}",
         attempt=esc("attempt", "mag_annotate__bakta_mags__run"),
-    retries: len(get_escalation_order("mag_annotate__bakta_mags__run"))
     shell:
         """
         # See mag_annotate__bakta above: tRNAscan-SE (spawned by bakta as a
@@ -106,8 +105,8 @@ rule mag_annotate__bakta_mags__run:
         debug "assembly_id={wildcards.assembly_id} db={params.db} out_dir={params.out_dir} threads={threads} tmp_dir=$tmp_dir" 2>> {log}
         """
 
+
 rule mag_annotate__bakta_mags:
     """Run Bakta over the dereplicated mags"""
     input:
         expand(BAKTAMAG / "bakta_{assembly_id}.faa", assembly_id=ASSEMBLIES),
-

@@ -11,7 +11,7 @@ rule read_annotate__phyloflash__run:
     log:
         PHYLOFLASH / "log" / "{sample_id}.{library_id}.log",
     benchmark:
-        PHYLOFLASH / "benchmark" / "{sample_id}.{library_id}.tsv",
+        PHYLOFLASH / "benchmark" / "{sample_id}.{library_id}.tsv"
     container:
         docker["phyloflash"]
     threads: esc("cpus", "read_annotate__phyloflash__run")
@@ -22,10 +22,9 @@ rule read_annotate__phyloflash__run:
         slurm_partition=esc("partition", "read_annotate__phyloflash__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__phyloflash__run')['nvme']}",
         attempt=esc("attempt", "read_annotate__phyloflash__run"),
-    retries: len(get_escalation_order("read_annotate__phyloflash__run"))
     params:
         lib="{sample_id}_{library_id}",
-        outdir=PHYLOFLASH
+        outdir=PHYLOFLASH,
     shell:
         """
         debug "threads={threads} lib={params.lib} dbhome={input.phyloflash_dbs} outdir={params.outdir}" 2>> {log}
@@ -46,13 +45,13 @@ rule read_annotate__phyloflash__condense:
         phyloflash_logs=[
             PHYLOFLASH / f"{sample_id}_{library_id}.phyloFlash.log"
             for sample_id, library_id in SAMPLE_LIBRARY
-        ]
+        ],
     output:
         PHYLOFLASH / "phyloflash_all.log",
     log:
         PHYLOFLASH / "phyloflash.log",
     benchmark:
-        PHYLOFLASH / "benchmark/phyloflash.tsv",
+        PHYLOFLASH / "benchmark/phyloflash.tsv"
     container:
         docker["phyloflash"]
     params:
@@ -65,12 +64,12 @@ rule read_annotate__phyloflash__condense:
         slurm_partition=esc("partition", "read_annotate__phyloflash__condense"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__phyloflash__condense')['nvme']}",
         attempt=esc("attempt", "read_annotate__phyloflash__condense"),
-    retries: len(get_escalation_order("read_annotate__phyloflash__condense"))
     shell:
         """
         cat {input.phyloflash_logs} > {output} 2> {log}
         """
 
+
 rule read_annotate__phyloflash:
     input:
-        rules.read_annotate__phyloflash__condense.output
+        rules.read_annotate__phyloflash__condense.output,

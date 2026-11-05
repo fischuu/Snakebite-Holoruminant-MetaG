@@ -11,7 +11,7 @@ rule read_annotate__metaphlan__run:
     log:
         METAPHLAN / "log" / "{sample_id}.{library_id}.log",
     benchmark:
-        METAPHLAN / "benchmark" / "{sample_id}.{library_id}.tsv",
+        METAPHLAN / "benchmark" / "{sample_id}.{library_id}.tsv"
     container:
         docker["preprocess"]
     threads: esc("cpus", "read_annotate__metaphlan__run")
@@ -22,9 +22,8 @@ rule read_annotate__metaphlan__run:
         slurm_partition=esc("partition", "read_annotate__metaphlan__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__metaphlan__run')['nvme']}",
         attempt=esc("attempt", "read_annotate__metaphlan__run"),
-    retries: len(get_escalation_order("read_annotate__metaphlan__run"))
     params:
-        tmp = config["tmp_storage"]
+        tmp=config["tmp_storage"],
     shell:
         """
         TMPDIR={params.tmp}
@@ -46,13 +45,13 @@ rule read_annotate__metaphlan__condense:
         profiled_data=[
             METAPHLAN / "profiled" / f"{sample_id}.{library_id}.txt"
             for sample_id, library_id in SAMPLE_LIBRARY
-        ]
+        ],
     output:
         METAPHLAN / "metaphlan_profiled.tsv",
     log:
         METAPHLAN / "metaphlan.log",
     benchmark:
-        METAPHLAN / "benchmark/metaphlan.tsv",
+        METAPHLAN / "benchmark/metaphlan.tsv"
     container:
         docker["preprocess"]
     params:
@@ -65,13 +64,13 @@ rule read_annotate__metaphlan__condense:
         slurm_partition=esc("partition", "read_annotate__metaphlan__condense"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__metaphlan__condense')['nvme']}",
         attempt=esc("attempt", "read_annotate__metaphlan__condense"),
-    retries: len(get_escalation_order("read_annotate__metaphlan__condense"))
     shell:
         """
         debug "merging $(echo {input.profiled_data} | wc -w) profiled tables from {params.input_dir}" 2> {log}
         merge_metaphlan_tables.py {input.profiled_data} > {output} 2>> {log}
         """
 
+
 rule read_annotate__metaphlan:
     input:
-        rules.read_annotate__metaphlan__condense.output
+        rules.read_annotate__metaphlan__condense.output,

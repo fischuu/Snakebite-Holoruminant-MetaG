@@ -7,7 +7,7 @@ rule quantify__bowtie2__build:
     log:
         MAG_INDEX / "dereplicated_genomes.log",
     benchmark:
-        MAG_INDEX / "benchmark/dereplicated_genomes.tsv",
+        MAG_INDEX / "benchmark/dereplicated_genomes.tsv"
     container:
         docker["bowtie2"]
     threads: esc("cpus", "quantify__bowtie2__build")
@@ -18,7 +18,6 @@ rule quantify__bowtie2__build:
         slurm_partition=esc("partition", "quantify__bowtie2__build"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__bowtie2__build')['nvme']}",
         attempt=esc("attempt", "quantify__bowtie2__build"),
-    retries: len(get_escalation_order("quantify__bowtie2__build"))
     shell:
         """
         exec 2> {log}
@@ -40,7 +39,7 @@ rule quantify__bowtie2__map:
     log:
         MAG_MAPPING / f"{LIBRARY}.log",
     benchmark:
-        MAG_MAPPING / f"benchmark/{LIBRARY}.tsv",
+        MAG_MAPPING / f"benchmark/{LIBRARY}.tsv"
     container:
         docker["bowtie2"]
     threads: esc("cpus", "quantify__bowtie2__map")
@@ -51,7 +50,6 @@ rule quantify__bowtie2__map:
         slurm_partition=esc("partition", "quantify__bowtie2__map"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__bowtie2__map')['nvme']}",
         attempt=esc("attempt", "quantify__bowtie2__map"),
-    retries: len(get_escalation_order("quantify__bowtie2__map"))
     params:
         sort_memory=params["quantify"]["samtools"]["mem"],
         rg_id=compose_rg_id,

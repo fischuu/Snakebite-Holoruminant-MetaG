@@ -12,14 +12,14 @@ rule read_annotate__humann__run:
     log:
         HUMANN / "log" / "{sample_id}.{library_id}.log",
     benchmark:
-        HUMANN / "benchmark" / "{sample_id}.{library_id}.tsv",
+        HUMANN / "benchmark" / "{sample_id}.{library_id}.tsv"
     container:
-        docker["humann"],
+        docker["humann"]
     params:
         out_folder=HUMANN,
         out_name="{sample_id}.{library_id}",
         additional_options=params["read_annotate"]["humann"]["additional_options"],
-    threads: esc("cpus", "read_annotate__humann__run"),
+    threads: esc("cpus", "read_annotate__humann__run")
     resources:
         runtime=esc("runtime", "read_annotate__humann__run"),
         mem_mb=esc("mem_mb", "read_annotate__humann__run"),
@@ -27,8 +27,8 @@ rule read_annotate__humann__run:
         slurm_partition=esc("partition", "read_annotate__humann__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__humann__run')['nvme']}",
         attempt=esc("attempt", "read_annotate__humann__run"),
-    retries: len(get_escalation_order("read_annotate__humann__run")),
-    shell: """
+    shell:
+        """
         echo "In case this rule crashes for larger datasets, you need to ensure a proper size of TMPDIR!"
     
         echo "$(date) **Starting rule read_annotate__humann__run, attempt {resources.attempt}**" > {log}
@@ -49,24 +49,25 @@ rule read_annotate__humann__run:
         echo "$(date) **Finished rule read_annotate__humann__run, attempt {resources.attempt}**" >> {log}
     """
 
+
 rule read_annotate__humann__condense:
     """Aggregate all the HumanN results into a single table"""
     input:
         genefamily_data=[
             HUMANN / f"{sample_id}.{library_id}_genefamilies.tsv"
             for sample_id, library_id in SAMPLE_LIBRARY
-        ]
+        ],
     output:
         HUMANN / "humann_genefamilies.tsv",
     log:
         HUMANN / "humann.log",
     benchmark:
-        HUMANN / "benchmark/humann.tsv",
+        HUMANN / "benchmark/humann.tsv"
     container:
         docker["humann"]
     params:
         input_dir=HUMANN,
-    threads: esc("cpus", "read_annotate__humann__condense"),
+    threads: esc("cpus", "read_annotate__humann__condense")
     resources:
         runtime=esc("runtime", "read_annotate__humann__condense"),
         mem_mb=esc("mem_mb", "read_annotate__humann__condense"),
@@ -74,12 +75,12 @@ rule read_annotate__humann__condense:
         slurm_partition=esc("partition", "read_annotate__humann__condense"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__humann__condense')['nvme']}",
         attempt=esc("attempt", "read_annotate__humann__condense"),
-    retries: len(get_escalation_order("read_annotate__humann__condense")),
     shell:
         """
         cat {input.genefamily_data} > {output} 2> {log}
         """
 
+
 rule read_annotate__humann:
     input:
-        rules.read_annotate__humann__condense.output
+        rules.read_annotate__humann__condense.output,

@@ -9,7 +9,7 @@ rule assemble__metabat2__run:
     log:
         METABAT2 / "{assembly_id}.log",
     benchmark:
-        METABAT2 / "benchmark/{assembly_id}.tsv",
+        METABAT2 / "benchmark/{assembly_id}.tsv"
     container:
         docker["assemble"]
     params:
@@ -22,7 +22,6 @@ rule assemble__metabat2__run:
         slurm_partition=esc("partition", "assemble__metabat2__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__metabat2__run')['nvme']}",
         attempt=esc("attempt", "assemble__metabat2__run"),
-    retries: len(get_escalation_order("assemble__metabat2__run"))
     shell:
         """
         exec > {log} 2>&1

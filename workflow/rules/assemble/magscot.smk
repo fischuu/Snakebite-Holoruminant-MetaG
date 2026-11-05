@@ -13,7 +13,7 @@ rule assemble__magscot__prodigal:
     log:
         _MAGSCOT_RUN / "prodigal.log",
     benchmark:
-        _MAGSCOT_RUN / "benchmark_prodigal.tsv",
+        _MAGSCOT_RUN / "benchmark_prodigal.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__prodigal")
@@ -24,7 +24,6 @@ rule assemble__magscot__prodigal:
         slurm_partition=esc("partition", "assemble__magscot__prodigal"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__magscot__prodigal')['nvme']}",
         attempt=esc("attempt", "assemble__magscot__prodigal"),
-    retries: len(get_escalation_order("assemble__magscot__prodigal"))
     shell:
         """
         try_log={log}.try{resources.attempt}
@@ -62,7 +61,7 @@ rule assemble__magscot__hmmsearch:
     log:
         _MAGSCOT_RUN / "{marker_set}.log",
     benchmark:
-        _MAGSCOT_RUN / "benchmark_hmmsearch_{marker_set}.tsv",
+        _MAGSCOT_RUN / "benchmark_hmmsearch_{marker_set}.tsv"
     wildcard_constraints:
         marker_set="pfam|tigr",
     container:
@@ -75,7 +74,6 @@ rule assemble__magscot__hmmsearch:
         slurm_partition=esc("partition", "assemble__magscot__hmmsearch"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__magscot__hmmsearch')['nvme']}",
         attempt=esc("attempt", "assemble__magscot__hmmsearch"),
-    retries: len(get_escalation_order("assemble__magscot__hmmsearch"))
     shell:
         """
         exec > {log} 2>&1
@@ -98,7 +96,7 @@ rule assemble__magscot__marker_table:
     log:
         _MAGSCOT_RUN / "hmm.log",
     benchmark:
-        _MAGSCOT_RUN / "benchmark_join_hmms.tsv",
+        _MAGSCOT_RUN / "benchmark_join_hmms.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__marker_table")
@@ -109,7 +107,6 @@ rule assemble__magscot__marker_table:
         slurm_partition=esc("partition", "assemble__magscot__marker_table"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__magscot__marker_table')['nvme']}",
         attempt=esc("attempt", "assemble__magscot__marker_table"),
-    retries: len(get_escalation_order("assemble__magscot__marker_table"))
     shell:
         """
         exec > {log} 2>&1
@@ -135,7 +132,7 @@ rule assemble__magscot__merge_contig_to_bin:
     log:
         _MAGSCOT_RUN / "contigs_to_bin.log",
     benchmark:
-        _MAGSCOT_RUN / "benchmark_merge_contig_to_bin.tsv",
+        _MAGSCOT_RUN / "benchmark_merge_contig_to_bin.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__merge_contig_to_bin")
@@ -146,7 +143,6 @@ rule assemble__magscot__merge_contig_to_bin:
         slurm_partition=esc("partition", "assemble__magscot__merge_contig_to_bin"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__magscot__merge_contig_to_bin')['nvme']}",
         attempt=esc("attempt", "assemble__magscot__merge_contig_to_bin"),
-    retries: len(get_escalation_order("assemble__magscot__merge_contig_to_bin"))
     shell:
         """
         exec > {log} 2>&1
@@ -185,7 +181,7 @@ rule assemble__magscot__run:
     log:
         _MAGSCOT_RUN / "magscot.log",
     benchmark:
-        _MAGSCOT_RUN / "benchmark_run.tsv",
+        _MAGSCOT_RUN / "benchmark_run.tsv"
     container:
         docker["assemble"]
     params:
@@ -200,7 +196,6 @@ rule assemble__magscot__run:
         slurm_partition=esc("partition", "assemble__magscot__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__magscot__run')['nvme']}",
         attempt=esc("attempt", "assemble__magscot__run"),
-    retries: len(get_escalation_order("assemble__magscot__run"))
     shell:
         """
         exec > {log} 2>&1
@@ -226,7 +221,7 @@ rule assemble__magscot__label_contigs:
     log:
         _MAGSCOT_RUN / "magscot.rename.log",
     benchmark:
-        _MAGSCOT_RUN / "benchmark_rename.tsv",
+        _MAGSCOT_RUN / "benchmark_rename.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__magscot__label_contigs")
@@ -237,7 +232,6 @@ rule assemble__magscot__label_contigs:
         slurm_partition=esc("partition", "assemble__magscot__label_contigs"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__magscot__label_contigs')['nvme']}",
         attempt=esc("attempt", "assemble__magscot__label_contigs"),
-    retries: len(get_escalation_order("assemble__magscot__label_contigs"))
     params:
         script_folder=SCRIPT_FOLDER,
     shell:

@@ -10,7 +10,7 @@ rule quantify__samtools__stats_cram:
     log:
         MAG_MAPPING / f"{LIBRARY}.stats.log",
     benchmark:
-        MAG_MAPPING / f"benchmark/{LIBRARY}.stats.tsv",
+        MAG_MAPPING / f"benchmark/{LIBRARY}.stats.tsv"
     container:
         docker["quantify"]
     threads: esc("cpus", "quantify__samtools__stats_cram")
@@ -21,7 +21,6 @@ rule quantify__samtools__stats_cram:
         slurm_partition=esc("partition", "quantify__samtools__stats_cram"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'quantify__samtools__stats_cram')['nvme']}",
         attempt=esc("attempt", "quantify__samtools__stats_cram"),
-    retries: len(get_escalation_order("quantify__samtools__stats_cram"))
     shell:
         """
         exec 2> {log}

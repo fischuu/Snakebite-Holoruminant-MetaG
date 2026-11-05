@@ -9,7 +9,7 @@ rule read_annotate__sylph_profile:
     log:
         PRE_SYLPH / "{sample_id}.{library_id}.profiling_report.log",
     benchmark:
-        PRE_SYLPH / "benchmark/{sample_id}.{library_id}.tsv",
+        PRE_SYLPH / "benchmark/{sample_id}.{library_id}.tsv"
     container:
         docker["sylph"]
     threads: esc("cpus", "read_annotate__sylph_profile")
@@ -21,7 +21,6 @@ rule read_annotate__sylph_profile:
         #gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__sylph_profile')['nvme']}",
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'read_annotate__sylph_profile')['nvme']}",
         attempt=esc("attempt", "read_annotate__sylph_profile"),
-    retries: len(get_escalation_order("read_annotate__sylph_profile"))
     shell:
         """
         echo "Starting Sylph rule attempt {resources.attempt}" > {log}
@@ -43,4 +42,4 @@ rule read_annotate__sylph:
         [
             PRE_SYLPH / f"{sample_id}.{library_id}.profiling.tsv"
             for sample_id, library_id in SAMPLE_LIBRARY
-        ]
+        ],

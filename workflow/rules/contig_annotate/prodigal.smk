@@ -9,7 +9,7 @@ rule contig_annotate__prodigal__run:
         gtf=CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.prodigal.gtf",
         gtfplain=CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.prodigal_plain.gtf",
     log:
-        CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.log"
+        CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.log",
     benchmark:
         CONTIG_PRODIGAL / "benchmark/{assembly_id}.tsv"
     container:
@@ -22,8 +22,8 @@ rule contig_annotate__prodigal__run:
         slurm_partition=esc("partition", "contig_annotate__prodigal__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__prodigal__run')['nvme']}",
         attempt=esc("attempt", "contig_annotate__prodigal__run"),
-    retries: len(get_escalation_order("contig_annotate__prodigal__run"))
-    shell:"""
+    shell:
+        """
          exec 2> {log}
          debug "assembly_id={wildcards.assembly_id} threads={threads} assembly_input={input.assembly} out_fa={output.fa} out_gtf={output.gtf}"
          prodigal -i <(gunzip -c {input.assembly}) \
@@ -33,7 +33,8 @@ rule contig_annotate__prodigal__run:
 
          grep -v '^#' {output.gtf} > {output.gtfplain}
     """
-    
+
+
 checkpoint contig_annotate__cut_prodigal:
     """
     Cut prodigal output into smaller contigs (BASH).
@@ -41,13 +42,14 @@ checkpoint contig_annotate__cut_prodigal:
     input:
         fa=CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.prodigal.fa",
     output:
-        directory(CONTIG_PRODIGAL / "{assembly_id}/Chunks/")
+        directory(CONTIG_PRODIGAL / "{assembly_id}/Chunks/"),
     params:
-        out=lambda wildcards: CONTIG_PRODIGAL / f"{wildcards.assembly_id}/Chunks/prodigal.chunk",
+        out=lambda wildcards: CONTIG_PRODIGAL
+        / f"{wildcards.assembly_id}/Chunks/prodigal.chunk",
         folder=config["pipeline_folder"],
-        split=params["contig_annotate"]["prodigal"]["split"]
+        split=params["contig_annotate"]["prodigal"]["split"],
     log:
-        CONTIG_PRODIGAL / "logs/{assembly_id}_cut_prodigal.log"
+        CONTIG_PRODIGAL / "logs/{assembly_id}_cut_prodigal.log",
     benchmark:
         CONTIG_PRODIGAL / "benchmark/{assembly_id}_cut_prodigal.tsv"
     threads: esc("cpus", "contig_annotate__cut_prodigal")
@@ -58,16 +60,20 @@ checkpoint contig_annotate__cut_prodigal:
         slurm_partition=esc("partition", "contig_annotate__cut_prodigal"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__cut_prodigal')['nvme']}",
         attempt=esc("attempt", "contig_annotate__cut_prodigal"),
-    retries: len(get_escalation_order("contig_annotate__cut_prodigal"))
     container:
         docker["mag_annotate"]
-    shell:"""
+    shell:
+        """
        mkdir -p {output}
        debug "assembly_id={wildcards.assembly_id} threads={threads} split={params.split} input={input}" 2>> {log}
        {params.folder}/workflow/scripts/cutProdigal.sh {params.split} {params.out} {input} 2>> {log} 1>&2
     """
-    
+
+
 rule contig_annotate__prodigal:
     """Run prodigal on all assemblies"""
     input:
-        expand(CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.prodigal.fa", assembly_id=ASSEMBLIES),
+        expand(
+            CONTIG_PRODIGAL / "{assembly_id}/{assembly_id}.prodigal.fa",
+            assembly_id=ASSEMBLIES,
+        ),

@@ -8,7 +8,7 @@ rule assemble__concoct__run:
     log:
         CONCOCT / "{assembly_id}.log",
     benchmark:
-        CONCOCT / "benchmark/{assembly_id}.tsv",
+        CONCOCT / "benchmark/{assembly_id}.tsv"
     container:
         docker["concoct"]
     threads: esc("cpus", "assemble__concoct__run")
@@ -19,7 +19,6 @@ rule assemble__concoct__run:
         slurm_partition=esc("partition", "assemble__concoct__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__concoct__run')['nvme']}",
         attempt=esc("attempt", "assemble__concoct__run"),
-    retries: len(get_escalation_order("assemble__concoct__run"))
     shell:
         """
         exec > {log} 2>&1

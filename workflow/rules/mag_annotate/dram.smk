@@ -15,7 +15,7 @@ rule mag_annotate__dram__annotate:
     log:
         DRAM / "annotate.log",
     benchmark:
-        DRAM / "benchmark_annotate.tsv",
+        DRAM / "benchmark_annotate.tsv"
     container:
         docker["dram"]
     params:
@@ -28,7 +28,6 @@ rule mag_annotate__dram__annotate:
         slurm_partition=esc("partition", "mag_annotate__dram__annotate"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__dram__annotate')['nvme']}",
         attempt=esc("attempt", "mag_annotate__dram__annotate"),
-    retries: len(get_escalation_order("mag_annotate__dram__annotate"))
     shell:
         """
         exec > {log} 2>&1
@@ -62,6 +61,7 @@ rule mag_annotate__dram__annotate:
         rm -rf "$sys_tmp_dir"
         """
 
+
 rule mag_annotate__fix_dram_annotations_scaffold:
     """Patch up DRAM's annotation table (see fix_annotations.py) before distillation"""
     input:
@@ -82,6 +82,7 @@ rule mag_annotate__fix_dram_annotations_scaffold:
         debug "input={input} output={output}" 2>> {log}
         """
 
+
 rule mag_annotate__dram__distill:
     """Summarize the annotated genomes into DRAM's genome/metabolism reports"""
     input:
@@ -97,7 +98,7 @@ rule mag_annotate__dram__distill:
     log:
         DRAM / "distill.log2",
     benchmark:
-        DRAM / "benchmark_distill.tsv",
+        DRAM / "benchmark_distill.tsv"
     container:
         docker["dram"]
     threads: esc("cpus", "mag_annotate__dram__distill")
@@ -108,7 +109,6 @@ rule mag_annotate__dram__distill:
         slurm_partition=esc("partition", "mag_annotate__dram__distill"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'mag_annotate__dram__distill')['nvme']}",
         attempt=esc("attempt", "mag_annotate__dram__distill"),
-    retries: len(get_escalation_order("mag_annotate__dram__distill"))
     params:
         dram_config=config["dram-config"],
     shell:
@@ -126,6 +126,7 @@ rule mag_annotate__dram__distill:
         mv "$workdir"/* {DRAM}/
         rm -rf "$workdir"
         """
+
 
 rule mag_annotate__dram:
     """Run DRAM annotation and distillation over the dereplicated genome catalogue"""

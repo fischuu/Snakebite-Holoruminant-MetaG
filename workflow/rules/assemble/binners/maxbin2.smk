@@ -8,7 +8,7 @@ rule assemble__maxbin2__run:
     log:
         MAXBIN2 / "{assembly_id}.log",
     benchmark:
-        MAXBIN2 / "benchmark/{assembly_id}.tsv",
+        MAXBIN2 / "benchmark/{assembly_id}.tsv"
     container:
         docker["assemble"]
     threads: esc("cpus", "assemble__maxbin2__run")
@@ -19,7 +19,6 @@ rule assemble__maxbin2__run:
         slurm_partition=esc("partition", "assemble__maxbin2__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'assemble__maxbin2__run')['nvme']}",
         attempt=esc("attempt", "assemble__maxbin2__run"),
-    retries: len(get_escalation_order("assemble__maxbin2__run"))
     params:
         min_contig=params["assemble"]["maxbin"]["min_contig_len"],
     shell:

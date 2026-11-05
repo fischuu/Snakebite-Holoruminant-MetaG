@@ -9,7 +9,14 @@ Version 0.4.*:
     methods text with versions and settings, the data written per folder, the resources requested and used per rule,
     and suggestions for config/escalation.yaml. The reads report has the samples, reads per sample and read quality.
     New container rocker/verse, key report in config/.docker.yml. New test tests/reports/run_test.sh.
-    Versions 68 to 70 are still in pull request 66 and the branch real-run-kit.
+    Versions 69 and 70 are still on the branch real-run-kit.
+68: Restored the strict mode of the rules, which got lost with the debug messages in September 2026
+    (shell.prefix replaces Snakemake's "set -euo pipefail"), so a failing command inside a rule went
+    unnoticed unless it was the last one. Please read RELEASE_NOTES if you ran such a version.
+    Fixed the resource escalation: a failed job is now retried only as a new SLURM job with the next
+    resource set, not first inside the same job with resources it doesn't have. Every resource set of
+    a rule gets one attempt, and a rule with a single resource set isn't retried. Retries are set in
+    one place, at the end of workflow/Snakefile, instead of in each rule.
 67: Reworked the rules of the modules assemble, preprocess, quantify and mag_annotate and the shared
     paths and helpers. Output files stay at the same paths with the same content, see RELEASE_NOTES.
     Paths used by several rules are now defined once in folders.smk, resource blocks use

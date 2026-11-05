@@ -12,7 +12,7 @@ rule contig_annotate__eggnog7__run:
         db=features["databases"]["eggnog7"],
         folder=config["pipeline_folder"],
     log:
-        CONTIG_EGGNOG7 / "logs/{assembly_id}_eggnog.log"
+        CONTIG_EGGNOG7 / "logs/{assembly_id}_eggnog.log",
     benchmark:
         CONTIG_EGGNOG7 / "benchmark/{assembly_id}.tsv"
     threads: esc("cpus", "contig_annotate__eggnog7__run")
@@ -23,10 +23,10 @@ rule contig_annotate__eggnog7__run:
         slurm_partition=esc("partition", "contig_annotate__eggnog7__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__eggnog7__run')['nvme']}",
         attempt=esc("attempt", "contig_annotate__eggnog7__run"),
-    retries: len(get_escalation_order("contig_annotate__eggnog7__run"))
     container:
         docker["eggnog"]
-    shell:"""
+    shell:
+        """
       {params.folder}/workflow/scripts/eggnog7_annotator.sh \
       -d {params.db}_proteins.dmnd \
       -q {input.fa} \
@@ -37,8 +37,12 @@ rule contig_annotate__eggnog7__run:
 
       debug "assembly_id={params.sample} threads={threads} db={params.db} output={output}" 2>> {log}
     """
-    
+
+
 rule contig_annotate__eggnog7:
     """Run eggnog on all assemblies"""
     input:
-        expand(CONTIG_EGGNOG7 / "{assembly_id}/{assembly_id}.eggnog.tsv.gz", assembly_id=ASSEMBLIES),
+        expand(
+            CONTIG_EGGNOG7 / "{assembly_id}/{assembly_id}.eggnog.tsv.gz",
+            assembly_id=ASSEMBLIES,
+        ),

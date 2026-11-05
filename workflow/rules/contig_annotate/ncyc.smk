@@ -1,15 +1,18 @@
 rule contig_annotate__ncyc__prepare_input:
     """Create sample sheet for NCycDB Perl wrapper (runs all samples at once)"""
     input:
-        [CONTIG_PRODIGAL / f"{assembly_id}/{assembly_id}.prodigal.fa" for assembly_id in ASSEMBLIES],
+        [
+            CONTIG_PRODIGAL / f"{assembly_id}/{assembly_id}.prodigal.fa"
+            for assembly_id in ASSEMBLIES
+        ],
     output:
         CONTIG_NCYC / "ncyc_samples.tsv",
     log:
         CONTIG_NCYC / "log" / "ncyc_samples.log",
     benchmark:
-        CONTIG_NCYC / "benchmark" / "ncyc_samples.tsv",
+        CONTIG_NCYC / "benchmark" / "ncyc_samples.tsv"
     container:
-        docker["mag_annotate"],
+        docker["mag_annotate"]
     threads: esc("cpus", "contig_annotate__ncyc__prepare_input")
     resources:
         runtime=esc("runtime", "contig_annotate__ncyc__prepare_input"),
@@ -18,7 +21,6 @@ rule contig_annotate__ncyc__prepare_input:
         slurm_partition=esc("partition", "contig_annotate__ncyc__prepare_input"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__ncyc__prepare_input')['nvme']}",
         attempt=esc("attempt", "contig_annotate__ncyc__prepare_input"),
-    retries: len(get_escalation_order("contig_annotate__ncyc__prepare_input"))
     params:
         folder=config["pipeline_folder"],
         input_dir=CONTIG_NCYC / "input",
@@ -41,6 +43,7 @@ rule contig_annotate__ncyc__prepare_input:
         echo "=== Finished contig_annotate__ncyc__prepare_input ===" >> {log} 2>&1
         """
 
+
 rule contig_annotate__ncyc__run:
     """Run NCycDB Perl wrapper on all samples from prodigal"""
     input:
@@ -50,7 +53,7 @@ rule contig_annotate__ncyc__run:
     log:
         CONTIG_NCYC / "log" / "ncyc_run.log",
     benchmark:
-        CONTIG_NCYC / "benchmark" / "ncyc_run.tsv",
+        CONTIG_NCYC / "benchmark" / "ncyc_run.tsv"
     container:
         docker["mag_annotate"]
     threads: esc("cpus", "contig_annotate__ncyc__run")
@@ -61,7 +64,6 @@ rule contig_annotate__ncyc__run:
         slurm_partition=esc("partition", "contig_annotate__ncyc__run"),
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__ncyc__run')['nvme']}",
         attempt=esc("attempt", "contig_annotate__ncyc__run"),
-    retries: len(get_escalation_order("contig_annotate__ncyc__run"))
     params:
         folder=config["pipeline_folder"],
         outdir=CONTIG_NCYC,
@@ -88,6 +90,7 @@ rule contig_annotate__ncyc__run:
         echo "=== Finished contig_annotate__ncyc__run ===" >> {log} 2>&1
         """
 
+
 rule contig_annotate__ncyc:
     input:
-        rules.contig_annotate__ncyc__run.output
+        rules.contig_annotate__ncyc__run.output,

@@ -48,7 +48,9 @@ Running a submodule automatically triggers its upstream dependencies. Every modu
 target, see "Reports" below.
 
 Formatting: `snakefmt` (config in `.github/linters/.snakefmt.toml`, which sets `skip_string_normalization
-= true` for the underlying black formatter) is what CI lints with.
+= true` for the underlying black formatter) is what CI lints with. It checks the Snakemake files a pull
+request changes, using snakefmt 0.8.0 with black 22.12.0 (pinned by super-linter v4.10.0), so format with
+those versions.
 
 ### Debug messages
 
@@ -58,6 +60,8 @@ shell script (bash `debug()` function injected via `shell.prefix()` in `workflow
 `.smk` files just call `debug "..."` without redefining it). Regular `echo` messages in rules stay
 always-on; `debug` calls are the extra, opt-in diagnostic detail. Relies on the submitting shell's
 environment propagating through SLURM and into the Singularity container, which is the default here.
+`shell.prefix()` replaces Snakemake's default prefix, so it has to start with `set -euo pipefail`. Without that,
+a rule ignores every failing command except its last one, and no dry run can show this.
 
 ## Architecture
 
@@ -114,13 +118,15 @@ Every rule uses `esc(key, rule_name)` / `esc_val(key, rule_name)` (from
 `workflow/rules/helpers/__functions__.smk`) instead of hardcoding `resources:`/`threads:`. `esc` returns a
 lambda keyed on the current retry `attempt`: it looks up `rule_name` in `escalation.yaml` to get an
 ordered list of resource-set names, then indexes into that list by `attempt` (clamped to the last entry).
-`retries:` on each rule is set to `len(get_escalation_order(rule_name))`, and at the bottom of
-`workflow/Snakefile` a loop over `workflow.rules` forces `r.retries = 0` for any rule whose escalation list
-has ≤1 entry (so only rules with real multi-tier escalation configured actually retry). When adding a new
-rule, follow the existing pattern: `threads: esc("cpus", "<rule_name>")`,
-`resources: runtime=esc("runtime", ...), mem_mb=esc("mem_mb", ...), ..., attempt=esc("attempt", ...)`, `retries:
-len(get_escalation_order("<rule_name>"))`, and add an entry to `escalation.yaml` if it needs more than the
-default 3-tier escalation (or a single-entry line to disable retries).
+Retries are set in one place only, the loop at the bottom of `workflow/Snakefile`: one attempt per resource
+set, so a rule with a single entry isn't retried. Don't put `retries:` on a rule. A SLURM job runs its own
+Snakemake on the same Snakefile, and with a rule-level `retries:` that inner Snakemake reruns a failed
+command inside the same job, with the numbers of a resource set the job doesn't have. That's why the loop
+sets `restart_times` to 0 when `workflow.remote_exec` is true. `tests/escalation/run_test.sh` tests this on
+real SLURM. When adding a new rule, follow the existing pattern: `threads: esc("cpus", "<rule_name>")`,
+`resources: runtime=esc("runtime", ...), mem_mb=esc("mem_mb", ...), ..., attempt=esc("attempt", ...)`, and
+add an entry to `escalation.yaml` if it needs something else than the default 3-tier escalation (or a
+single-entry line to disable retries).
 
 ### Host decontamination chain
 

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Stands in for bgzip in the escalation test: a job with less memory than this fails
+if [ "${SLURM_MEM_PER_NODE:-0}" -lt 400 ]; then
+    echo "Pretending to run out of memory with ${SLURM_MEM_PER_NODE:-0} MB" >&2
+    exit 1
+fi
+gzip -c
