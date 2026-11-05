@@ -6,5 +6,4 @@ default-resources:
     cpus_per_task: 1
     slurm_partition: "small"
     slurm_account: "project_2010176"
-    gres: "'nvme:0'"
 

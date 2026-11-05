@@ -92,7 +92,9 @@ Everything a user needs to change lives in `config/`, loaded once at the top of 
   `assembly_ids` (comma-separated; same `assembly_id` across samples triggers a co-assembly). Generate it
   with `workflow/scripts/createSampleSheet.sh` (commonly needs per-project edits to the filename glob).
 - `config/.docker.yml` — one container image per module, referenced in each rule's `container:` directive.
-- `config/profiles/<cluster>/config.yaml` — SLURM executor profile; copy `Puhti/` for a new cluster.
+- `config/profiles/<cluster>/config.yaml` — SLURM executor profile; copy `Roihu/` for a new cluster. The default
+  `resource_sets` are for CSC's Roihu, where `--gres=nvme` exists only on hugemem, so `nvme` stays empty and the local disk
+  is `$TMPDIR`. `tests/resources/check_resource_sets.py` checks them against Roihu's published limits.
 
 `workflow/Snakefile` parses `samples.tsv` into `SAMPLE_LIBRARY`, `ASSEMBLY_LIBRARIES`, and
 `ASSEMBLIES` globals used throughout the rule files, and builds `HOST_NAMES` from `features["hosts"]`.

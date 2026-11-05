@@ -79,7 +79,7 @@ The DRAM database needs quite some resources, so best build it in an sbatch scri
 #!/bin/bash
 #SBATCH --job-name=create_dram_db
 #SBATCH --account=project_2009831
-#SBATCH --partition=hugemem
+#SBATCH --partition=small
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=40
 #SBATCH --mem=800G

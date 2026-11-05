@@ -48,7 +48,7 @@ cp -r "$pipeline/config" .
 sed -i "s|^pipeline_folder:.*|pipeline_folder: \"$pipeline/\"|" config/config.yaml
 
 mkdir -p config/profiles/book_run
-sed "s|slurm_account:.*|slurm_account: \"$account\"|" config/profiles/Puhti/config.yaml \
+sed "s|slurm_account:.*|slurm_account: \"$account\"|" config/profiles/Roihu/config.yaml \
     > config/profiles/book_run/config.yaml
 
 cp "$pipeline/run_Snakebite-Holoruminant-MetaG.sh" .

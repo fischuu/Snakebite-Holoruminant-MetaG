@@ -1389,6 +1389,7 @@ Run eggnog over the dereplicated mags
 - params: `db=features["databases"]["eggnog"]`
 - params: `prefix="eggnog"`
 - params: `tmp_dir=lambda wc: f"{config['tmp_storage']}/mag_annotate__eggnog"`
+- params: `copy_dbs=config["copy_dbs"]`
 - container: `eggnog` (see `config/.docker.yml`)
 - escalation: large_nvme
 

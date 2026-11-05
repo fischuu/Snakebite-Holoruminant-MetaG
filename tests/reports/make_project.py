@@ -61,10 +61,10 @@ docker-file: "config/.docker.yml"
 sample-file: "config/samples.tsv"
 assembler: "metaspades"
 resource_sets:
-  small: {runtime: 300, mem_mb: 16000, cpus: 1, partition: "small", nvme: "nvme:0"}
-  medium: {runtime: 4000, mem_mb: 160000, cpus: 10, partition: "small", nvme: "nvme:0"}
+  small: {runtime: 300, mem_mb: 16000, cpus: 1, partition: "small", nvme: ""}
+  medium: {runtime: 4000, mem_mb: 160000, cpus: 10, partition: "small", nvme: ""}
   medium_nvme: {runtime: 4000, mem_mb: 160000, cpus: 10, partition: "small", nvme: "nvme:10"}
-  large: {runtime: 4000, mem_mb: 320000, cpus: 20, partition: "small", nvme: "nvme:0"}
+  large: {runtime: 4000, mem_mb: 320000, cpus: 20, partition: "small", nvme: ""}
 """)
     write(root, "config/escalation.yaml", """\
 assemble__retried: medium, large

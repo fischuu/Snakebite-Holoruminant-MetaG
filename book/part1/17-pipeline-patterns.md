@@ -103,14 +103,14 @@ resource_sets:
     mem_mb: 16000
     cpus: 1
     partition: "small"
-    nvme: "nvme:0"
+    nvme: ""
 
   medium:
     runtime: 4000
     mem_mb: 160000
     cpus: 10
     partition: "small"
-    nvme: "nvme:0"
+    nvme: ""
 ```
 
 `escalation.yaml` says which sets each rule uses, in order:
