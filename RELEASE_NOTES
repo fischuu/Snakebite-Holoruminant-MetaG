@@ -89,7 +89,8 @@ resource set. And copy_dbs: "False" with diamond_shm: "True" no longer makes the
 ################################################################################
 
 Please check your results if you ran a version with the bug described here. It affects runs from the branch
-standalone-rewrite since 8 September 2026 (commit 31c40e2), and from main since 3 November 2026, up to this version.
+standalone-rewrite since 8 September 2026 (commit 31c40e2), and from main since 3 November 2026 until this fix reached
+it. That includes main's commit 33daa47, which already calls itself 0.4.71.
 
 In those versions, rules ran without "set -euo pipefail". A command that failed inside a rule didn't stop it, and
 only the last command decided about success. So a tool could crash or run out of memory, or a pipe could break, and
