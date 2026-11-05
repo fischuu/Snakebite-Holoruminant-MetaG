@@ -72,6 +72,6 @@ rule contig_annotate__featurecounts:
     input:
         [
             CONTIG_FEATURECOUNTS
-            / "{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.txt"
+            / f"{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.txt"
             for assembly_id, sample_id, library_id in ASSEMBLY_LIBRARIES
         ],

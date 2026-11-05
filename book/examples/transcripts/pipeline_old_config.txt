@@ -1,0 +1,2 @@
+KeyError in file "<pipeline>/workflow/rules/eukaryote/4cac.smk", line 90:
+'eukaryote'

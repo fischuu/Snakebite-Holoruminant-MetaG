@@ -1,0 +1,12 @@
+# Numbers from a real run of the tools of book/examples/real_tools/extra_tools.sh, which were checked in the tools' own output.
+# The project of extra_tools.sh <project> spades <new project>, which has metaSPAdes as the assembler.
+module	table	key_column	key	assembly	column	value	label
+assemble	assembly_statistics	assembly_id	ERR2019410		contigs	24362	metaSPAdes contigs, counted in the file
+assemble	assembly_statistics	assembly_id	ERR2019410		total_bp	9221847	metaSPAdes bases, counted in the file
+assemble	assembly_statistics	assembly_id	coasm		contigs	94759	metaSPAdes contigs of the co-assembly
+assemble	assembly_statistics	assembly_id	coasm		longest	17498	the longest contig of the co-assembly
+eukaryote	4cac_classes	class	eukarya	ERR2019410	contigs	2881	4CAC, from its table
+eukaryote	4cac_classes	class	uncertain	ERR2019410	contigs	9106	4CAC, from its table
+eukaryote	tiara_classes	class	eukarya	ERR2019410	contigs	49	Tiara, from its log
+eukaryote	tiara_classes	class	bacteria	coasm	contigs	1308	Tiara, from its log
+eukaryote	agreement_tiara_4cac	n	24		first	eukaryotic	both eukaryotic: 24 of the contigs that both have seen

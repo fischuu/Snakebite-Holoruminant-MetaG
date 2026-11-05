@@ -1,3 +1,17 @@
+# Version 0.4.72
+################################################################################
+
+The reports were tested on real output of more tools, and this changes three things. No action is needed.
+
+- A file in an unexpected format now costs only the section of its tool. Before, an error while reading stopped the whole
+  report. sylph writes HIGH in its column Eff_lambda at high coverage, and this stopped the report of read_annotate.
+- The table of DIAMOND has two counts now, reads with a hit and labels. Before, it showed the labels as hits, which is too
+  high when a protein has several labels.
+- The table of sylph has no column "Reads explained" anymore, as this value is always 100%. It has the median effective
+  coverage instead.
+
+The report of read_annotate also shows the numbers and taxa of phyloFlash now, and not only a list of its HTML files.
+
 # Version 0.4.71
 ################################################################################
 
@@ -18,6 +32,58 @@ host removal was always empty, and CoverM's tables were missing. They also could
 
 Before you apply a suggestion for config/escalation.yaml, check that the run had data like your next one. A test on a
 subset says little about the memory that the full data needs.
+
+# Version 0.4.70
+################################################################################
+
+Check results/read_annotate/nonpareil/nonpareil.tsv in your projects. If its columns are empty, delete the file, and
+Snakemake makes it again from the existing results:
+
+   bash run_Snakebite-Holoruminant-MetaG.sh read_annotate__nonpareil
+
+If a library has too little coverage for a model, its LRstar and modelR are NA, and its diversity is 0.
+
+If dRep leaves no genomes, assemble__drep__run now stops and says so. Read the log in results/assemble/drep/. The usual
+reason is CheckM, inside dRep, running out of memory.
+
+# Version 0.4.69
+################################################################################
+
+Please check your clean reads and replace your Krona charts, if you have results from an earlier version.
+
+Clean reads can be truncated. preprocess__bowtie2__extract_nonhost__run wrote its files through ">(pigz ...)", and Bash
+doesn't wait for such a process. The job could end while pigz was still writing, and nothing reported it. How often this
+happened depends on the system and its load. In a run in a container, where everything stops with the main process, it
+happened every time. A truncated file can lose reads at its end, and depending on the tool that reads it, this gives an
+error or goes unnoticed. To check your clean reads:
+
+   find results/preprocess/bowtie2/decontaminated_reads -name '*.gz' -exec sh -c 'gzip -t "$1" 2>/dev/null || echo "broken: $1"' _ {} \;
+
+If that finds a broken file, delete it and everything built on it, and let Snakemake make them again. A project without
+host genomes is not affected, as its clean reads come from fastp. The per-read output of Kraken2 (results/read_annotate/
+kraken2/*/*.out.gz) had the same problem, but no rule reads it, and the reports are not affected.
+
+The Krona charts of earlier versions are wrong, so don't use them. The rule gave a Kraken2 report to Krona with options for
+the per-read output, so read counts were taken for taxon numbers. The Kraken2 reports themselves are fine. Snakemake makes
+new charts by itself, as the rule changed:
+
+   bash run_Snakebite-Holoruminant-MetaG.sh read_annotate__krona
+
+For an existing project folder:
+
+1. Several rules changed, and one of them is at the start of nearly everything. Snakemake notices this and would rerun
+   the finished rules. If your clean reads passed the check above, continue the project with the option
+
+   --rerun-triggers mtime
+
+   but this doesn't make new Krona charts by itself, so delete the old ones in results/read_annotate/krona first.
+
+2. In your project's config/escalation.yaml, rename assemble__bowtie2__build to assemble__bowtie2__build__run. Otherwise
+   that rule gets the default escalation (small, medium, large).
+
+The DIAMOND rules behave differently in two situations. If a database fits neither into /dev/shm nor on the local disk, the
+last attempt now runs from the original place, as intended. Before, the rule stopped with an error if it had a single
+resource set. And copy_dbs: "False" with diamond_shm: "True" no longer makes the job fail after DIAMOND has finished.
 
 # Version 0.4.68
 ################################################################################

@@ -1,0 +1,7 @@
+rule count:
+    input:
+        "data/sampleA_R1.fastq.gz",
+    output:
+        "results/count.txt",
+    shell:
+        "zcat {input} | wc -l > results/typo.txt"

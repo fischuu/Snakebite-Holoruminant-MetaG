@@ -1,0 +1,91 @@
+$ snakemake --dry-run
+host: localhost
+Building DAG of jobs...
+Job stats:
+job            count
+-----------  -------
+count_reads        1
+total              1
+
+
+[date]
+rule count_reads:
+    input: data/sampleA_R1.fastq.gz
+    output: results/sampleA_R1.count.txt
+    jobid: 0
+    reason: Missing output files: results/sampleA_R1.count.txt
+    resources: tmpdir=<TBD>
+Job stats:
+job            count
+-----------  -------
+count_reads        1
+total              1
+
+Reasons:
+    (check individual jobs above for details)
+    output files have to be generated:
+        count_reads
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+
+$ snakemake --cores 1
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job stats:
+job            count
+-----------  -------
+count_reads        1
+total              1
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule count_reads:
+    input: data/sampleA_R1.fastq.gz
+    output: results/sampleA_R1.count.txt
+    jobid: 0
+    reason: Missing output files: results/sampleA_R1.count.txt
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 0 (Rule: count_reads)
+1 of 1 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/01_first_rule/.snakemake/log/<date>.snakemake.log
+
+$ cat results/sampleA_R1.count.txt
+40
+
+$ snakemake --cores 1
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Nothing to be done (all requested files are present and up to date).
+
+$ touch data/sampleA_R1.fastq.gz
+  snakemake --cores 1 --dry-run --quiet
+host: localhost
+Building DAG of jobs...
+Nothing to be done (all requested files are present and up to date).
+
+$ cp data/sampleB_R1.fastq.gz data/sampleA_R1.fastq.gz
+  snakemake --cores 1 --dry-run | grep reason
+    reason: Updated input files: data/sampleA_R1.fastq.gz
+
+$ snakemake --cores 1 --quiet
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Select jobs to execute...
+Execute 1 jobs...
+Complete log(s): /scratch/project_demo/examples/01_first_rule/.snakemake/log/<date>.snakemake.log
+
+$ cat results/sampleA_R1.count.txt
+60
+
+$ snakemake --cores 1 --forceall --dry-run | grep reason
+    reason: Forced execution
+

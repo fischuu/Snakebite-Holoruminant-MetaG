@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Stands in for DIAMOND: notes which database it was given, fails if that isn't there, and writes the output.
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -d) db=$2; shift 2 ;;
+        -o) out=$2; shift 2 ;;
+        *) shift ;;
+    esac
+done
+echo "$db" >> "$DIAMOND_CALLS"
+[ -e "$db" ] || [ -e "$db.dmnd" ] || exit 1
+echo "a hit" > "$out"

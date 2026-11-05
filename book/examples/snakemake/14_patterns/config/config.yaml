@@ -1,0 +1,21 @@
+features-file: "config/features.yaml"
+params-file: "config/params.yaml"
+escalation-file: "config/escalation.yaml"
+sample-file: "config/samples.tsv"
+
+resource_sets:
+  small:
+    cpus: 1
+    mem_mb: 200
+    runtime: 5
+    partition: small
+  medium:
+    cpus: 2
+    mem_mb: 500
+    runtime: 10
+    partition: small
+  large:
+    cpus: 4
+    mem_mb: 1000
+    runtime: 20
+    partition: large

@@ -18,7 +18,7 @@ rule contig_annotate__diamond__assign:
         gres=lambda wc, attempt: f"{get_resources(wc, attempt, 'contig_annotate__diamond__assign')['nvme']}",
         attempt=lambda wildcards, attempt: attempt,
     params:
-        retries=len(get_escalation_order("contig_annotate__diamond__assign")) - 1,
+        max_attempt=len(get_escalation_order("contig_annotate__diamond__assign")),
         in_folder=FASTP,
         out_folder=lambda w: CONTIG_DIAMOND / w.diamond_db,
         run_in_shm=config["diamond_shm"],
@@ -67,6 +67,7 @@ rule contig_annotate__diamond__assign:
         echo "DB_SRC: $DB_SRC, COPY_DBS: {params.copy_dbs}" 2>> "$try_log" 1>&2
         debug "SHM=$SHM NVME=$NVME DB_SHM=$DB_SHM DB_NVME=$DB_NVME" 2>> "$try_log"
 
+        DB_DST="$DB_SRC"
         if [ {params.copy_dbs} = "True" ]; then
 
             DB_SIZE=$(du -sb $DB_SRC | cut -f1)
@@ -77,7 +78,7 @@ rule contig_annotate__diamond__assign:
 
             # Staging tier chosen by comparing the DB file size against available
             # space, biggest/fastest tier first; falls through to running in place
-            # from DB_SRC only on the final escalation attempt (see `retries` above).
+            # from DB_SRC only on the final escalation attempt (see `max_attempt` above).
             NEED_COPY="true"
             if [ "$DB_SIZE" -lt "$SHM_AVAIL" ]; then
                 DB_DST="$DB_SHM"
@@ -86,7 +87,7 @@ rule contig_annotate__diamond__assign:
                 DB_DST="$DB_NVME"
                 echo "Set DB_DST to $DB_DST (NVME)" 2>> "$try_log" 1>&2
             else
-                if [ {resources.attempt} -eq {params.retries} ]; then
+                if [ {resources.attempt} -eq {params.max_attempt} ]; then
                     DB_DST="$DB_SRC"
                     NEED_COPY="false"
                     echo "Not enough space, use DB_SRC" 2>> "$try_log" 1>&2

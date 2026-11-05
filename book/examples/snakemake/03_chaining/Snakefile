@@ -1,0 +1,49 @@
+rule filter_reads:
+    """Keep the reads of at least 50 bases"""
+    input:
+        "data/{sample}_R1.fastq.gz",
+    output:
+        "results/filtered/{sample}.fastq.gz",
+    shell:
+        """
+        zcat {input} \
+            | paste - - - - \
+            | awk -F '\\t' 'length($2) >= 50' \
+            | tr '\\t' '\\n' \
+            | gzip > {output}
+        """
+
+
+rule count_reads:
+    input:
+        "results/filtered/{sample}.fastq.gz",
+    output:
+        "results/counts/{sample}.txt",
+    shell:
+        "zcat {input} | wc -l | awk '{{print $1 / 4}}' > {output}"
+
+
+rule mean_length:
+    input:
+        "results/filtered/{sample}.fastq.gz",
+    output:
+        "results/lengths/{sample}.txt",
+    shell:
+        """
+        zcat {input} \
+            | awk 'NR % 4 == 2 {{ total += length($0); n++ }} END {{ print total / n }}' \
+            > {output}
+        """
+
+
+rule summary:
+    input:
+        reads="results/counts/{sample}.txt",
+        length="results/lengths/{sample}.txt",
+    output:
+        "results/summary/{sample}.tsv",
+    shell:
+        """
+        printf '%s\\t%s\\t%s\\n' {wildcards.sample} "$(cat {input.reads})" "$(cat {input.length})" \
+            > {output}
+        """

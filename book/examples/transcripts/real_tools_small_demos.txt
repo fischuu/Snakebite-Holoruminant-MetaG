@@ -1,0 +1,99 @@
+### FastQC, on 100000 reads
+$ unzip -p demos/raw_fastqc.zip raw_fastqc/summary.txt | cut -f 1,2
+PASS	Basic Statistics
+PASS	Per base sequence quality
+PASS	Per tile sequence quality
+PASS	Per sequence quality scores
+PASS	Per base sequence content
+FAIL	Per sequence GC content
+PASS	Per base N content
+PASS	Sequence Length Distribution
+PASS	Sequence Duplication Levels
+WARN	Overrepresented sequences
+PASS	Adapter Content
+
+$ unzip -p demos/trimmed_fastqc.zip trimmed_fastqc/summary.txt | cut -f 1,2
+PASS	Basic Statistics
+PASS	Per base sequence quality
+PASS	Per tile sequence quality
+PASS	Per sequence quality scores
+PASS	Per base sequence content
+WARN	Per sequence GC content
+PASS	Per base N content
+WARN	Sequence Length Distribution
+PASS	Sequence Duplication Levels
+PASS	Overrepresented sequences
+PASS	Adapter Content
+
+$ unzip -p demos/raw_fastqc.zip raw_fastqc/fastqc_data.txt | sed -n '/^>>Basic Statistics/,/^>>END_MODULE/p' | cut -f 1,2
+>>Basic Statistics	pass
+#Measure	Value
+Filename	raw.fq.gz
+File type	Conventional base calls
+Encoding	Sanger / Illumina 1.9
+Total Sequences	100000
+Total Bases	10.1 Mbp
+Sequences flagged as poor quality	0
+Sequence length	101
+%GC	44
+>>END_MODULE
+
+$ unzip -p demos/raw_fastqc.zip raw_fastqc/fastqc_data.txt | sed -n '/^>>Overrepresented/,/^>>END_MODULE/p'
+>>Overrepresented sequences	warn
+#Sequence	Count	Percentage	Possible Source
+GATCGGAAGAGCACACGTCTGAACTCCAGTCACGTGAAACGATCTCGTAT	340	0.33999999999999997	TruSeq Adapter, Index 19 (97% over 40bp)
+>>END_MODULE
+
+### Kraken2, on a toy database with only PhiX
+$ cat demos/sample.log
+Loading database information... done.
+100000 sequences (20.18 Mbp) processed in 3.168s (1894.0 Kseq/m, 382.26 Mbp/m).
+  228 sequences classified (0.23%)
+  99772 sequences unclassified (99.77%)
+
+$ cat demos/sample.report
+ 99.77	99772	99772	U	0	unclassified
+  0.23	228	0	R	1	root
+  0.23	228	0	D	10239	  Viruses
+  0.23	228	228	S	10847	    Escherichia virus phiX174
+
+$ gzip -t demos/sample.out.gz && echo complete
+complete
+
+$ gzip -dc demos/sample.out.gz | wc -l
+  100000
+
+$ gzip -dc demos/sample.out.gz | cut -f 1 | sort | uniq -c
+ 228 C
+99772 U
+
+$ gzip -dc demos/sample.out.gz | grep -m 2 '^C'
+C	ERR2019410.1393	10847	101|101	10847:67 |:| 10847:67
+C	ERR2019410.2997	10847	101|101	10847:67 |:| 10847:67
+
+$ gzip -dc demos/sample.out.gz | head -n 1
+U	ERR2019410.1	0	101|101	0:67 |:| 0:67
+
+### Krona, from that report
+$ tail -n 3 demos/krona.log
+Loading taxonomy...
+Importing sample.report...
+Writing chart.html...
+
+$ grep -oE '<node name="[^"]+"' demos/chart.html
+<node name="Root"
+<node name="Viruses"
+<node name="Monodnaviria"
+<node name="Sangervirae"
+<node name="Phixviricota"
+<node name="Malgrandaviricetes"
+<node name="Petitvirales"
+<node name="Microviridae"
+<node name="Bullavirinae"
+<node name="Sinsheimervirus"
+<node name="Sinsheimervirus phiX174"
+<node name="No hits"
+
+$ grep -A 6 'phiX174">' demos/chart.html | grep -oE '<magnitude><val>[0-9]+' | head -n 1
+<magnitude><val>228
+

@@ -13,7 +13,7 @@ mag_annotate__phylophlan: medium_nvme
 mag_annotate__proteinortho: medium
 mag_annotate__quast: medium
 
-assemble__bowtie2__build: medium
+assemble__bowtie2__build__run: medium
 assemble__bowtie2__map: medium
 assemble__concoct__run: large
 assemble__drep__catalogue: medium_nvme

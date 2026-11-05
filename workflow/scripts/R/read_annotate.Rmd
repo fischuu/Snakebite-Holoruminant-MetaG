@@ -49,7 +49,7 @@ shannon <- function(x) {
 
 # ---- Kraken2 ----
 kraken_dbs <- names(ctx$features$databases$kraken2)
-kraken <- map_dfr(kraken_dbs, function(db) {
+kraken <- load_tool("Kraken2", map_dfr(kraken_dbs, function(db) {
   map_dfr(libraries(), function(library) {
     file <- ra("kraken2", db, paste0(library, ".report"))
     if (!file.exists(file)) return(NULL)
@@ -57,8 +57,8 @@ kraken <- map_dfr(kraken_dbs, function(db) {
                col.names = c("pct", "clade", "direct", "rank", "taxid", "name")) %>%
       mutate(name = trimws(name), database = db, library = library)
   })
-})
-kraken_summary <- if (nrow(kraken) > 0) {
+}))
+kraken_summary <- load_tool("Kraken2", if (nrow(kraken) > 0) {
   kraken %>%
     group_by(database, library) %>%
     summarise(
@@ -73,11 +73,11 @@ kraken_summary <- if (nrow(kraken) > 0) {
     )
 } else {
   tibble()
-}
+})
 
 # ---- Nonpareil ----
 nonpareil_file <- ra("nonpareil", "nonpareil.tsv")
-nonpareil <- if (file.exists(nonpareil_file)) read_table_quiet(nonpareil_file) else tibble()
+nonpareil <- load_tool("Nonpareil", if (file.exists(nonpareil_file)) read_table_quiet(nonpareil_file) else tibble())
 
 # ---- NCyc ----
 read_ncyc <- function(file) {
@@ -86,7 +86,7 @@ read_ncyc <- function(file) {
   list(sampling = sampling, table = read_tsv(I(paste(lines[!grepl("^#", lines)], collapse = "\n")), show_col_types = FALSE))
 }
 ncyc_file <- ra("ncyc", "ncyc_results.tsv")
-ncyc <- if (file.exists(ncyc_file)) read_ncyc(ncyc_file) else NULL
+ncyc <- load_tool("NCycProfiler", if (file.exists(ncyc_file)) read_ncyc(ncyc_file) else NULL, otherwise = NULL)
 
 # ---- MetaPhlAn ----
 metaphlan_file <- ra("metaphlan", "metaphlan_profiled.tsv")
@@ -98,23 +98,29 @@ read_metaphlan <- function(file) {
   names(table)[1] <- "clade"
   table
 }
-metaphlan <- if (file.exists(metaphlan_file)) read_metaphlan(metaphlan_file) else NULL
+metaphlan <- load_tool("MetaPhlAn", if (file.exists(metaphlan_file)) read_metaphlan(metaphlan_file) else NULL, otherwise = NULL)
 
 # ---- SingleM ----
 singlem_file <- ra("singlem", "singlem.tsv")
-singlem <- if (file.exists(singlem_file)) read_table_quiet(singlem_file) else NULL
+singlem <- load_tool("SingleM", if (file.exists(singlem_file)) read_table_quiet(singlem_file) else NULL, otherwise = NULL)
 fraction_file <- ra("singlem", "microbial_fraction.tsv")
-microbial_fraction <- if (file.exists(fraction_file)) read_table_quiet(fraction_file) else NULL
+microbial_fraction <- load_tool("SingleM", if (file.exists(fraction_file)) read_table_quiet(fraction_file) else NULL, otherwise = NULL)
 
 # ---- sylph ----
 sylph_files <- setNames(ra("sylph", paste0(libraries(), ".profiling.tsv")), libraries())
 sylph_files <- sylph_files[file.exists(sylph_files)]
-sylph <- map_dfr(names(sylph_files), ~ mutate(read_table_quiet(sylph_files[[.x]]), library = .x))
+# Eff_lambda is a number at low coverage and HIGH at high coverage, so without this a column can have another type in
+# each library, and they can't be put together
+read_sylph <- function(file) {
+  read_table_quiet(file, col_types = cols(.default = col_character())) %>%
+    mutate(across(c(Taxonomic_abundance, Sequence_abundance, Adjusted_ANI, Eff_cov), ~ suppressWarnings(as.numeric(.x))))
+}
+sylph <- load_tool("sylph", map_dfr(names(sylph_files), ~ mutate(read_sylph(sylph_files[[.x]]), library = .x)))
 
 # ---- HUMAnN: the files per library, since the merged file repeats their headers ----
 humann_files <- setNames(ra("humann", paste0(libraries(), "_genefamilies.tsv")), libraries())
 humann_files <- humann_files[file.exists(humann_files)]
-humann <- map_dfr(names(humann_files), function(library) {
+humann <- load_tool("HUMAnN", map_dfr(names(humann_files), function(library) {
   table <- read_tsv(humann_files[[library]], show_col_types = FALSE, col_names = c("feature", "rpk"), skip = 1)
   unstratified <- filter(table, !grepl("|", feature, fixed = TRUE))
   families <- filter(unstratified, !feature %in% c("UNMAPPED", "UNGROUPED"))
@@ -125,21 +131,52 @@ humann <- map_dfr(names(humann_files), function(library) {
     gene_families = sum(families$rpk > 0),
     top = list(arrange(families, desc(rpk)) %>% head(100))
   )
-})
+}))
 
 # ---- DIAMOND ----
 diamond_dbs <- names(ctx$features$databases$diamond)
-diamond <- map_dfr(diamond_dbs, function(db) {
-  file <- ra("diamond", db, "summary_a.tsv")
-  if (!file.exists(file)) return(NULL)
+# summary_a counts each label of a protein in full, and a protein can have several, such as GH43_19|GH43_34.
+# summary_b shares a hit out among the labels of its protein, so its sum is the number of reads with a hit.
+read_diamond_summary <- function(file, value) {
   read_table_quiet(file) %>%
-    pivot_longer(-1, names_to = "file", values_to = "hits") %>%
+    pivot_longer(-1, names_to = "file", values_to = value) %>%
     rename(feature = 1) %>%
-    mutate(database = db, hits = replace_na(as.numeric(hits), 0))
-})
+    mutate(across(all_of(value), ~ replace_na(as.numeric(.x), 0)))
+}
+diamond <- load_tool("DIAMOND", map_dfr(diamond_dbs, function(db) {
+  file_a <- ra("diamond", db, "summary_a.tsv")
+  file_b <- ra("diamond", db, "summary_b.tsv")
+  if (!file.exists(file_a) || !file.exists(file_b)) return(NULL)
+  left_join(read_diamond_summary(file_a, "labels"), read_diamond_summary(file_b, "reads"), by = c("feature", "file")) %>%
+    mutate(database = db)
+}))
 
 phyloflash_html <- ra("phyloflash", paste0(gsub(".", "_", libraries(), fixed = TRUE), ".phyloFlash.html"))
 phyloflash_html <- phyloflash_html[file.exists(phyloflash_html)]
+
+# ---- phyloFlash: its tables are in the archive of each library, and the NTUs are at the level of orders ----
+read_phyloflash <- function(archive, library) {
+  prefix <- sub("\\.phyloFlash\\.tar\\.gz$", "", basename(archive))
+  files <- paste0(prefix, ".phyloFlash.", c("report.csv", "NTUabundance.csv"))
+  folder <- tempfile("phyloflash")
+  on.exit(unlink(folder, recursive = TRUE))
+  untar(archive, files = files, exdir = folder)
+  report <- readLines(file.path(folder, files[[1]]), warn = FALSE)
+  number <- function(key) as.numeric(sub(paste0("^", key, ","), "", grep(paste0("^", key, ","), report, value = TRUE)[[1]]))
+  ntus <- readLines(file.path(folder, files[[2]]), warn = FALSE)
+  list(
+    summary = tibble(
+      library = library, read_pairs = number("input reads"), ssu_pairs = number("mapped SSU reads"), mapped_pct = number("mapping ratio"),
+      ntus = number("NTUs observed once") + number("NTUs observed twice") + number("NTUs observed three or more times")
+    ),
+    taxa = tibble(library = library, taxon = sub(",[0-9]+$", "", ntus), reads = as.numeric(sub("^.*,", "", ntus)))
+  )
+}
+phyloflash_archives <- setNames(ra("phyloflash", paste0(gsub(".", "_", libraries(), fixed = TRUE), ".phyloFlash.tar.gz")), libraries())
+phyloflash_archives <- phyloflash_archives[file.exists(phyloflash_archives)]
+phyloflash <- load_tool("phyloFlash", map(names(phyloflash_archives), ~ read_phyloflash(phyloflash_archives[[.x]], .x)), otherwise = list())
+phyloflash_summary <- bind_rows(map(phyloflash, "summary"))
+phyloflash_taxa <- bind_rows(map(phyloflash, "taxa"))
 ```
 
 ```{r brief}
@@ -158,7 +195,11 @@ section("Results in brief", {
     if (!is.null(ncyc)) paste0("**NCycDB** found ", nrow(ncyc$table), " nitrogen-cycle genes, after a random sample of ", fmt_int(ncyc$sampling), " reads per file."),
     if (!is.null(metaphlan)) paste0("**MetaPhlAn** detected ", sum(grepl("s__", metaphlan$clade) & !grepl("t__", metaphlan$clade)), " species."),
     if (!is.null(singlem)) paste0("**SingleM** profiled ", n_distinct(singlem$sample), " libraries."),
-    if (nrow(sylph) > 0) paste0("**sylph** detected ", n_distinct(sylph$Genome_file), " reference genomes."),
+    if (nrow(sylph) > 0) paste0("**sylph** detected ", plural(n_distinct(sylph$Genome_file), "reference genome"), "."),
+    if (nrow(phyloflash_summary) > 0) {
+      paste0("**phyloFlash** found SSU rRNA in ", fmt_pct(min(phyloflash_summary$mapped_pct), 2), " to ", fmt_pct(max(phyloflash_summary$mapped_pct), 2),
+             " of the read pairs, from ", min(phyloflash_summary$ntus), " to ", max(phyloflash_summary$ntus), " taxa at the level of orders per library.")
+    },
     if (nrow(humann) > 0) paste0("**HUMAnN** left a mean of ", fmt_pct(100 * mean(humann$unmapped_rpk / humann$total_rpk)), " of the abundance unmapped.")
   )
   if (length(brief) > 0) bullets(brief) else para("No output of a read-based tool was found yet.")
@@ -304,12 +345,13 @@ section("Genome-based profile with sylph", {
     no_output("sylph", "results/read_annotate/sylph/")
   } else {
     para("sylph looks for k-mers of reference genomes in the reads. **Sequence abundance** is the share of reads, and **taxonomic abundance** the share of ",
-         "genome copies. The sum of sequence abundance shows how much of the reads the database explains.")
+         "genome copies, both among the genomes that it detected. They add up to 100% however little of the sample the database covers, so they don't ",
+         "show how much of the reads the database explains. Effective coverage is the genome's estimated coverage by these reads.")
     per_library <- sylph %>%
       group_by(library) %>%
-      summarise(genomes = n(), explained_pct = sum(Sequence_abundance), median_ani = median(Adjusted_ANI), .groups = "drop")
+      summarise(genomes = n(), median_ani = median(Adjusted_ANI, na.rm = TRUE), median_coverage = median(Eff_cov, na.rm = TRUE), .groups = "drop")
     show_table(
-      per_library %>% transmute(Library = library, Genomes = fmt_int(genomes), `Reads explained` = fmt_pct(explained_pct), `Median ANI` = fmt_num(median_ani, 1)),
+      per_library %>% transmute(Library = library, Genomes = fmt_int(genomes), `Median ANI` = fmt_num(median_ani, 1), `Median effective coverage` = fmt_num(median_coverage, 2)),
       "sylph per library",
       "sylph_per_library",
       export = per_library,
@@ -406,10 +448,48 @@ section("Functional profile with HUMAnN", {
 
 ```{r phyloflash}
 section("SSU rRNA with phyloFlash", {
-  if (length(phyloflash_html) == 0) {
+  if (length(phyloflash_html) == 0 && nrow(phyloflash_summary) == 0) {
     no_output("phyloFlash", "results/read_annotate/phyloflash/")
   } else {
-    para("phyloFlash extracts small-subunit rRNA reads and classifies them with SILVA, so it also sees eukaryotes. Its HTML reports have the details per library:")
+    para("phyloFlash extracts small-subunit rRNA reads and classifies them with SILVA, so it also sees eukaryotes. rRNA genes are a small part of a genome, ",
+         "so a small share of mapped reads is expected, and few reads mean that rare taxa are missing by chance. phyloFlash calls the taxa NTUs, and here they are at the level of orders.")
+    if (nrow(phyloflash_summary) > 0) {
+      show_table(
+        phyloflash_summary %>% transmute(Library = library, `Read pairs` = fmt_int(read_pairs), `SSU read pairs` = fmt_int(ssu_pairs), Mapped = fmt_pct(mapped_pct, 2), NTUs = fmt_int(ntus)),
+        "SSU rRNA reads per library, from phyloFlash",
+        "phyloflash_per_library",
+        export = phyloflash_summary,
+        max_rows = 60
+      )
+    }
+    if (nrow(phyloflash_taxa) > 0) {
+      wide <- phyloflash_taxa %>%
+        pivot_wider(names_from = library, values_from = reads, values_fill = 0) %>%
+        mutate(total = rowSums(across(-taxon))) %>%
+        arrange(desc(total))
+      show_table(
+        wide %>% select(-total) %>% mutate(across(-taxon, fmt_int)) %>% rename(Taxon = taxon),
+        "The most frequent taxa from phyloFlash, as mapped SSU reads",
+        "phyloflash_taxa",
+        export = wide,
+        max_rows = 15,
+        max_chars = 58
+      )
+      composition <- phyloflash_taxa %>%
+        group_by(library) %>%
+        mutate(share = 100 * reads / sum(reads)) %>%
+        ungroup() %>%
+        mutate(taxon = top_n_other(sub("^([^;]*;).*;", "\\1 ", taxon), share, n = 10)) %>%
+        group_by(library, taxon) %>%
+        summarise(share = sum(share), .groups = "drop")
+      show_figure(
+        composition_plot(composition),
+        "phyloflash_composition",
+        "Composition from phyloFlash at the level of orders, as a share of the mapped SSU reads. Each name starts with the domain.",
+        height = rows_height(n_distinct(composition$library), 0.17, 2)
+      )
+    }
+    para("The HTML reports of phyloFlash have the details per library:")
     files <- tibble(file = rel(phyloflash_html), bytes = file.size(phyloflash_html))
     show_table(files %>% transmute(Report = file, Size = fmt_bytes(bytes)), "phyloFlash reports", "phyloflash_reports", export = files, max_rows = 40)
   }
@@ -425,9 +505,11 @@ section("Protein-level annotation with DIAMOND", {
       subset <- filter(diamond, database == db)
       per_file <- subset %>%
         group_by(file) %>%
-        summarise(features = sum(hits > 0), hits = sum(hits), .groups = "drop")
+        summarise(features = sum(labels > 0), hits = round(sum(reads), 3), labels = sum(labels), .groups = "drop")
+      para("A protein can have several labels, so a read with a hit can count for several features. **Reads with a hit** counts ",
+           "each read once, and **Labels** counts all the labels of their hits. One file holds one end of the read pairs.")
       show_table(
-        per_file %>% transmute(File = file, Hits = fmt_int(hits), Features = fmt_int(features)),
+        per_file %>% transmute(File = file, `Reads with a hit` = fmt_int(hits), Labels = fmt_int(labels), Features = fmt_int(features)),
         paste0("DIAMOND hits per read file, database ", db),
         paste0("diamond_", db, "_per_file"),
         export = per_file,
@@ -435,10 +517,10 @@ section("Protein-level annotation with DIAMOND", {
       )
       top <- subset %>%
         group_by(feature) %>%
-        summarise(total = sum(hits), .groups = "drop") %>%
+        summarise(total = sum(labels), .groups = "drop") %>%
         arrange(desc(total))
       show_table(
-        top %>% transmute(Feature = feature, `All hits` = fmt_int(total)),
+        top %>% transmute(Feature = feature, `Reads, all files` = fmt_int(total)),
         paste0("The most frequent features, database ", db),
         paste0("diamond_", db, "_top_features"),
         export = top,

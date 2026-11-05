@@ -1,0 +1,76 @@
+$ snakemake --cores 1
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+WorkflowError:
+Target rules may not contain wildcards. Please specify concrete files or a rule without wildcards at the command line, or have a rule without wildcards at the very top of your workflow (e.g. the typical "rule all" which just collects all results you want to generate in the end).
+[exit code 1]
+
+$ snakemake --cores 1 results/sampleB_R2.count.txt
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job stats:
+job            count
+-----------  -------
+count_reads        1
+total              1
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule count_reads:
+    input: data/sampleB_R2.fastq.gz
+    output: results/sampleB_R2.count.txt
+    jobid: 0
+    reason: Missing output files: results/sampleB_R2.count.txt
+    wildcards: sample=sampleB, mate=2
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 0 (Rule: count_reads)
+1 of 1 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/02_wildcards/.snakemake/log/<date>.snakemake.log
+
+$ snakemake results/sampleC_R1.count.txt results/sampleC_R2.count.txt --cores 1 --quiet
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Select jobs to execute...
+Execute 1 jobs...
+Select jobs to execute...
+Execute 1 jobs...
+Complete log(s): /scratch/project_demo/examples/02_wildcards/.snakemake/log/<date>.snakemake.log
+
+$ ls results
+sampleB_R2.count.txt
+sampleC_R1.count.txt
+sampleC_R2.count.txt
+
+$ snakemake --cores 1 --quiet results/sampleC_R1.count.txt 2>&1 | tail -n 1
+snakemake: error: argument --quiet/-q: invalid choice: 'results/sampleC_R1.count.txt' (choose from all, host, progress, reason, rules)
+
+$ snakemake --cores 1 results/sampleZ_R1.count.txt
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+MissingInputException in rule count_reads in file "/scratch/project_demo/examples/02_wildcards/Snakefile", line 1:
+Missing input files for rule count_reads:
+    output: results/sampleZ_R1.count.txt
+    wildcards: sample=sampleZ, mate=1
+    affected files:
+        data/sampleZ_R1.fastq.gz
+[exit code 1]
+
+$ snakemake --cores 1 results/sampleA.count.txt
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+MissingRuleException:
+No rule to produce results/sampleA.count.txt (if you use input functions make sure that they don't raise unexpected exceptions).
+[exit code 1]
+

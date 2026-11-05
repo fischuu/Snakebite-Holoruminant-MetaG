@@ -12,6 +12,14 @@ runs on HPC (SLURM) with all tools delivered as Singularity/Apptainer containers
 actually used despite `__environment__.yml` files present per module — containers are the real
 dependency mechanism, see `config/.docker.yml`).
 
+## The book
+
+`book/` holds the handbook of this pipeline (Markdown chapters, PDF, examples), and it is a living document: **any change to
+`workflow/` or `config/` has to update the book too.** Update the affected tool and module chapters, then run
+`python3 book/tools/rule_reference.py`, `python3 book/tools/check_sync.py` and `python3 book/tools/check_transcripts.py`, and rebuild
+the PDF with `bash book/build.sh`. If an image in `config/.docker.yml` changed, run `book/tools/container_versions.sh` and `book/tools/versions_table.py`.
+After changing a rule that the real run covers, compare a project with `python3 tests/real_tools/check_results.py <project>`. Terminal output in a chapter must come from a real run: see `book/README.md`.
+
 ## Running the pipeline
 
 There is no build step and no test suite (`.github/workflows/linters.yml` only runs `snakefmt` via
@@ -190,8 +198,9 @@ number) — bump `CHANGELOG`, not a separate version constant, when releasing.
 `workflow/rules/report/<module>.smk` runs `workflow/scripts/R/render_report.R`, which renders
 `workflow/scripts/R/<module>.Rmd`. The shared parts are in `report_helpers.R`: tables, figures, data volume, requested
 and used resources, and suggestions for `config/escalation.yaml`. Every chunk has `results="asis"`, every part of a report
-is inside `section()`, which turns an error into a sentence, and all tables go through `show_table()`, which also writes
-them to `Rreports/<module>/tables/`.
+is inside `section()`, which turns an error into a sentence, the first chunk reads each tool's output through
+`load_tool()`, which does the same, and all tables go through `show_table()`, which also writes them to
+`Rreports/<module>/tables/`.
 
 - **If a rule's output changes, change the report's parser too**, and `tests/reports/`. Run
   `tests/reports/run_test.sh`, which renders all reports in the container without network, as on a compute node.

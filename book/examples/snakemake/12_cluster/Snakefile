@@ -1,0 +1,29 @@
+SAMPLES = ["sampleA", "sampleB", "sampleC"]
+
+
+rule all:
+    input:
+        "results/summary.txt",
+
+
+rule count_reads:
+    input:
+        "data/{sample}_R1.fastq.gz",
+    output:
+        "results/{sample}.txt",
+    threads: 2
+    resources:
+        mem_mb=300,
+        cpus_per_task=2,
+        runtime=5,
+    shell:
+        "zcat {input} | wc -l > {output}"
+
+
+rule summary:
+    input:
+        expand("results/{sample}.txt", sample=SAMPLES),
+    output:
+        "results/summary.txt",
+    shell:
+        "paste {input} > {output}"

@@ -1,0 +1,11 @@
+shell.prefix('set -euo pipefail; debug() {{ echo "[DEBUG] $*" >&2; }}; ')
+
+
+rule silent_failure:
+    output:
+        "results/strict.txt",
+    shell:
+        """
+        false | cat > {output}
+        echo "This never runs" >> {output}
+        """

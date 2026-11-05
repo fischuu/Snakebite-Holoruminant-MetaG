@@ -3,8 +3,9 @@
 # root) for a project with output of all tools, and for a project that hasn't run. The tables are then
 # compared with the known numbers.
 #
-# Usage: run_test.sh [real project]
-#   With a project of real results, as from book/examples/real_tools/, its reports are checked as well.
+# Usage: run_test.sh [real project] [real project with metaSPAdes]
+#   With a project of real results, as from book/examples/real_tools/, its reports are checked as well. The results
+#   of extra_tools.sh in it are too, if it has them, and the second project is the one of extra_tools.sh <project> spades.
 #   LOCAL_R=1 uses the local R and LaTeX instead of the container, which is faster, for development.
 set -euo pipefail
 
@@ -75,6 +76,13 @@ empty=$(cd "$work/empty" && pwd -P)
 render "$empty"
 python3 "$here/check_project.py" empty "$empty"
 
+echo
+echo "== A project with files in an unexpected format =="
+python3 "$here/make_project.py" "$work/broken" "$pipeline" --broken
+broken=$(cd "$work/broken" && pwd -P)
+render "$broken"
+python3 "$here/check_project.py" broken "$broken"
+
 if [ $# -ge 1 ]; then
     echo
     echo "== Real results: $1 =="
@@ -84,6 +92,19 @@ if [ $# -ge 1 ]; then
         render "$1"
     fi
     python3 "$here/check_project.py" real "$1" "$here/expected_real.tsv"
+    if [ -d "$1/results/read_annotate/kraken2/standard_08gb" ]; then
+        python3 "$here/check_project.py" real "$1" "$here/expected_real_extra.tsv"
+    fi
+fi
+if [ $# -ge 2 ]; then
+    echo
+    echo "== Real results with metaSPAdes: $2 =="
+    if [ -n "${RULE_TABLES:-}" ]; then
+        render "$2" "$RULE_TABLES"
+    else
+        render "$2"
+    fi
+    python3 "$here/check_project.py" real "$2" "$here/expected_real_spades.tsv"
 fi
 echo
 echo "All report tests passed."

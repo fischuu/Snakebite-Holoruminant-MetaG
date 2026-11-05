@@ -110,12 +110,14 @@ rule preprocess__bowtie2__extract_nonhost__run:
         debug "library={wildcards.sample_id}.{wildcards.library_id} genome={wildcards.genome} threads={threads} cram={input.cram} sort_tmpdir={params.sort_tmpdir}"
         mkdir -p {params.sort_tmpdir}
 
-        # -f 12: read unmapped and mate unmapped. samtools fastq needs the pairs sorted by name.
+        # -f 12: read unmapped and mate unmapped. samtools fastq needs the pairs sorted by name, and
+        # compresses by itself because the names end in .gz. Don't write through ">(pigz ...)": Bash
+        # doesn't wait for that, so the job can end before the file is complete.
         samtools view -u -f 12 -T {input.genome} {input.cram} \
             | samtools sort -n -l 0 -m 500M -@ {threads} -T {params.sort_tmpdir} \
             | samtools fastq -N -0 /dev/null -c 9 -@ {threads} \
-                -1 >(pigz -p {threads} > {output.forward_}) \
-                -2 >(pigz -p {threads} > {output.reverse_})
+                -1 {output.forward_} \
+                -2 {output.reverse_}
         """
 
 

@@ -1,0 +1,121 @@
+$ python python_basics.py
+Sample: sampleA
+Sample: sampleB
+results/sampleA.txt
+['results/sampleA.txt', 'results/sampleB.txt']
+cow.fa.gz ['cow', 'sheep']
+results/sampleA_R1.txt
+42
+results/fastp/sampleA.fq.gz
+
+$ python pandas_samples.py
+  sample_id    assembly_ids
+0   sampleA  asm1, combined
+1   sampleB  asm2, combined
+2   sampleC            asm3
+  sample_id       assembly_id
+0   sampleA  [asm1, combined]
+1   sampleB  [asm2, combined]
+2   sampleC            [asm3]
+  sample_id assembly_id
+0   sampleA        asm1
+0   sampleA    combined
+1   sampleB        asm2
+1   sampleB    combined
+2   sampleC        asm3
+[('sampleA', 'L001'), ('sampleB', 'L001')]
+
+$ snakemake --cores 1
+combined: pooling 2 file(s)
+asm1: pooling 1 file(s)
+asm2: pooling 1 file(s)
+asm3: pooling 1 file(s)
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job stats:
+job           count
+----------  -------
+all               1
+pool_reads        4
+total             5
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule pool_reads:
+    input: data/sampleA_R1.fastq.gz, data/sampleB_R1.fastq.gz
+    output: results/combined.fastq.gz
+    jobid: 2
+    reason: Missing output files: results/combined.fastq.gz
+    wildcards: assembly_id=combined
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 2 (Rule: pool_reads)
+1 of 5 steps (20%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule pool_reads:
+    input: data/sampleA_R1.fastq.gz
+    output: results/asm1.fastq.gz
+    jobid: 1
+    reason: Missing output files: results/asm1.fastq.gz
+    wildcards: assembly_id=asm1
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 1 (Rule: pool_reads)
+2 of 5 steps (40%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule pool_reads:
+    input: data/sampleB_R1.fastq.gz
+    output: results/asm2.fastq.gz
+    jobid: 3
+    reason: Missing output files: results/asm2.fastq.gz
+    wildcards: assembly_id=asm2
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 3 (Rule: pool_reads)
+3 of 5 steps (60%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule pool_reads:
+    input: data/sampleC_R1.fastq.gz
+    output: results/asm3.fastq.gz
+    jobid: 4
+    reason: Missing output files: results/asm3.fastq.gz
+    wildcards: assembly_id=asm3
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 4 (Rule: pool_reads)
+4 of 5 steps (80%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule all:
+    input: results/asm1.fastq.gz, results/combined.fastq.gz, results/asm2.fastq.gz, results/asm3.fastq.gz
+    jobid: 0
+    reason: Input files updated by another job: results/asm3.fastq.gz, results/asm1.fastq.gz, results/asm2.fastq.gz, results/combined.fastq.gz
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 0 (Rule: all)
+5 of 5 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/05_python/.snakemake/log/<date>.snakemake.log
+
+$ for file in results/*.fastq.gz; do echo "$file: $(zcat "$file" | wc -l | awk '{print $1 / 4}') reads"; done
+results/asm1.fastq.gz: 40 reads
+results/asm2.fastq.gz: 60 reads
+results/asm3.fastq.gz: 25 reads
+results/combined.fastq.gz: 100 reads
+

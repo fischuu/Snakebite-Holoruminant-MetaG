@@ -1,0 +1,9 @@
+rule slow:
+    output:
+        "results/slow.txt",
+    shell:
+        """
+        echo "started" > {output}
+        sleep 8
+        echo "finished" >> {output}
+        """

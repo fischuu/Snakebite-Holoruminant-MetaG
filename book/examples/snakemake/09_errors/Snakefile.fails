@@ -1,0 +1,15 @@
+rule count:
+    input:
+        "data/sampleA_R1.fastq.gz",
+    output:
+        "results/count.txt",
+    log:
+        "logs/count.log",
+    shell:
+        """
+        exec > {log} 2>&1
+        echo "Working on {input}"
+        zcat {input} > {output}
+        echo "Something goes wrong now"
+        false
+        """

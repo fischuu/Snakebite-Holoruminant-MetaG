@@ -1,0 +1,149 @@
+$ snakemake --lint text | head -n 12
+Lints for rule count_reads (line 10, /scratch/project_demo/examples/15_tests/Snakefile):
+    * No log directive defined:
+      Without a log directive, all output will be printed to the terminal. In
+      distributed environments, this means that errors are harder to discover.
+      In local environments, output of concurrent jobs will be mixed and become
+      unreadable.
+      Also see:
+      https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#log-files
+    * Specify a conda environment or container for each rule.:
+      This way, the used software for each specific step is documented, and the
+      workflow can be executed on any machine without prerequisites.
+      Also see:
+      https://snakemake.readthedocs.io/en/latest/snakefiles/deployment.html#integrated-package-management
+      https://snakemake.readthedocs.io/en/latest/snakefiles/deployment.html#running-jobs-in-containers
+
+Lints for rule summary (line 19, /scratch/project_demo/examples/15_tests/Snakefile):
+    * No log directive defined:
+      Without a log directive, all output will be printed to the terminal. In
+      distributed environments, this means that errors are harder to discover.
+      In local environments, output of concurrent jobs will be mixed and become
+      unreadable.
+      Also see:
+      https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#log-files
+    * Specify a conda environment or container for each rule.:
+      This way, the used software for each specific step is documented, and the
+      workflow can be executed on any machine without prerequisites.
+      Also see:
+      https://snakemake.readthedocs.io/en/latest/snakefiles/deployment.html#integrated-package-management
+      https://snakemake.readthedocs.io/en/latest/snakefiles/deployment.html#running-jobs-in-containers
+
+$ snakemake --cores 2 --quiet rules
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 2
+Rules claiming more threads will be scaled down.
+Job stats:
+job            count
+-----------  -------
+all                1
+count_reads        6
+summary            1
+total              8
+
+Select jobs to execute...
+Execute 2 jobs...
+[date]
+Finished jobid: 6 (Rule: count_reads)
+1 of 8 steps (12%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 3 (Rule: count_reads)
+2 of 8 steps (25%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 5 (Rule: count_reads)
+3 of 8 steps (38%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 4 (Rule: count_reads)
+4 of 8 steps (50%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 7 (Rule: count_reads)
+5 of 8 steps (62%) done
+[date]
+Finished jobid: 2 (Rule: count_reads)
+6 of 8 steps (75%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 1 (Rule: summary)
+7 of 8 steps (88%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: all)
+8 of 8 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/15_tests/.snakemake/log/<date>.snakemake.log
+
+$ snakemake --generate-unit-tests --cores 1 2>&1 | tail -n 1
+Generating unit test for rule count_reads: .tests/unit/test_count_reads.py.
+
+$ find .tests -type f | sort | head -n 12
+.tests/unit/common.py
+.tests/unit/conftest.py
+.tests/unit/count_reads/config/.gitempty
+.tests/unit/count_reads/data/data/sampleA_R1.fastq.gz
+.tests/unit/count_reads/expected/results/counts/sampleA_R1.txt
+.tests/unit/summary/config/.gitempty
+.tests/unit/summary/data/results/counts/sampleA_R1.txt
+.tests/unit/summary/data/results/counts/sampleA_R2.txt
+.tests/unit/summary/data/results/counts/sampleB_R1.txt
+.tests/unit/summary/data/results/counts/sampleB_R2.txt
+.tests/unit/summary/data/results/counts/sampleC_R1.txt
+.tests/unit/summary/data/results/counts/sampleC_R2.txt
+
+$ sed -n 1,40p .tests/unit/test_summary.py
+"""
+Rule test code for unit testing of rules generated with Snakemake 9.11.6.
+"""
+
+
+import os
+import sys
+import shutil
+import tempfile
+from pathlib import Path
+from subprocess import check_output
+
+sys.path.insert(0, os.path.dirname(__file__))
+
+
+def test_summary(conda_prefix):
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workdir = Path(tmpdir) / "workdir"
+        config_path = Path(".tests/unit/summary/config")
+        data_path = Path(".tests/unit/summary/data")
+        expected_path = Path(".tests/unit/summary/expected")
+
+        # Copy config to the temporary workdir.
+        shutil.copytree(config_path, workdir)
+
+        # Copy data to the temporary workdir.
+        shutil.copytree(data_path, workdir, dirs_exist_ok=True)
+
+        # Run the test job.
+        check_output(
+            [
+                "python",
+                "-m",
+                "snakemake",
+                "results/summary.tsv",
+                "--snakefile",
+                "Snakefile",
+                "-f",
+                "--notemp",
+
+$ pytest -q .tests/unit 2>&1 | tail -n 3
+..                                                                       [100%]
+2 passed in 3.09s
+

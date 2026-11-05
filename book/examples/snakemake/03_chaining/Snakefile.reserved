@@ -1,0 +1,7 @@
+rule summary:
+    input:
+        count="results/counts/{sample}.txt",
+    output:
+        "results/summary/{sample}.tsv",
+    shell:
+        "cat {input.count} > {output}"

@@ -1,0 +1,50 @@
+### assemble: MAGScoT
+$ wc -l results/assemble/magscot/coasm/prodigal.faa results/assemble/magscot/coasm/hmm.tblout results/assemble/magscot/coasm/contigs_to_bin.tsv | head -n 3
+   16099 results/assemble/magscot/coasm/prodigal.faa
+      84 results/assemble/magscot/coasm/hmm.tblout
+    2161 results/assemble/magscot/coasm/contigs_to_bin.tsv
+
+$ head -n 3 results/assemble/magscot/coasm/hmm.tblout
+coasm:bin_NA@contig_00000809_1	TIGR00029	2.7e-11
+coasm:bin_NA@contig_00000758_1	TIGR00054	1.6e-63
+coasm:bin_NA@contig_00000218_3	TIGR00059	1.6e-40
+
+$ head -n 2 results/assemble/magscot/coasm/contigs_to_bin.tsv
+bin_20.fa.gz	coasm:bin_NA@contig_00000002	concoct
+bin_3.fa.gz	coasm:bin_NA@contig_00000003	concoct
+
+$ cut -f 1,2,3,4,7,8,10,13,14 results/assemble/magscot/coasm/magscot.scores.out
+bin	set	uniqueSCGs	multipleSCGs	n_contigs	Completeness	Contamination	score	bintool
+bin_11.fa.gz	gtdb_rel207_bac120	69	2	554	0.575	0.028985507246376812	0.5605072463768116	concoct
+MAGScoT_1_1	gtdb_rel207_bac120	69	2	565	0.575	0.028985507246376812	0.5605072463768116	MAGScoT_1
+MAGScoT_1_2	gtdb_rel207_bac120	69	2	612	0.575	0.028985507246376812	0.5605072463768116	MAGScoT_1
+MAGScoT_1_3	gtdb_rel207_bac120	68	2	536	0.5666666666666667	0.029411764705882353	0.5519607843137255	MAGScoT_1
+bin_bin.1.fa.gz	gtdb_rel207_bac120	67	2	409	0.5583333333333333	0.029850746268656716	0.543407960199005	metabat2
+bin_maxbin2.001.fa.gz	gtdb_rel207_bac120	52	1	483	0.43333333333333335	0.019230769230769232	0.4237179487179487	maxbin2
+bin_3.fa.gz	gtdb_rel207_ar53	1	0	171	0.018867924528301886	0	0.018867924528301886	concoct
+bin_5.fa.gz	gtdb_rel207_bac120	1	0	7	0.008333333333333333	0	0.008333333333333333	concoct
+bin_maxbin2.002.fa.gz	gtdb_rel207_bac120	20	6	369	0.16666666666666666	0.3	0.008333333333333331	maxbin2
+
+$ cut -f 1,2,3,4,7,8,10,13,14 results/assemble/magscot/coasm/magscot.refined.out
+bin	set	uniqueSCGs	multipleSCGs	n_contigs	Completeness	Contamination	score	bintool
+bin_11.fa.gz	gtdb_rel207_bac120	69	2	554	0.575	0.028985507246376812	0.5605072463768116	concoct
+
+$ cut -f 1,2,3,4,7,8,10,13,14 results/assemble/magscot/ERR2019410/magscot.refined.out
+
+$ grep -E 'Refinement lead|no viable|continuing without' results/assemble/magscot/ERR2019410/magscot.log results/assemble/magscot/coasm/magscot.log
+results/assemble/magscot/coasm/magscot.log:Refinement lead to a total of 1  bins with a score >= 0.5 
+
+$ gzip -dc results/assemble/magscot/coasm.fa.gz | head -n 1
+>coasm:bin_000001@contig_00000001
+
+### dRep when CheckM has too little memory, from the log of assemble__drep__run
+Running checkM
+!!! checkM failed !!!
+See https://drep.readthedocs.io/en/latest/advanced_use.html#troubleshooting-checkm for help troubleshooting
+dRep wrote no genomes. Its messages are above, and results/assemble/drep/log/logger.log has the details.
+
+### dRep with a single genome, from the log of assemble__drep__run
+1 genomes were input to dRep
+Running primary clustering
+Running pair-wise MASH clustering
+ValueError: The number of observations cannot be determined on an empty distance matrix.

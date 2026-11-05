@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Write a small project with output files of all tools, to test the module reports.
 
-Usage: make_project.py <new folder> <pipeline folder> [--empty]
+Usage: make_project.py <new folder> <pipeline folder> [--empty | --broken]
 
 The numbers are made up, except that they fit together, so that check_project.py can compare the
 reports with them. The formats follow the tools' documentation. Some of them were checked against
 real output (see expected_real.tsv), the others only can be once those tools have run on a cluster.
 The benchmark files and the Snakemake log make one case for each kind of resource suggestion.
 With --empty, only the configuration is written: no report may fail on a project that hasn't run.
+With --broken, some tools get files in an unexpected format: they may only cost those tools their sections.
 """
 import gzip
 import io
@@ -246,10 +247,27 @@ def read_annotate_module(root):
             ["# Gene Family", f"{library}_Abundance-RPKs"], ["UNMAPPED", 500.0], ["UniRef90_A", 300.0], ["UniRef90_A|g__X.s__Y", 300.0], ["UniRef90_B", 200.0],
         ]))
         write(root, f"results/read_annotate/sylph/{library}.profiling.tsv", tsv([
-            ["Sample_file", "Genome_file", "Taxonomic_abundance", "Sequence_abundance", "Adjusted_ANI", "Eff_cov", "Contig_name"],
-            [f"{library}_1", "g1.fna.gz", 70.0, 30.0, 98.5, 2.0, "Genome one"], [f"{library}_1", "g2.fna.gz", 30.0, 10.0, 96.0, 1.0, "Genome two"],
+            ["Sample_file", "Genome_file", "Taxonomic_abundance", "Sequence_abundance", "Adjusted_ANI", "Eff_cov", "Eff_lambda", "Contig_name"],
+            # As in real output, Eff_lambda is HIGH at high coverage, so that it isn't a number in each library
+            [f"{library}_1", "g1.fna.gz", 70.0, 30.0, 98.5, 2.0, "HIGH" if library == LIBS[0] else 2.0, "Genome one"],
+            [f"{library}_1", "g2.fna.gz", 30.0, 10.0, 96.0, 1.0, 1.0, "Genome two"],
         ]))
-        write(root, f"results/read_annotate/phyloflash/{library.replace('.', '_')}.phyloFlash.html", "<html></html>")
+        prefix = library.replace(".", "_")
+        write(root, f"results/read_annotate/phyloflash/{prefix}.phyloFlash.html", "<html></html>")
+        # The real archive has about 25 more files. A real report has a command with commas and lines after these.
+        report = "".join(f"{key},{value}\n" for key, value in [
+            ("version", "phyloFlash v3.4.2"), ("library name", prefix), ("input reads", 1000), ("input read segments", 2000),
+            ("mapped SSU reads", 20), ("mapped SSU read segments", 30), ("mapping ratio", "2.000"), ("NTUs observed once", 1),
+            ("NTUs observed twice", 0), ("NTUs observed three or more times", 2), ("NTU Chao1 richness estimate", "2.000"),
+            ("program command", "phyloFlash.pl -lib a,b"),
+        ])
+        abundance = "Bacteria;Bacteroidota;Bacteroidia;Bacteroidales,15\nEukaryota;SAR;Alveolata;Ciliophora,4\nBacteria;Bacillota;Bacilli;RF39,1\n"
+        archive = root / f"results/read_annotate/phyloflash/{prefix}.phyloFlash.tar.gz"
+        with tarfile.open(archive, "w:gz") as handle:
+            for name, content in ((f"{prefix}.phyloFlash.report.csv", report), (f"{prefix}.phyloFlash.NTUabundance.csv", abundance)):
+                info = tarfile.TarInfo(name)
+                info.size = len(content.encode())
+                handle.addfile(info, io.BytesIO(content.encode()))
     write(root, "results/read_annotate/nonpareil/nonpareil.tsv", tsv(
         [["sample_id", "kappa", "C", "LR", "modelR", "LRstar", "diversity"]]
         + [[library, 0.1, 0.5, 1e8, 0.99, 1e9, 20.0] for library in LIBS[:3]]
@@ -271,6 +289,10 @@ def read_annotate_module(root):
     ))
     write(root, "results/read_annotate/diamond/cazy/summary_a.tsv", tsv(
         [["Feature"] + [f"{library}_R1" for library in LIBS], ["GH1"] + [5, 6, 7, 8], ["GH2"] + [1, 0, 0, 2]]
+    ))
+    # One protein of S1 and two of S4 have both labels, which share such a hit out
+    write(root, "results/read_annotate/diamond/cazy/summary_b.tsv", tsv(
+        [["Feature"] + [f"{library}_R1" for library in LIBS], ["GH1"] + [4.5, 6, 7, 7], ["GH2"] + [0.5, 0, 0, 1]]
     ))
     columns = [f"{library}_{end}" for library in LIBS for end in (1, 2)]
     write(root, "results/read_annotate/ncyc/ncyc_results.tsv", "#random sampling: 1000\n" + tsv(
@@ -447,6 +469,14 @@ def eukaryote_module(root):
         write_gz(root, f"results/eukaryote/remag/{assembly}/bins/bin_1.fa.gz", fasta(names[:3]))
 
 
+def break_outputs(root):
+    """Files that a new version of a tool could write, with other columns or other fields than the reports expect"""
+    write(root, f"results/read_annotate/sylph/{LIBS[0]}.profiling.tsv", "Sample_file\tGenome\nS1\tg1\n")
+    write(root, "results/mag_annotate/checkm2/quality_report.tsv", "Genome\tScore\ng1\t90\n")
+    write(root, "results/eukaryote/tiara/asm1.tsv", "contig\tlabel\nc1\tbacteria\n")
+    write(root, "results/contig_annotate/hmmer/fe/asm1.tblout.tsv", "not a table of HMMER\n")
+
+
 def main():
     root = Path(sys.argv[1])
     pipeline = Path(sys.argv[2])
@@ -462,6 +492,8 @@ def main():
     mag_annotate_module(root)
     contig_annotate_module(root)
     eukaryote_module(root)
+    if "--broken" in sys.argv:
+        break_outputs(root)
 
 
 if __name__ == "__main__":

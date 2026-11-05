@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Stands in for Apptainer on a computer that has only Docker, so that the pipeline's real containers
+# can run under Snakemake's --use-singularity. "pull" notes the image's address in the file that
+# Snakemake expects, and "exec" runs the command in that image with Docker.
+set -euo pipefail
+case "${1:-}" in
+    --version) echo "apptainer version 1.4.0"; exit 0 ;;
+    pull)
+        shift
+        name="" url=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --name) name=$2; shift 2 ;;
+                docker://*) url=${1#docker://}; shift ;;
+                *) shift ;;
+            esac
+        done
+        echo "$url" > "$name"
+        exit 0 ;;
+    exec)
+        shift
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --home|--bind|-B|--pwd|--env) shift 2 ;;
+                -*) shift ;;
+                *) break ;;
+            esac
+        done
+        image=$(cat "$1")
+        shift
+        shift  # the "bash" that Snakemake names, the entrypoint below replaces it
+        exec docker run --rm --platform linux/amd64 --entrypoint bash \
+            --memory "${DOCKER_MEMORY:-7g}" \
+            -e PIPELINE_DEBUG="${PIPELINE_DEBUG:-0}" -e TMPDIR=/tmp \
+            -v "$PROJECT:$PROJECT" -v "$PIPELINE:$PIPELINE:ro" -w "$PWD" \
+            "$image" "$@" ;;
+esac
+echo "singularity stand-in: unsupported call: $*" >&2
+exit 1

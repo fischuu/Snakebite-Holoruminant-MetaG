@@ -1,0 +1,186 @@
+$ snakemake -s Snakefile.reserved --dry-run results/summary/sampleA.tsv
+AttributeError in file "/scratch/project_demo/examples/03_chaining/Snakefile.reserved", line 1:
+invalid name for input, output, wildcard, params or log: count is reserved for internal use
+[exit code 1]
+
+$ snakemake --cores 1 --dry-run results/summary/sampleA.tsv
+host: localhost
+Building DAG of jobs...
+Job stats:
+job             count
+------------  -------
+count_reads         1
+filter_reads        1
+mean_length         1
+summary             1
+total               4
+
+
+[date]
+rule filter_reads:
+    input: data/sampleA_R1.fastq.gz
+    output: results/filtered/sampleA.fastq.gz
+    jobid: 2
+    reason: Missing output files: results/filtered/sampleA.fastq.gz
+    wildcards: sample=sampleA
+    resources: tmpdir=<TBD>
+[date]
+rule count_reads:
+    input: results/filtered/sampleA.fastq.gz
+    output: results/counts/sampleA.txt
+    jobid: 1
+    reason: Missing output files: results/counts/sampleA.txt; Input files updated by another job: results/filtered/sampleA.fastq.gz
+    wildcards: sample=sampleA
+    resources: tmpdir=<TBD>
+[date]
+rule mean_length:
+    input: results/filtered/sampleA.fastq.gz
+    output: results/lengths/sampleA.txt
+    jobid: 3
+    reason: Missing output files: results/lengths/sampleA.txt; Input files updated by another job: results/filtered/sampleA.fastq.gz
+    wildcards: sample=sampleA
+    resources: tmpdir=<TBD>
+[date]
+rule summary:
+    input: results/counts/sampleA.txt, results/lengths/sampleA.txt
+    output: results/summary/sampleA.tsv
+    jobid: 0
+    reason: Missing output files: results/summary/sampleA.tsv; Input files updated by another job: results/counts/sampleA.txt, results/lengths/sampleA.txt
+    wildcards: sample=sampleA
+    resources: tmpdir=<TBD>
+Job stats:
+job             count
+------------  -------
+count_reads         1
+filter_reads        1
+mean_length         1
+summary             1
+total               4
+
+Reasons:
+    (check individual jobs above for details)
+    input files updated by another job:
+        count_reads, mean_length, summary
+    output files have to be generated:
+        count_reads, filter_reads, mean_length, summary
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+
+$ snakemake --cores 2 results/summary/sampleA.tsv
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 2
+Rules claiming more threads will be scaled down.
+Job stats:
+job             count
+------------  -------
+count_reads         1
+filter_reads        1
+mean_length         1
+summary             1
+total               4
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule filter_reads:
+    input: data/sampleA_R1.fastq.gz
+    output: results/filtered/sampleA.fastq.gz
+    jobid: 2
+    reason: Missing output files: results/filtered/sampleA.fastq.gz
+    wildcards: sample=sampleA
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 2 (Rule: filter_reads)
+1 of 4 steps (25%) done
+Select jobs to execute...
+Execute 2 jobs...
+
+[date]
+localrule count_reads:
+    input: results/filtered/sampleA.fastq.gz
+    output: results/counts/sampleA.txt
+    jobid: 1
+    reason: Missing output files: results/counts/sampleA.txt; Input files updated by another job: results/filtered/sampleA.fastq.gz
+    wildcards: sample=sampleA
+    resources: tmpdir=/tmp
+[date]
+localrule mean_length:
+    input: results/filtered/sampleA.fastq.gz
+    output: results/lengths/sampleA.txt
+    jobid: 3
+    reason: Missing output files: results/lengths/sampleA.txt; Input files updated by another job: results/filtered/sampleA.fastq.gz
+    wildcards: sample=sampleA
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 1 (Rule: count_reads)
+2 of 4 steps (50%) done
+[date]
+Finished jobid: 3 (Rule: mean_length)
+3 of 4 steps (75%) done
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule summary:
+    input: results/counts/sampleA.txt, results/lengths/sampleA.txt
+    output: results/summary/sampleA.tsv
+    jobid: 0
+    reason: Missing output files: results/summary/sampleA.tsv; Input files updated by another job: results/counts/sampleA.txt, results/lengths/sampleA.txt
+    wildcards: sample=sampleA
+    resources: tmpdir=/tmp
+[date]
+Finished jobid: 0 (Rule: summary)
+4 of 4 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/03_chaining/.snakemake/log/<date>.snakemake.log
+
+$ cat results/summary/sampleA.tsv
+sampleA	28	74.2857
+
+$ snakemake results/summary/sampleB.tsv --dag | dot -Tpng > dag.png
+Building DAG of jobs...
+
+$ snakemake results/summary/sampleB.tsv --rulegraph | dot -Tpng > rulegraph.png
+Building DAG of jobs...
+
+$ snakemake results/summary/sampleB.tsv --dry-run --printshellcmds --quiet rules
+host: localhost
+Building DAG of jobs...
+Job stats:
+job             count
+------------  -------
+count_reads         1
+filter_reads        1
+mean_length         1
+summary             1
+total               4
+
+Job stats:
+job             count
+------------  -------
+count_reads         1
+filter_reads        1
+mean_length         1
+summary             1
+total               4
+
+Reasons:
+    (check individual jobs above for details)
+    input files updated by another job:
+        count_reads, mean_length, summary
+    output files have to be generated:
+        count_reads, filter_reads, mean_length, summary
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+
+$ snakemake --summary results/summary/sampleA.tsv | cut -f 1,3,5
+output_file	rule	status
+results/summary/sampleA.tsv	summary	ok
+results/counts/sampleA.txt	count_reads	ok
+results/filtered/sampleA.fastq.gz	filter_reads	ok
+results/lengths/sampleA.txt	mean_length	ok
+Building DAG of jobs...
+
+$ cp dag.png rulegraph.png /examples/figures/
+

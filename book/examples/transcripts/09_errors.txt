@@ -1,0 +1,326 @@
+$ snakemake -s Snakefile.typo --cores 1
+SyntaxError in file "/scratch/project_demo/examples/09_errors/Snakefile.typo", line 3:
+Unexpected keyword outptu in rule definition:
+None
+[exit code 1]
+
+$ snakemake -s Snakefile.braces --cores 1
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job stats:
+job      count
+-----  -------
+count        1
+total        1
+
+Select jobs to execute...
+Execute 1 jobs...
+RuleException in rule count in file "/scratch/project_demo/examples/09_errors/Snakefile.braces", line 1:
+NameError: The name 'print $1' is unknown in this context. Please make sure that you defined that variable. Also note that braces not used for variable access have to be escaped by repeating them, i.e. {{print $1}}, when formatting the following:
+zcat {input} | awk '{print $1}' | wc -l > {output}
+[exit code 1]
+
+$ snakemake -s Snakefile.nooutput --cores 1 --latency-wait 1
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job stats:
+job      count
+-----  -------
+count        1
+total        1
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule count:
+    input: data/sampleA_R1.fastq.gz
+    output: results/count.txt
+    jobid: 0
+    reason: Missing output files: results/count.txt
+    resources: tmpdir=/tmp
+Waiting at most 1 seconds for missing files:
+results/count.txt (missing locally)
+MissingOutputException in rule count in file "/scratch/project_demo/examples/09_errors/Snakefile.nooutput", line 1:
+Job 0 completed successfully, but some output files are missing. Missing files after 1 seconds. This might be due to filesystem latency. If that is the case, consider to increase the wait time with --latency-wait:
+results/count.txt (missing locally, parent dir contents: typo.txt)
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look below for error messages
+[date]
+Error in rule count:
+    message: None
+    jobid: 0
+    input: data/sampleA_R1.fastq.gz
+    output: results/count.txt
+    shell:
+        zcat data/sampleA_R1.fastq.gz | wc -l > results/typo.txt
+        (command exited with non-zero exit code)
+Complete log(s): /scratch/project_demo/examples/09_errors/.snakemake/log/<date>.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
+[exit code 1]
+
+$ snakemake -s Snakefile.fails --cores 1
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job stats:
+job      count
+-----  -------
+count        1
+total        1
+
+Select jobs to execute...
+Execute 1 jobs...
+
+[date]
+localrule count:
+    input: data/sampleA_R1.fastq.gz
+    output: results/count.txt
+    log: logs/count.log
+    jobid: 0
+    reason: Missing output files: results/count.txt
+    resources: tmpdir=/tmp
+RuleException:
+CalledProcessError in file "/scratch/project_demo/examples/09_errors/Snakefile.fails", line 9:
+Command 'set -euo pipefail;  
+        exec > logs/count.log 2>&1
+        echo "Working on data/sampleA_R1.fastq.gz"
+        zcat data/sampleA_R1.fastq.gz > results/count.txt
+        echo "Something goes wrong now"
+        false' returned non-zero exit status 1.
+[date]
+Error in rule count:
+    message: None
+    jobid: 0
+    input: data/sampleA_R1.fastq.gz
+    output: results/count.txt
+    log: logs/count.log (check log file(s) for error details)
+    shell:
+        
+        exec > logs/count.log 2>&1
+        echo "Working on data/sampleA_R1.fastq.gz"
+        zcat data/sampleA_R1.fastq.gz > results/count.txt
+        echo "Something goes wrong now"
+        false
+        
+        (command exited with non-zero exit code)
+Removing output files of failed job count since they might be corrupted:
+results/count.txt
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look below for error messages
+[date]
+Error in rule count:
+    message: None
+    jobid: 0
+    input: data/sampleA_R1.fastq.gz
+    output: results/count.txt
+    log: logs/count.log (check log file(s) for error details)
+    shell:
+        
+        exec > logs/count.log 2>&1
+        echo "Working on data/sampleA_R1.fastq.gz"
+        zcat data/sampleA_R1.fastq.gz > results/count.txt
+        echo "Something goes wrong now"
+        false
+        
+        (command exited with non-zero exit code)
+Complete log(s): /scratch/project_demo/examples/09_errors/.snakemake/log/<date>.snakemake.log
+WorkflowError:
+At least one job did not complete successfully.
+[exit code 1]
+
+$ cat logs/count.log
+Working on data/sampleA_R1.fastq.gz
+Something goes wrong now
+
+$ ls results || true
+typo.txt
+
+$ snakemake -s Snakefile.pipe --cores 1 --quiet
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Select jobs to execute...
+Execute 1 jobs...
+Complete log(s): /scratch/project_demo/examples/09_errors/.snakemake/log/<date>.snakemake.log
+
+$ snakemake -s Snakefile.ambiguous --cores 1
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+AmbiguousRuleException:
+Rules from_forward and from_reverse are ambiguous for the file results/sampleA.txt.
+Consider starting rule output with a unique prefix, constrain your wildcards, or use the ruleorder directive.
+Wildcards:
+	from_forward: sample=sampleA
+	from_reverse: sample=sampleA
+Expected input files:
+	from_forward: data/sampleA_R1.fastq.gz
+	from_reverse: data/sampleA_R2.fastq.gz
+Expected output files:
+	from_forward: results/sampleA.txt
+	from_reverse: results/sampleA.txt
+[exit code 1]
+
+$ snakemake -s Snakefile.good --cores 1 --quiet
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Select jobs to execute...
+Execute 1 jobs...
+Select jobs to execute...
+Execute 1 jobs...
+Complete log(s): /scratch/project_demo/examples/09_errors/.snakemake/log/<date>.snakemake.log
+
+$ sed -i 's/label="reads"/label="sequences"/' Snakefile.good
+  snakemake -s Snakefile.good --cores 1 --dry-run
+host: localhost
+Building DAG of jobs...
+Job stats:
+job      count
+-----  -------
+all          1
+count        1
+total        2
+
+
+[date]
+rule count:
+    input: data/sampleA_R1.fastq.gz
+    output: results/count.txt
+    jobid: 1
+    reason: Params have changed since last execution: Union of exclusive params before and now across all output: before: 'reads' now: 'sequences' 
+    resources: tmpdir=<TBD>
+[date]
+rule all:
+    input: results/count.txt
+    jobid: 0
+    reason: Input files updated by another job: results/count.txt
+    resources: tmpdir=<TBD>
+Job stats:
+job      count
+-----  -------
+all          1
+count        1
+total        2
+
+Reasons:
+    (check individual jobs above for details)
+    input files updated by another job:
+        all
+    params have changed since last execution:
+        count
+Some jobs were triggered by provenance information, see 'reason' section in the rule displays above.
+If you prefer that only modification time is used to determine whether a job shall be executed, use the command line option '--rerun-triggers mtime' (also see --help).
+If you are sure that a change for a certain output file (say, <outfile>) won't change the result (e.g. because you just changed the formatting of a script or environment definition), you can also wipe its metadata to skip such a trigger via 'snakemake --cleanup-metadata <outfile>'. 
+Rules with provenance triggered jobs: count
+
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+
+$ snakemake -s Snakefile.good --cores 1 --dry-run --quiet --rerun-triggers mtime
+host: localhost
+Building DAG of jobs...
+Nothing to be done (all requested files are present and up to date).
+
+$ snakemake -s Snakefile.good --cores 1 --touch --quiet
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Select jobs to execute...
+Execute 1 jobs...
+Select jobs to execute...
+Execute 1 jobs...
+Complete log(s): /scratch/project_demo/examples/09_errors/.snakemake/log/<date>.snakemake.log
+
+$ snakemake -s Snakefile.good --cores 1 --dry-run --quiet
+host: localhost
+Building DAG of jobs...
+Nothing to be done (all requested files are present and up to date).
+
+$ snakemake -s Snakefile.slow --cores 1 > /dev/null 2>&1 &
+  sleep 4
+  kill -9 $!
+  sleep 1
+  cat results/slow.txt
+started
+bash: line 4:   461 Killed                  snakemake -s Snakefile.slow --cores 1 > /dev/null 2>&1
+
+$ snakemake -s Snakefile.slow --cores 1
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+IncompleteFilesException:
+The files below seem to be incomplete. If you are sure that certain files are not incomplete, mark them as complete with
+
+    snakemake --cleanup-metadata <filenames>
+
+To re-generate the files rerun your command with the --rerun-incomplete flag.
+Incomplete files:
+results/slow.txt
+[exit code 1]
+
+$ snakemake -s Snakefile.slow --cores 1 --rerun-incomplete
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+LockException:
+Error: Directory cannot be locked. Please make sure that no other Snakemake process is trying to create the same files in the following directory:
+/scratch/project_demo/examples/09_errors
+If you are sure that no other instances of snakemake are running on this directory, the remaining lock was likely caused by a kill signal or a power loss. It can be removed with the --unlock argument.
+[exit code 1]
+
+$ sleep 6
+  cat results/slow.txt
+started
+finished
+
+$ snakemake -s Snakefile.slow --unlock
+Building DAG of jobs...
+Unlocked working directory.
+
+$ snakemake -s Snakefile.slow --cores 1 --rerun-incomplete --quiet
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Select jobs to execute...
+Execute 1 jobs...
+Complete log(s): /scratch/project_demo/examples/09_errors/.snakemake/log/<date>.snakemake.log
+
+$ cat results/slow.txt
+started
+finished
+
+$ snakemake -s Snakefile.prefix --cores 1 --quiet
+Assuming unrestricted shared filesystem usage.
+host: localhost
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Select jobs to execute...
+Execute 1 jobs...
+Complete log(s): /scratch/project_demo/examples/09_errors/.snakemake/log/<date>.snakemake.log
+
+$ cat results/silent.txt
+The first line failed, and this still runs
+
+$ snakemake -s Snakefile.strict --cores 1 --quiet 2>&1 | grep -E 'Error in rule|exit status' | sort -u
+        echo "This never runs" >> results/strict.txt' returned non-zero exit status 1.
+
+$ ls results/strict.txt || true
+ls: cannot access 'results/strict.txt': No such file or directory
+

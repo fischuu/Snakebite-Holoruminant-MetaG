@@ -1,0 +1,14 @@
+rule all:
+    input:
+        "results/count.txt",
+
+
+rule count:
+    input:
+        "data/sampleA_R1.fastq.gz",
+    output:
+        "results/count.txt",
+    params:
+        label="reads",
+    shell:
+        "echo {params.label} $(zcat {input} | wc -l) > {output}"

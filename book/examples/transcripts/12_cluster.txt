@@ -1,0 +1,196 @@
+$ snakemake --profile profile --dry-run --quiet rules
+host: localhost
+Building DAG of jobs...
+Job stats:
+job            count
+-----------  -------
+all                1
+count_reads        3
+summary            1
+total              5
+
+Job stats:
+job            count
+-----------  -------
+all                1
+count_reads        3
+summary            1
+total              5
+
+Reasons:
+    (check individual jobs above for details)
+    input files updated by another job:
+        all, summary
+    output files have to be generated:
+        count_reads, summary
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+Using profile profile for setting default command line arguments.
+
+$ snakemake --profile profile --quiet rules --slurm-keep-successful-logs
+Using profile profile for setting default command line arguments.
+host: localhost
+Building DAG of jobs...
+SLURM run ID: f41cde61-c9ba-4ed2-ab8a-110900e1c2df
+Using shell: /usr/bin/bash
+Provided remote nodes: 10
+Job stats:
+job            count
+-----------  -------
+all                1
+count_reads        3
+summary            1
+total              5
+
+Select jobs to execute...
+Execute 3 jobs...
+Job 4 has been submitted with SLURM jobid 17 (log: /scratch/project_demo/examples/12_cluster/.snakemake/slurm_logs/rule_count_reads/sampleC/17.log).
+Job 3 has been submitted with SLURM jobid 18 (log: /scratch/project_demo/examples/12_cluster/.snakemake/slurm_logs/rule_count_reads/sampleB/18.log).
+Job 2 has been submitted with SLURM jobid 19 (log: /scratch/project_demo/examples/12_cluster/.snakemake/slurm_logs/rule_count_reads/sampleA/19.log).
+[date]
+Finished jobid: 4 (Rule: count_reads)
+1 of 5 steps (20%) done
+[date]
+Finished jobid: 3 (Rule: count_reads)
+2 of 5 steps (40%) done
+[date]
+Finished jobid: 2 (Rule: count_reads)
+3 of 5 steps (60%) done
+Select jobs to execute...
+Execute 1 jobs...
+Job 1 has been submitted with SLURM jobid 20 (log: /scratch/project_demo/examples/12_cluster/.snakemake/slurm_logs/rule_summary/20.log).
+[date]
+Finished jobid: 1 (Rule: summary)
+4 of 5 steps (80%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: all)
+5 of 5 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/12_cluster/.snakemake/log/<date>.snakemake.log
+
+$ sacct -X --format=JobID,Comment%24,Partition,AllocCPUS,ReqMem,State,ExitCode | tail -n 4
+17           rule_count_reads_wildca+      small          2       300M  COMPLETED      0:0 
+18           rule_count_reads_wildca+      small          2       300M  COMPLETED      0:0 
+19           rule_count_reads_wildca+      small          2       300M  COMPLETED      0:0 
+20                       rule_summary      small          1       200M  COMPLETED      0:0
+
+$ cat results/summary.txt
+160	240	100
+
+$ ls .snakemake/slurm_logs/rule_count_reads/sampleA/ | sed -E 's/[0-9]+/<jobid>/'
+<jobid>.log
+
+$ snakemake --snakefile Snakefile.retries --profile profile --retries 2 --quiet rules
+Using profile profile for setting default command line arguments.
+host: localhost
+Building DAG of jobs...
+SLURM run ID: 57aa3716-e720-4af9-8a98-48e9093edbbe
+Using shell: /usr/bin/bash
+Provided remote nodes: 10
+Job stats:
+job                  count
+-----------------  -------
+all                      1
+needs_more_memory        1
+total                    2
+
+Select jobs to execute...
+Execute 1 jobs...
+Job 1 has been submitted with SLURM jobid 21 (log: /scratch/project_demo/examples/12_cluster/.snakemake/slurm_logs/rule_needs_more_memory/21.log).
+Trying to restart job 1.
+Select jobs to execute...
+Execute 1 jobs...
+Job 1 has been submitted with SLURM jobid 22 (log: /scratch/project_demo/examples/12_cluster/.snakemake/slurm_logs/rule_needs_more_memory/22.log).
+[date]
+Finished jobid: 1 (Rule: needs_more_memory)
+1 of 2 steps (50%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: all)
+2 of 2 steps (100%) done
+Cleaning up SLURM log files older than 10 day(s).
+Complete log(s): /scratch/project_demo/examples/12_cluster/.snakemake/log/<date>.snakemake.log
+Cleaning up SLURM log files older than 10 day(s).
+
+$ cat results/retried.txt
+Succeeded with 400 MB
+
+$ sacct -X --format=JobID,Comment%26,ReqMem,State,ExitCode | tail -n 2
+21               rule_needs_more_memory       200M     FAILED      1:0 
+22               rule_needs_more_memory       400M  COMPLETED      0:0
+
+$ rm results/retried.txt
+  sed -i 's/^    resources:$/    retries: 2\n    resources:/' Snakefile.retries
+  snakemake --snakefile Snakefile.retries --profile profile --quiet rules --slurm-keep-successful-logs
+Using profile profile for setting default command line arguments.
+host: localhost
+Building DAG of jobs...
+SLURM run ID: 006b2189-631e-43a5-bf60-1fa81dc4bb71
+Using shell: /usr/bin/bash
+Provided remote nodes: 10
+Job stats:
+job                  count
+-----------------  -------
+all                      1
+needs_more_memory        1
+total                    2
+
+Select jobs to execute...
+Execute 1 jobs...
+Job 1 has been submitted with SLURM jobid 23 (log: /scratch/project_demo/examples/12_cluster/.snakemake/slurm_logs/rule_needs_more_memory/23.log).
+[date]
+Finished jobid: 1 (Rule: needs_more_memory)
+1 of 2 steps (50%) done
+Select jobs to execute...
+Execute 1 jobs...
+[date]
+Finished jobid: 0 (Rule: all)
+2 of 2 steps (100%) done
+Complete log(s): /scratch/project_demo/examples/12_cluster/.snakemake/log/<date>.snakemake.log
+
+$ cat results/retried.txt
+Succeeded with 400 MB
+
+$ sacct -X --format=JobID,Comment%26,ReqMem,State,ExitCode | tail -n 1
+23               rule_needs_more_memory       200M  COMPLETED      0:0
+
+$ grep -c 'Trying to restart' .snakemake/slurm_logs/rule_needs_more_memory/*.log
+.snakemake/slurm_logs/rule_needs_more_memory/21.log:0
+.snakemake/slurm_logs/rule_needs_more_memory/23.log:1
+
+$ rm results/retried.txt
+  snakemake results/retried.txt --snakefile Snakefile.fixed --profile profile --quiet rules
+Using profile profile for setting default command line arguments.
+host: localhost
+Building DAG of jobs...
+SLURM run ID: 7231ae01-c75a-4741-80dc-69970f4bb227
+Using shell: /usr/bin/bash
+Provided remote nodes: 10
+Job stats:
+job                  count
+-----------------  -------
+needs_more_memory        1
+total                    1
+
+Select jobs to execute...
+Execute 1 jobs...
+Job 0 has been submitted with SLURM jobid 24 (log: /scratch/project_demo/examples/12_cluster/.snakemake/slurm_logs/rule_needs_more_memory/24.log).
+Trying to restart job 0.
+Select jobs to execute...
+Execute 1 jobs...
+Job 0 has been submitted with SLURM jobid 25 (log: /scratch/project_demo/examples/12_cluster/.snakemake/slurm_logs/rule_needs_more_memory/25.log).
+[date]
+Finished jobid: 0 (Rule: needs_more_memory)
+1 of 1 steps (100%) done
+Cleaning up SLURM log files older than 10 day(s).
+Complete log(s): /scratch/project_demo/examples/12_cluster/.snakemake/log/<date>.snakemake.log
+Cleaning up SLURM log files older than 10 day(s).
+
+$ cat results/retried.txt
+Succeeded with 400 MB
+
+$ sacct -X --format=JobID,Comment%26,ReqMem,State,ExitCode | tail -n 2
+24               rule_needs_more_memory       200M     FAILED      1:0 
+25               rule_needs_more_memory       400M  COMPLETED      0:0
+

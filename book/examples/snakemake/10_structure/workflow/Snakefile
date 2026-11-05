@@ -1,0 +1,14 @@
+configfile: "config/config.yaml"
+
+SAMPLES = config["samples"]
+
+
+include: "rules/folders.smk"
+include: "rules/qc/__main__.smk"
+include: "rules/stats/__main__.smk"
+
+
+rule all:
+    input:
+        rules.qc.input,
+        rules.stats.input,

@@ -1,0 +1,7 @@
+rule count_reads:
+    input:
+        "data/{sample}_R{mate}.fastq.gz",
+    output:
+        "results/{sample}_R{mate}.count.txt",
+    shell:
+        "zcat {input} | wc -l | awk '{{print $1 / 4}}' > {output}"

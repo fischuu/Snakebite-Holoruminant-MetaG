@@ -3,13 +3,31 @@
 
 Version 0.4.*:
 -----------
+72: The reports read real output of more tools now. A file in an unexpected format costs only the section of its tool, and
+    no more the whole report, which is what the first real output of sylph did. phyloFlash has its numbers and taxa in the
+    report. DIAMOND counts each read once, and sylph no longer claims to show how much of the reads a database explains.
 71: Every module has a useful report now, also the new one for the module eukaryote, and the rule all makes them.
     The former reports could not be built on a cluster, as their container has no LaTeX, and some of their numbers
     were wrong, or their sections always empty. Each report has the results of its tools as tables and figures, a
     methods text with versions and settings, the data written per folder, the resources requested and used per rule,
     and suggestions for config/escalation.yaml. The reads report has the samples, reads per sample and read quality.
     New container rocker/verse, key report in config/.docker.yml. New test tests/reports/run_test.sh.
-    Versions 69 and 70 are still on the branch real-run-kit.
+70: Three more fixes from running the real tools.
+    assemble__drep__run now stops with a clear message if dRep leaves no genomes. dRep can report that CheckM
+    failed and still exit with 0, and only the next rule failed then, with a misleading error.
+    nonpareil.tsv no longer loses all its values if a single library has too little coverage for a model.
+    The target contig_annotate__featurecounts works now. It couldn't start, as a string lacked its f.
+69: Fixed four problems that a run with the real tools and a look through the rules brought up. Please read
+    RELEASE_NOTES, in particular about the clean reads.
+    Clean reads could end up truncated, as preprocess__bowtie2__extract_nonhost__run wrote them through
+    ">(pigz ...)", which Bash doesn't wait for. samtools fastq now writes them itself. Kraken2's per-read
+    output had the same problem, and is now piped into pigz.
+    The Krona charts were wrong, because the rule read a Kraken2 report with the options for per-read output.
+    The DIAMOND rules never ran from the original database on their last attempt, and with copy_dbs "False"
+    they failed after DIAMOND had finished.
+    assemble__bowtie2__build__run took its resources from another rule name, so it got three attempts with the
+    same resources. Its line in escalation.yaml has the rule's own name now.
+    New tests: tests/diamond_staging and tests/krona.
 68: Restored the strict mode of the rules, which got lost with the debug messages in September 2026
     (shell.prefix replaces Snakemake's "set -euo pipefail"), so a failing command inside a rule went
     unnoticed unless it was the last one. Please read RELEASE_NOTES if you ran such a version.

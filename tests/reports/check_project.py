@@ -2,6 +2,8 @@
 """Compare the tables of the module reports with what a project's files say.
 
 Usage: check_project.py synthetic <project>
+       check_project.py broken <project>
+       check_project.py empty <project>
        check_project.py real <project> <expected_real.tsv>
 """
 import csv
@@ -74,7 +76,16 @@ def synthetic(project):
     check("read_annotate: hits add both read files", row(ncyc, "library", "S1.lib1")["hits"], 23)
     check("read_annotate: genes with hits", row(ncyc, "library", "S1.lib1")["genes"], 2)
     diamond = table(project, "read_annotate", "diamond_cazy_per_file")
-    check("read_annotate: DIAMOND hits", row(diamond, "file", "S1.lib1_R1")["hits"], 6)
+    check("read_annotate: DIAMOND counts a read with two labels once", row(diamond, "file", "S1.lib1_R1")["hits"], 5.0)
+    check("read_annotate: DIAMOND labels", row(diamond, "file", "S1.lib1_R1")["labels"], 6.0)
+    phyloflash = table(project, "read_annotate", "phyloflash_per_library")
+    check("read_annotate: phyloFlash SSU read pairs", row(phyloflash, "library", "S1.lib1")["ssu_pairs"], 20)
+    check("read_annotate: phyloFlash NTUs of all three classes", row(phyloflash, "library", "S1.lib1")["ntus"], 3)
+    taxa = table(project, "read_annotate", "phyloflash_taxa")
+    check("read_annotate: phyloFlash reads per taxon", row(taxa, "taxon", "Eukaryota;SAR;Alveolata;Ciliophora")["S2.lib1"], 4)
+    sylph = table(project, "read_annotate", "sylph_per_library")
+    check("read_annotate: sylph with HIGH in one library", row(sylph, "library", "S2.lib1")["genomes"], 2)
+    check("read_annotate: sylph median coverage", row(sylph, "library", "S1.lib1")["median_coverage"], 1.5)
     check("read_annotate: DIAMOND features", row(diamond, "file", "S2.lib1_R1")["features"], 1)
 
     stats = table(project, "assemble", "assembly_statistics")
@@ -162,6 +173,19 @@ def synthetic(project):
     check("data: every file is listed", any(r["file"].endswith("magscot.refined.out") for r in files), True)
 
 
+def broken(project):
+    """An unexpected file costs its tool the section, and nothing else"""
+    for module, tool in (("read_annotate", "sylph"), ("mag_annotate", "CheckM2"), ("eukaryote", "Tiara"), ("contig_annotate", "HMMER")):
+        pdf = Path(project) / "Rreports" / f"{module}.pdf"
+        check(f"{module}: PDF exists with a broken {tool} file", pdf.exists() and pdf.stat().st_size > 1000, True)
+        errors = (Path(project) / "Rreports" / module / "section_errors.txt").read_text()
+        check(f"{module}: the failure of {tool} is on record", f"{tool}: " in errors, True)
+    tables = Path(project) / "Rreports"
+    for module, name in (("read_annotate", "diamond_cazy_per_file"), ("read_annotate", "kraken2_summary"), ("mag_annotate", "quast"),
+                         ("eukaryote", "tools"), ("contig_annotate", "genes_per_assembly")):
+        check(f"{module}: {name} is still there", (tables / module / "tables" / f"{name}.tsv").exists(), True)
+
+
 def real(project, expected_file):
     check_reports_exist(project)
     with open(expected_file) as handle:
@@ -182,6 +206,8 @@ if __name__ == "__main__":
         synthetic(sys.argv[2])
     elif sys.argv[1] == "empty":
         check_reports_exist(sys.argv[2])
+    elif sys.argv[1] == "broken":
+        broken(sys.argv[2])
     else:
         real(sys.argv[2], sys.argv[3])
     if failures:

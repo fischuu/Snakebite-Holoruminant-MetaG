@@ -1,0 +1,36 @@
+SAMPLES = ["sampleA", "sampleB", "sampleC"]
+
+
+rule all:
+    """What a run without any target name produces"""
+    input:
+        "results/summary.tsv",
+
+
+rule count_reads:
+    input:
+        "data/{sample}_R{mate}.fastq.gz",
+    output:
+        "results/counts/{sample}_R{mate}.txt",
+    shell:
+        "zcat {input} | wc -l | awk '{{print $1 / 4}}' > {output}"
+
+
+rule summary:
+    """One table with a line per read file"""
+    input:
+        expand("results/counts/{sample}_R{mate}.txt", sample=SAMPLES, mate=[1, 2]),
+    output:
+        "results/summary.tsv",
+    shell:
+        """
+        for count in {input}; do
+            printf '%s\\t%s\\n' "$(basename "$count" .txt)" "$(cat "$count")"
+        done > {output}
+        """
+
+
+rule counts:
+    """A target rule: it runs nothing and only asks for files"""
+    input:
+        expand("results/counts/{sample}_R1.txt", sample=SAMPLES),

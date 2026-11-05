@@ -1,0 +1,52 @@
+import os
+from pathlib import Path
+
+import pandas as pd
+import yaml
+
+DEBUG = os.environ.get("PIPELINE_DEBUG", "0") == "1"
+
+
+def debug(message):
+    if DEBUG:
+        print(f"[DEBUG] {message}")
+
+
+params = yaml.safe_load(open(config["params-file"]))
+samples = pd.read_table(config["sample-file"])
+SAMPLES = samples["sample_id"].tolist()
+debug(f"Samples: {SAMPLES}")
+
+with open(config["escalation-file"]) as handle:
+    ESCALATION = {rule: [tier.strip() for tier in tiers.split(",")] for rule, tiers in yaml.safe_load(handle).items()}
+
+# shell.prefix replaces Snakemake's default prefix, so it has to repeat the strict mode
+shell.prefix('set -euo pipefail; debug() {{ if [ "${{PIPELINE_DEBUG:-0}}" = "1" ]; then echo "[DEBUG] $*" >&2; fi; }}; ')
+
+
+def get_escalation_order(rule_name):
+    return ESCALATION.get(rule_name, ["small", "medium", "large"])
+
+
+def get_resources(wildcards, attempt, rule_name):
+    order = get_escalation_order(rule_name)
+    resources = dict(config["resource_sets"][order[min(attempt - 1, len(order) - 1)]])
+    resources["attempt"] = attempt
+    return resources
+
+
+def esc(key, rule_name):
+    return lambda wc, attempt: get_resources(wc, attempt, rule_name)[key]
+
+
+include: "rules/qc/__main__.smk"
+
+
+rule all:
+    input:
+        rules.qc.input,
+
+
+# One attempt per resource set, and only the Snakemake that submits the jobs may retry
+for r in workflow.rules:
+    r.restart_times = 0 if workflow.remote_exec else len(get_escalation_order(r.name)) - 1
