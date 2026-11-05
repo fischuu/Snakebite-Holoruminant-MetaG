@@ -52,7 +52,7 @@ nonpareil -s "${{prefix}}_1.fq" -T kmer -b "$prefix" -f fastq -t {threads} -X {p
 
 `read_annotate__nonpareil__aggregate` then runs `workflow/scripts/nonpareil_summary.R`, which reads all `.npo` files with the R package, and it writes `nonpareil.tsv`, with one line per library.
 
-`-X` is the number of query reads, and the default in `params.yaml` is 100, for quick testing. The comment there says so. Fewer query reads make the estimate less precise, so raise this value for an analysis you want to report.
+`-X` is the number of query reads, and `params.yaml` has 1000, the tool's own default. Fewer query reads are quicker, but they make the estimate less precise, so use a smaller value only for a quick test.
 
 ## On real data
 
@@ -60,7 +60,7 @@ nonpareil -s "${{prefix}}_1.fq" -T kmer -b "$prefix" -f fastq -t {threads} -X {p
 
 ## Pitfalls
 
-- **`-X` too low**, as just explained.
+- **`-X` too low**, as just explained. This isn't a detail. On the small data of @sec-tutorial, with `X: 100`, two of three libraries got no model at all. With `X: 1000`, all three got one, and the sequencing needed for 95% coverage of the first library went from 17 Gb to 47 Gb, while the run still took only about a minute.
 - **Too little data.** With low coverage, the model can't be fitted. The values `C` and `LR` are still reported, but `modelR` and `LRstar` are `NA` in the summary, and `diversity` is 0, which doesn't mean a community without diversity. The R package warns with `Median of the curve is zero at 50% of the reads`. With even less data, Nonpareil can leave empty files. Their outputs are marked `touch()` in the rule, so that Snakemake can go on, and such a library is left out of the summary.
 - **Too many reads for its memory.** Nonpareil has its own memory setting, `-R`, and on large read files it may use only part of the reads.
 - **Disk space.** The uncompressed file takes space until the rule deletes it, and if a job gets killed, it stays there.

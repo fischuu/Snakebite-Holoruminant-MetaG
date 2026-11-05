@@ -422,6 +422,12 @@ def mag_annotate_module(root):
     write(root, "results/mag_annotate/camper/annotations.tsv", tsv([["", "fasta", "CAMPER_hits", "CAMPER_definition"], ["g1", "x", "K1", "Function A"], ["g2", "x", "", ""], ["g3", "x", "K2", "Function A"]]))
     write(root, "results/mag_annotate/proteinortho/proteinortho.proteinortho.tsv", tsv([["# Species", "Genes", "Alg.-Conn.", "a.faa", "b.faa"], [2, 2, 1, "x", "y"], [2, 2, 1, "x", "y"], [1, 3, 0.5, "x,y,z", "*"]]))
     write(root, "results/mag_annotate/eggnog/out.emapper.seed_orthologs", "#comment\ng1\tx\t1e-5\t100\ng2\ty\t1e-5\t100\n")
+    # As in the rule, with --no_file_comments, so it has no header. Column 7 is the COG category, and column 12 the KEGG ortholog.
+    write(root, "results/mag_annotate/eggnog/out.emapper.annotations", tsv([
+        ["g1", "x", "1e-5", 100, "OG", "lvl", "EK", "desc", "name", "-", "-", "ko:K00001"] + ["-"] * 9,
+        ["g2", "y", "1e-5", 100, "OG", "lvl", "E", "desc", "name", "-", "-", "-"] + ["-"] * 9,
+        ["g3", "z", "1e-5", 100, "OG", "lvl", "-", "desc", "name", "-", "-", "-"] + ["-"] * 9,
+    ]))
     write(root, "results/mag_annotate/phylophlan/SGB/SGB.tsv", "#header\ngenome_1\tx\n")
 
 

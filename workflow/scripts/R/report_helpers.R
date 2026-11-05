@@ -291,6 +291,21 @@ read_table_quiet <- function(path, ...) {
   read_tsv(path, show_col_types = FALSE, progress = FALSE, ...)
 }
 
+# eggNOG-mapper's table. The rules use --no_file_comments, so the file normally has no header, and the columns are in this order
+EMAPPER_COLUMNS <- c("query", "seed_ortholog", "evalue", "score", "eggNOG_OGs", "max_annot_lvl", "COG_category", "Description",
+                     "Preferred_name", "GOs", "EC", "KEGG_ko", "KEGG_Pathway", "KEGG_Module", "KEGG_Reaction", "KEGG_rclass",
+                     "BRITE", "KEGG_TC", "CAZy", "BiGG_Reaction", "PFAMs")
+read_emapper <- function(file) {
+  lines <- readLines(file, warn = FALSE)
+  header <- grep("^#query", lines)[1]
+  body <- lines[!startsWith(lines, "#")]
+  if (length(body) == 0) return(NULL)
+  columns <- if (is.na(header)) EMAPPER_COLUMNS else strsplit(sub("^#", "", lines[[header]]), "\t")[[1]]
+  table <- read_tsv(I(paste(body, collapse = "\n")), col_names = FALSE, show_col_types = FALSE, quote = "")
+  names(table) <- c(columns, paste0("extra_", seq_len(max(0, ncol(table) - length(columns)))))[seq_len(ncol(table))]
+  table
+}
+
 # Numbers of a samtools flagstats file
 read_flagstat <- function(path) {
   lines <- readLines(path, warn = FALSE)

@@ -12,7 +12,7 @@ read_annotate:
   diamond:
     max-target-seqs: 1    # Max. number of hits per query
   nonpareil:
-    X: 100    #Default: 1000, smaller for testing!!!
+    X: 1000    # Default: 1000. Smaller is quicker, but makes the estimate less precise
   humann:
     additional_options: "--remove-temp-output"
 
@@ -42,7 +42,7 @@ assemble:
     nc: 0.1 # Default: 0.1
     extra: " " # Default: ""
   magscot:
-    extra: "--n_iter=1" # Default: "", different value might be relicts from testing
+    extra: "--n_iter=1" # The default of 2 can crash when a round has one candidate bin, and the rule then goes on without bins
     threshold : "0.5" # Scoring minimum completeness threshold [default=0.5]"
 
 quantify:

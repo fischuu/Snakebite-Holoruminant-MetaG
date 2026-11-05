@@ -1,3 +1,33 @@
+# Version 0.4.74
+################################################################################
+
+This fixes four bugs. Results of MaxBin2, Nonpareil and eggNOG-mapper on MAGs from earlier versions aren't what they
+should be, and neither is what follows from MaxBin2's bins. On a small test with real data, with 1 million read pairs per
+sample, these fixes had a real effect:
+
+- Nonpareil with X: 100 gave no model for two of three libraries. With X: 1000, all three got one, and the sequencing needed
+  for 95% coverage of the first library went from 17 Gb to 47 Gb.
+- MaxBin2's bins changed, and with them the only genome of the catalogue: 588 contigs instead of 554, from another binner.
+- metaSPAdes made identical contigs, so its fix doesn't change an assembly.
+
+The fix of eggNOG-mapper hasn't run on real data yet, as its database doesn't fit on the test computer.
+
+Change your project: Nonpareil's X is in your project's config/params.yaml, which an update of the pipeline doesn't touch.
+To use the new value, change this line:
+
+   read_annotate:
+     nonpareil:
+       X: 1000
+
+The other three fixes are in the rules, and you get them with the update:
+
+- MaxBin2 got the number of covered bases of a contig as its abundance, so a longer contig got a higher value. It now gets
+  the mean depth. Snakemake runs MaxBin2 again, and everything after it: MAGScoT, dRep, and all that uses the catalogue.
+- mag_annotate__eggnog had --no_annot, so it stopped after the search, and the MAG catalogue had no functional annotation.
+  Now you get eggnog.emapper.annotations. If that folder exists already, remove it first, as its log is protected.
+- metaSPAdes got its memory limit in MB and read that as GB, so it never stopped by itself, and SLURM killed the job
+  instead. It now stops at the limit of the resource set, and the next set takes over. A rule's retry works as before.
+
 # Version 0.4.73
 ################################################################################
 

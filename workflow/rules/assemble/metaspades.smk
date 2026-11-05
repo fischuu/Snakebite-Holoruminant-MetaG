@@ -41,7 +41,7 @@ rule assemble__metaspades__run:
         cat {input.reverses} > {output.pooled_reverse}
 
         metaspades.py -1 {output.pooled_forward} -2 {output.pooled_reverse} -o {params.workdir} \
-            -t {threads} -m {resources.mem_mb} -k {params.settings[kmer_size]} \
+            -t {threads} -m $(({resources.mem_mb} / 1024)) -k {params.settings[kmer_size]} \
             {params.settings[additional_options]}
 
         python {params.script_folder}/contig_ids.py {wildcards.assembly_id} {params.workdir}/contigs.fasta \

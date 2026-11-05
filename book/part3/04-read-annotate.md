@@ -242,7 +242,7 @@ rm -f "${{prefix}}_1.fq"
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `read_annotate: nonpareil: X` | 100 | How many reads to compare against the rest. Smaller is quicker, and the comment in `params.yaml` says that this value is for testing, with 1000 as the default. Raise it for a real analysis |
+| `read_annotate: nonpareil: X` | 1000 | How many reads to compare against the rest. Smaller is quicker, but less precise. 1000 is the tool's own default |
 
 All four outputs are marked `touch()`. The reason is in the comment of the rule: on samples with little coverage Nonpareil may not converge, and it can then leave empty files. `touch()` makes sure that Snakemake still sees the files that it expects, as @sec-file-flags explains.
 

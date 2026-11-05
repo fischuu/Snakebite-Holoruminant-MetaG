@@ -36,7 +36,6 @@ rule mag_annotate__eggnog:
                    --itype metagenome \
                    --genepred prodigal \
                    --dbmem \
-                   --no_annot \
                    --no_file_comments \
                    --cpu {threads} \
                    -i {input.contigs} \

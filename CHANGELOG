@@ -3,6 +3,11 @@
 
 Version 0.4.*:
 -----------
+74: Four bugs that change or limit results. Please read RELEASE_NOTES, as one of them needs a change in your project.
+    MaxBin2 got the number of covered bases of a contig as its abundance, and it now gets the mean depth.
+    mag_annotate__eggnog had --no_annot, so the MAG catalogue never got its functional annotation.
+    Nonpareil's X was still 100, marked for testing, and it's now 1000, the tool's default.
+    metaSPAdes got its memory limit in MB, and read that as GB, so it had no real limit.
 73: Running a module now also makes its report, as its last job, so reads makes Rreports/reads.pdf. Before, only the
     targets report and report_<module>, and the rule all, made reports. The rules of the tools didn't change.
     New test: tests/reports/check_module_targets.py.
