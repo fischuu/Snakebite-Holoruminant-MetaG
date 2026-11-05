@@ -27,8 +27,9 @@ rule assemble__maxbin2__run:
         mkdir -p {output}
         debug "assembly_id={wildcards.assembly_id} threads={threads} min_contig={params.min_contig} bins={output}"
 
-        # Column 5 of samtools coverage is the number of covered bases, not the mean depth (column 7)
-        samtools coverage {input.alignments} | sed '/^#/d' | cut -f 1,5 > {output}/maxbin2.coverage
+        # MaxBin2 asks for an abundance. That's the mean depth, column 7 of samtools coverage, and not column 5, which is
+        # the number of covered bases, and so grows with the length of a contig.
+        samtools coverage {input.alignments} | sed '/^#/d' | cut -f 1,7 > {output}/maxbin2.coverage
 
         run_MaxBin.pl -contig {input.contigs} -abund {output}/maxbin2.coverage -out {output}/maxbin2 \
             -min_contig_length {params.min_contig} -thread {threads}

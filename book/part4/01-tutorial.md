@@ -4,7 +4,7 @@ This part runs the pipeline on real data, and it shows what comes out and how to
 
 ::: {.callout-note}
 ## Where the output in this part comes from
-All the output here is real. It comes from the pipeline's own rules, with the real tools in their containers, on **1 million read pairs per sample**. That's about a sixtieth of the data, on a computer with only Docker and 8 GB of memory. It's enough to see every file and to read every table, but the biology is thin, as you'll see.
+All the output here is real. It comes from the pipeline's own rules, with the real tools in their containers, on **1 million read pairs per sample**. That's about a sixtieth of the data, on a computer with only Docker and 8 GB of memory. It's enough to see every file and to read every table, but the biology is thin, as you'll see. The numbers of MaxBin2, Nonpareil and all that follows from the genome catalogue come from before version 0.4.74, whose fixes change them. This part will get them from a new run.
 
 The tools that need large databases couldn't run there, and neither could metaSPAdes. @sec-tutorial-waiting lists them, and those sections will be added from a complete run on a cluster. FastQC, Kraken2 and Krona ran by hand on a part of the reads, and the text says so where it applies.
 :::

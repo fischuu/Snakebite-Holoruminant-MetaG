@@ -72,20 +72,6 @@ counts <- load_tool("featureCounts", map_dfr(Sys.glob(ca("featurecounts", "*", "
   )
 }))
 
-# The rule uses --no_file_comments, so the file normally has no header, and the columns are in this order
-EMAPPER_COLUMNS <- c("query", "seed_ortholog", "evalue", "score", "eggNOG_OGs", "max_annot_lvl", "COG_category", "Description",
-                     "Preferred_name", "GOs", "EC", "KEGG_ko", "KEGG_Pathway", "KEGG_Module", "KEGG_Reaction", "KEGG_rclass",
-                     "BRITE", "KEGG_TC", "CAZy", "BiGG_Reaction", "PFAMs")
-read_emapper <- function(file) {
-  lines <- readLines(file, warn = FALSE)
-  header <- grep("^#query", lines)[1]
-  body <- lines[!startsWith(lines, "#")]
-  if (length(body) == 0) return(NULL)
-  columns <- if (is.na(header)) EMAPPER_COLUMNS else strsplit(sub("^#", "", lines[[header]]), "\t")[[1]]
-  table <- read_tsv(I(paste(body, collapse = "\n")), col_names = FALSE, show_col_types = FALSE, quote = "")
-  names(table) <- c(columns, paste0("extra_", seq_len(max(0, ncol(table) - length(columns)))))[seq_len(ncol(table))]
-  table
-}
 eggnog <- load_tool("eggNOG-mapper", map_dfr(assemblies, function(a) {
   file <- ca("eggnog", a, "eggnog_output.emapper.annotations")
   if (!file.exists(file)) return(NULL)

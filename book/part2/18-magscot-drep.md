@@ -51,7 +51,7 @@ Six rules prepare and run it, as @sec-module-assemble shows. The script comes wi
 Two settings are worth a look:
 
 - `threshold` is 0.5, so bins that are at least 50% complete can pass. This is the default of the tool.
-- `extra` holds `--n_iter=1`, which R's option parser takes as `--n_iterations=1`. So there's one round of merging, while the default is 2. The comment in `params.yaml` says that this value might be a relic of testing.
+- `extra` holds `--n_iter=1`, which R's option parser takes as `--n_iterations=1`. So there's one round of merging, while the default is 2. Keep this unless you've checked your data: on the small real data of @sec-tutorial, with the default, MAGScoT stopped in the second round with an error in `left_join()`, as that round had only one candidate bin. The next line then took this for "no viable bins", so `ERR2019410` silently lost its bin, and dRep failed later, as a single genome was left.
 
 If MAGScoT finds no viable bin, it fails, and the rule accepts this and continues with empty tables. This means that real errors are hidden too, so check the log.
 

@@ -66,7 +66,7 @@ Only one of the two assemblers runs in a project, the one named in `config.yaml`
 cat {input.forwards} > {output.pooled_forward}
 cat {input.reverses} > {output.pooled_reverse}
 metaspades.py -1 {output.pooled_forward} -2 {output.pooled_reverse} -o {params.workdir} \
-    -t {threads} -m {resources.mem_mb} -k {params.settings[kmer_size]} \
+    -t {threads} -m $(({resources.mem_mb} / 1024)) -k {params.settings[kmer_size]} \
     {params.settings[additional_options]}
 python {params.script_folder}/contig_ids.py {wildcards.assembly_id} {params.workdir}/contigs.fasta \
     | bgzip -l 9 -@ {threads} > {output.contigs}
@@ -82,7 +82,7 @@ The working folder holds hundreds of thousands of small files, which is bad for 
 | `assemble: metaspades: kmer_size` | `"21,33,55"` | The k-mer sizes to use. See @sec-tool-metaspades |
 | `assemble: metaspades: additional_options` | `"--only-assembler"` | Skips the read error correction, which saves a lot of time and memory |
 
-Be aware that `-m` gets the memory in megabytes, while metaSPAdes reads this number as gigabytes. So it doesn't act as a limit here, and the memory limit of the SLURM job is what counts.
+`-m` is in gigabytes for metaSPAdes, while the resource sets are in megabytes, so the rule divides by 1024. metaSPAdes then stops by itself at this limit, and the rule's next resource set takes over. Before version 0.4.74, the rule passed the megabytes, so there was no real limit, and SLURM killed the job instead.
 
 The target `assemble__metaspades` asks for all assemblies. `metaspades_slots` in `config.yaml` limits how many of these jobs run at once.
 
@@ -176,12 +176,12 @@ The target is `assemble__concoct`. This rule is the only one of the three with i
 MaxBin2 only takes one abundance value per contig:
 
 ```bash
-samtools coverage {input.alignments} | sed '/^#/d' | cut -f 1,5 > {output}/maxbin2.coverage
+samtools coverage {input.alignments} | sed '/^#/d' | cut -f 1,7 > {output}/maxbin2.coverage
 run_MaxBin.pl -contig {input.contigs} -abund {output}/maxbin2.coverage -out {output}/maxbin2 \
     -min_contig_length {params.min_contig} -thread {threads}
 ```
 
-Note what the comment of the rule points out: column 5 of `samtools coverage` is the number of covered bases, and not the mean depth, which is column 7. So it's the amount of covered sequence that is used as the abundance. Also, with several libraries, `samtools coverage` adds them up into one value.
+Note what the comment of the rule points out: column 7 of `samtools coverage` is the mean depth, which is the abundance that MaxBin2 asks for, and not column 5, the number of covered bases. Also, with several libraries, `samtools coverage` adds them up into one value.
 
 The rule then renames `.fasta` to `.fa`, compresses the bins, and removes the other files of MaxBin2. The target is `assemble__maxbin2`.
 
@@ -254,7 +254,7 @@ Look at the `||`. A poor assembly can leave MAGScoT without a viable bin, and it
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `assemble: magscot: threshold` | `"0.5"` | Minimum completeness of a bin, as a fraction |
-| `assemble: magscot: extra` | `"--n_iter=1"` | Further options. The comment in `params.yaml` says that this value could be a relict from testing, so check it for a real analysis |
+| `assemble: magscot: extra` | `"--n_iter=1"` | Further options. Here, one round of merging. The default of 2 crashed on real data when a round had only one candidate bin, as @sec-tool-magscot explains |
 
 MAGScoT's script comes with the pipeline, in `workflow/scripts/MAGScoT/`.
 

@@ -149,14 +149,14 @@ bakta --db {params.db} --force --verbose \
 ```bash
 emapper.py -m diamond --data_dir {params.tmp_dir} \
            --itype metagenome --genepred prodigal \
-           --dbmem --no_annot --no_file_comments \
+           --dbmem --no_file_comments \
            --cpu {threads} -i {input.contigs} \
            --output_dir {params.out_dir} -o {params.prefix}
 ```
 
 The rule first copies the database to `tmp_storage`. `--dbmem` loads eggNOG's annotation database into memory, and `--itype metagenome --genepred prodigal` makes eggNOG-mapper predict the genes itself.
 
-Notice `--no_annot`: this option stops after the search for orthologs, so the output doesn't hold the functional annotation yet. @sec-tool-eggnog explains the two steps, and how to run the second.
+This one call does both steps that @sec-tool-eggnog explains, the search for orthologs and the annotation, so the result is in `eggnog.emapper.annotations`. Before version 0.4.74, the rule had `--no_annot`, and it stopped after the search, so the genomes got no functional annotation.
 
 The log of this rule is marked `protected()` and lies inside the output folder. So to run it again, you have to remove that folder, and you may need to do this with `rm -rf` as the file is read-only.
 

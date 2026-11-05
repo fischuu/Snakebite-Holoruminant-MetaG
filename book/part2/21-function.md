@@ -225,7 +225,7 @@ It's used in two ways, and these differ.
 
 **On all contigs**, as @sec-module-contig-annotate shows, it does both steps, on chunks of proteins from Prodigal: `contig_annotate__eggnog_find_homology` searches, and `contig_annotate__eggnog_orthology_chunk` annotates. `contig_annotate__eggnog_merge_annotations` joins the results.
 
-**On the catalogue**, the rule `mag_annotate__eggnog` runs one call with `--itype metagenome --genepred prodigal`, and with `--no_annot`. So this call only performs the search, and the result is in `.emapper.seed_orthologs`. No annotation is written, and you would have to run the second step by hand with `--annotate_hits_table`.
+**On the catalogue**, the rule `mag_annotate__eggnog` runs one call with `--itype metagenome --genepred prodigal`. It does the search and the annotation, and the result is in `eggnog.emapper.annotations`. Before version 0.4.74, this call had `--no_annot`, so it stopped after the search, and the genomes got no annotation.
 
 ### eggNOG version 7
 

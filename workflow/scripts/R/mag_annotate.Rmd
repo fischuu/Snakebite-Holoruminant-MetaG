@@ -258,9 +258,29 @@ section("Other annotations", {
     no_output("eggNOG-mapper", "results/mag_annotate/eggnog/")
   } else {
     seeds <- grep("seed_orthologs$", eggnog, value = TRUE)
-    if (length(seeds) > 0) {
+    annotations <- grep("emapper\\.annotations$", eggnog, value = TRUE)
+    annotated <- if (length(annotations) > 0) read_emapper(annotations[[1]]) else NULL
+    if (!is.null(annotated)) {
+      para("**eggNOG-mapper** annotated ", plural(nrow(annotated), "protein"), " of the catalogue, ",
+           fmt_int(sum(!is.na(annotated$COG_category) & annotated$COG_category != "-")), " with a COG category and ",
+           fmt_int(sum(!is.na(annotated$KEGG_ko) & annotated$KEGG_ko != "-")), " with a KEGG ortholog.")
+      cog <- annotated %>%
+        filter(!is.na(COG_category), COG_category != "-") %>%
+        mutate(category = strsplit(COG_category, "")) %>%
+        unnest(category) %>%
+        count(category, sort = TRUE)
+      if (nrow(cog) > 0) {
+        show_table(
+          cog %>% transmute(`COG category` = category, Proteins = fmt_int(n)),
+          "Proteins of the catalogue per COG category. A protein with several categories counts for each.",
+          "eggnog_cog_categories",
+          export = cog,
+          max_rows = 30
+        )
+      }
+    } else if (length(seeds) > 0) {
       n <- sum(map_int(seeds, ~ sum(!startsWith(readLines(.x, warn = FALSE), "#"))))
-      para("**eggNOG-mapper** found homologs for ", fmt_int(n), " proteins. This rule only searches for homologs, so there are no functional classes here.")
+      para("**eggNOG-mapper** found homologs for ", plural(n, "protein"), ", and there's no table of annotations. Before version 0.4.74, this rule only searched for homologs.")
     }
   }
   sgb <- ma("phylophlan", "SGB", "SGB.tsv")
@@ -293,6 +313,6 @@ section("Methods text", {
 report_end(c(
   checkm2 = "Quality estimates", gtdbtk = "Taxonomy", quast = "Statistics of the catalogue", dram = "Annotation and metabolism",
   dram_mags = "DRAM per assembly", bakta = "Annotation of the catalogue", bakta_mags = "Annotation per assembly", camper = "Polyphenol genes",
-  eggnog = "Orthology search", phylophlan = "Phylogenetic placement", proteinortho = "Groups of orthologs"
+  eggnog = "Orthology search and annotation", phylophlan = "Phylogenetic placement", proteinortho = "Groups of orthologs"
 ))
 ```

@@ -112,10 +112,10 @@ Use it as one voice among several, particularly if you have few samples, since i
 The rule `assemble__maxbin2__run`, which @sec-module-assemble shows in detail, gives it a single abundance file, even with several libraries. The abundance comes from `samtools coverage`, by adding up over all libraries:
 
 ```bash
-samtools coverage {input.alignments} | sed '/^#/d' | cut -f 1,5 > {output}/maxbin2.coverage
+samtools coverage {input.alignments} | sed '/^#/d' | cut -f 1,7 > {output}/maxbin2.coverage
 ```
 
-There are two things to note here. First, column 5 is the number of covered bases, while MaxBin2 asks for an abundance, such as the mean depth, which is column 7. So a longer contig gets a higher value. And second, as all libraries are summed up, MaxBin2 doesn't get the differences between samples, which is its strongest signal.
+There are two things to note here. First, column 7 is the mean depth, which is the abundance that MaxBin2 asks for. Before version 0.4.74, this rule used column 5, the number of covered bases, so a longer contig got a higher value. And second, as all libraries are summed up, MaxBin2 doesn't get the differences between samples, which is its strongest signal.
 
 The rest of the rule renames the bins to `.fa` and compresses them. Other files of MaxBin2 are removed.
 

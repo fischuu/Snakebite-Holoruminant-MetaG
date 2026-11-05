@@ -127,7 +127,7 @@ Three settings are important:
 
 - **`-k 21,33,55`.** This is the default in the metagenome mode for reads of this length. If you have reads of 150 bases, you could try larger values, such as `21,33,55,77`.
 - **`--only-assembler`** skips the read correction, which saves much time and memory, at some cost in quality. This was chosen for this pipeline, and you can remove it in `params.yaml` if you can afford it.
-- **`-m`.** metaSPAdes takes this in gigabytes, and it stops when it reaches that limit. The rule gives it `{resources.mem_mb}`, which is in megabytes, so the value is about a thousand times too high. In effect it's no limit, and it's the job's memory limit that counts. The job then gets killed by SLURM, instead of metaSPAdes stopping by itself.
+- **`-m`.** metaSPAdes takes this in gigabytes, and it stops when it reaches that limit. The resource sets are in megabytes, so the rule divides by 1024. Before version 0.4.74, it passed the megabytes, and a log said `Memory limit (in Gb): 6500`. That was no real limit, and SLURM killed the job instead of metaSPAdes stopping by itself. The fix doesn't change the assembly: on the small data of @sec-tutorial, the contigs came out identical.
 
 `metaspades_slots` in `config.yaml` limits how many run at the same time.
 
