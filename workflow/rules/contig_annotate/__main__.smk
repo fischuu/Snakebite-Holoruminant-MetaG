@@ -8,6 +8,7 @@ include: "featurecounts.smk"
 include: "hmmer.smk"
 include: "prodigal.smk"
 
+
 rule contig_annotate:
     """Annotate on contig level"""
     input:
@@ -17,13 +18,15 @@ rule contig_annotate:
             for assembly_id in ASSEMBLIES
         ],
         lambda wildcards: [
-            CONTIG_FEATURECOUNTS / f"{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.txt"
+            CONTIG_FEATURECOUNTS
+            / f"{assembly_id}/{assembly_id}_{sample_id}.{library_id}.prodigal_fc.txt"
             for assembly_id, sample_id, library_id in ASSEMBLY_LIBRARIES
         ],
         rules.contig_annotate__diamond.input,
         rules.contig_annotate__hmmer.input,
         rules.contig_annotate__eggnog7.input,
         PIPELINE_REPORT / "contig_annotate.pdf",
+
 
 rule contig_annotate_extra:
     input:

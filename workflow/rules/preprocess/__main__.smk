@@ -4,6 +4,7 @@ include: "fastp.smk"
 include: "fastqc.smk"
 include: "samtools.smk"
 
+
 rule preprocess:
     """Trim reads with fastp, remove host reads with bowtie2, and evaluate with fastqc/samtools"""
     input:
