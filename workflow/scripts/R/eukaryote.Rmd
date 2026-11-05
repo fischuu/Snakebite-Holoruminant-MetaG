@@ -21,27 +21,27 @@ contig_lengths <- function(a) {
 }
 lengths <- setNames(map(assemblies, contig_lengths), assemblies)
 
-tiara <- map_dfr(assemblies, function(a) {
+tiara <- load_tool("Tiara", map_dfr(assemblies, function(a) {
   file <- eu("tiara", paste0(a, ".tsv"))
   if (!file.exists(file)) return(NULL)
   read_table_quiet(file) %>%
     transmute(assembly_id = a, contig = sequence_id, class = class_fst_stage, second = class_snd_stage) %>%
     left_join(lengths[[a]], by = "contig")
-})
-fourcac <- map_dfr(assemblies, function(a) {
+}))
+fourcac <- load_tool("4CAC", map_dfr(assemblies, function(a) {
   file <- eu("4cac", paste0(a, ".tsv"))
   if (!file.exists(file)) return(NULL)
   read_table_quiet(file) %>%
     transmute(assembly_id = a, contig = contig_id, class = class) %>%
     left_join(lengths[[a]], by = "contig")
-})
-remag <- map_dfr(assemblies, function(a) {
+}))
+remag <- load_tool("REMAG", map_dfr(assemblies, function(a) {
   file <- eu("remag", paste0(a, ".tsv"))
   if (!file.exists(file)) return(NULL)
   read_table_quiet(file) %>%
     transmute(assembly_id = a, contig = contig_id, class = prediction, length, probability = eukaryote_prob)
-})
-remag_bins <- map_dfr(assemblies, function(a) {
+}))
+remag_bins <- load_tool("REMAG", map_dfr(assemblies, function(a) {
   folder <- eu("remag", a, "bins")
   if (!dir.exists(folder)) return(NULL)
   files <- list.files(folder, pattern = "\\.(fa|fasta)(\\.gz)?$", full.names = TRUE)
@@ -50,7 +50,7 @@ remag_bins <- map_dfr(assemblies, function(a) {
     table <- fasta_table(file)
     tibble(assembly_id = a, bin = basename(file), contigs = nrow(table), length = sum(as.numeric(table$length)))
   })
-})
+}))
 
 class_summary <- function(table, tool) {
   if (nrow(table) == 0) return(tibble())

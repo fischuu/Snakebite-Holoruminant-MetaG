@@ -8,7 +8,9 @@ stores the numbers of this project as the new expected values. Do that only afte
 the differences and decided that they are right, and say why in the commit.
 
 Some tools give the same result every time, so their tolerance is 0. Others depend on random numbers
-or on the number of threads, and may differ a little. A metric that a project doesn't have counts as
+or on the order of their threads, and may differ a little, as does all that follows from them. A real
+second run gave identical clean reads, but one contig more from MEGAHIT and one bin more from MetaBAT2.
+A metric that a project doesn't have counts as
 a failure, so that a rule that stopped producing a file can't go unnoticed.
 
 Only the Python standard library is used.
@@ -103,9 +105,10 @@ def measure(project):
 
     for assembly in ASSEMBLIES:
         path = results / "contig_annotate/prodigal" / assembly / f"{assembly}.prodigal_plain.gtf"
-        yield f"prodigal.{assembly}.genes", lines_without_header(path) + 1 if path.exists() else None, EXACT
+        # These two follow the contigs, and MEGAHIT doesn't give exactly the same contigs twice
+        yield f"prodigal.{assembly}.genes", lines_without_header(path) + 1 if path.exists() else None, SMALL
         path = results / "eukaryote/tiara" / f"{assembly}.tsv"
-        yield f"tiara.{assembly}.classified_contigs", lines_without_header(path) if path.exists() else None, EXACT
+        yield f"tiara.{assembly}.classified_contigs", lines_without_header(path) if path.exists() else None, SMALL
 
     path = results / "read_annotate/nonpareil/nonpareil.tsv"
     if path.exists():
@@ -141,6 +144,9 @@ def main():
             continue
         want, tolerance = float(row["value"]), float(row["tolerance"])
         allowed = abs(want) * tolerance
+        if tolerance >= RANDOM:
+            # 1 bin against 2 is one contig more or less, which a share of a small number can't allow for
+            allowed = max(allowed, 1)
         if value is None:
             print(f"FAILED: {metric}: expected {row['value']}, but the project doesn't have it")
             failures += 1

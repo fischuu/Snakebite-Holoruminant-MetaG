@@ -198,8 +198,9 @@ number) — bump `CHANGELOG`, not a separate version constant, when releasing.
 `workflow/rules/report/<module>.smk` runs `workflow/scripts/R/render_report.R`, which renders
 `workflow/scripts/R/<module>.Rmd`. The shared parts are in `report_helpers.R`: tables, figures, data volume, requested
 and used resources, and suggestions for `config/escalation.yaml`. Every chunk has `results="asis"`, every part of a report
-is inside `section()`, which turns an error into a sentence, and all tables go through `show_table()`, which also writes
-them to `Rreports/<module>/tables/`.
+is inside `section()`, which turns an error into a sentence, the first chunk reads each tool's output through
+`load_tool()`, which does the same, and all tables go through `show_table()`, which also writes them to
+`Rreports/<module>/tables/`.
 
 - **If a rule's output changes, change the report's parser too**, and `tests/reports/`. Run
   `tests/reports/run_test.sh`, which renders all reports in the container without network, as on a compute node.

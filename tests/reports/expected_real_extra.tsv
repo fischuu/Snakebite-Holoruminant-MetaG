@@ -1,0 +1,21 @@
+# Numbers from a real run of the tools of book/examples/real_tools/extra_tools.sh, which were checked in the tools' own output.
+# Kraken2 used Standard-8, Bakta its light database, sylph a database of this run's own genome.
+module	table	key_column	key	assembly	column	value	label
+read_annotate	kraken2_summary	library	ERR2019410.lib1		classified	31464	Kraken2 with Standard-8, classified pairs, from its log
+read_annotate	kraken2_summary	library	ERR2019410.lib1		total	935567	Kraken2 with Standard-8, all pairs, from its log
+read_annotate	kraken2_summary	library	ERR2019415.lib1		classified	22570	Kraken2 with Standard-8, classified pairs of the third sample
+read_annotate	diamond_cazy_per_file	file	ERR2019410.lib1_R1.out		hits	43797	DIAMOND, reads with a hit: lines of the file
+read_annotate	diamond_cazy_per_file	file	ERR2019410.lib1_R1.out		labels	51154	DIAMOND, labels: sum of summary_a
+read_annotate	diamond_cazy_per_file	file	ERR2019415.lib1_R2.out		hits	39801	DIAMOND, reads with a hit in another file
+read_annotate	diamond_cazy_top_features	feature	GT2		total	25757	DIAMOND, the most frequent family
+read_annotate	sylph_per_library	library	ERR2019410.lib1		median_coverage	3.263	sylph, with HIGH in Eff_lambda
+read_annotate	sylph_per_library	library	ERR2019415.lib1		median_ani	99.05	sylph, with a number in Eff_lambda
+read_annotate	phyloflash_per_library	library	ERR2019410.lib1		ssu_pairs	1586	phyloFlash, mapped SSU pairs
+read_annotate	phyloflash_per_library	library	ERR2019410.lib1		ntus	44	phyloFlash, taxa seen: 8 + 4 + 32
+read_annotate	phyloflash_taxa	taxon	Eukaryota;SAR;Alveolata;Ciliophora		ERR2019415.lib1	127	phyloFlash, ciliates in the third sample
+contig_annotate	diamond_hits	database	hyddb	coasm	hits	0	DIAMOND with HydDB, no hits is a result too
+mag_annotate	genome_quality	Name	coasm:bin_000001.fa		Completeness	61.5	CheckM2 completeness
+mag_annotate	genome_quality	Name	coasm:bin_000001.fa		Contamination	0.09	CheckM2 contamination
+mag_annotate	bakta_features	Type	cds		n	1539	Bakta, from its own summary
+mag_annotate	bakta_features	Type	tRNA		n	16	Bakta, from its own summary
+mag_annotate	orthogroups_per_size	species	2		n	793	Proteinortho, from its own summary

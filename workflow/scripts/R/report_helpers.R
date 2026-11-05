@@ -7,7 +7,8 @@
 #
 # A tool's output can be missing (the tool wasn't part of the run) or have an unexpected format, and
 # a report must not fail at the very end of a long run because of that. So each part of a report runs
-# in section(), which turns an error into a sentence in the report and a line in the log.
+# in section(), which turns an error into a sentence in the report and a line in the log, and a setup
+# chunk reads the output of each tool through load_tool(), which does the same.
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -19,6 +20,7 @@ suppressPackageStartupMessages({
 })
 
 ctx <- new.env()
+ctx$unreadable <- list()
 
 # Colourblind-safe colours (Okabe & Ito)
 PALETTE <- c("#0072B2", "#E69F00", "#009E73", "#CC79A7", "#56B4E9", "#D55E00", "#F0E442", "#999999")
@@ -101,7 +103,9 @@ safe_text <- function(x) gsub("[^\\x01-\\x7F\\x{A0}-\\x{FF}]", "?", enc2utf8(as.
 
 para <- function(...) cat("\n\n", safe_text(paste0(...)), "\n\n", sep = "")
 
-bullets <- function(items) cat("\n\n", safe_text(paste0("- ", items, collapse = "\n")), "\n\n", sep = "")
+bullets <- function(items) {
+  if (length(items) > 0) cat("\n\n", safe_text(paste0("- ", items, collapse = "\n")), "\n\n", sep = "")
+}
 
 heading <- function(text, level = 1) cat("\n\n", strrep("#", level), " ", text, "\n\n", sep = "")
 
@@ -119,7 +123,27 @@ section <- function(title, expr, level = 1) {
   invisible(NULL)
 }
 
+# Reads the output of one tool in a setup chunk, which runs outside section(). A file in an unexpected
+# format then costs only the section of this tool, which says so through no_output(), and not the report.
+load_tool <- function(tool, expr, otherwise = tibble()) {
+  tryCatch(
+    expr,
+    error = function(e) {
+      text <- gsub("[`\n]", " ", conditionMessage(e))
+      ctx$unreadable[[tool]] <- text
+      ctx$errors <- c(ctx$errors, paste0(tool, ": ", text))
+      message("ERROR reading the output of '", tool, "': ", text)
+      otherwise
+    }
+  )
+}
+
 no_output <- function(tool, where) {
+  problem <- ctx$unreadable[[tool]]
+  if (!is.null(problem)) {
+    para("**The output of ", tool, " in `", where, "` could not be read.** The error was: `", problem, "`")
+    return(invisible(NULL))
+  }
   para("No output of ", tool, " was found in `", where, "`. The tool was either not part of this run, or it has ",
        "not finished.")
 }

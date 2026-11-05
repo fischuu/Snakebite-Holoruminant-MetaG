@@ -3,6 +3,9 @@
 
 Version 0.4.*:
 -----------
+72: The reports read real output of more tools now. A file in an unexpected format costs only the section of its tool, and
+    no more the whole report, which is what the first real output of sylph did. phyloFlash has its numbers and taxa in the
+    report. DIAMOND counts each read once, and sylph no longer claims to show how much of the reads a database explains.
 71: Every module has a useful report now, also the new one for the module eukaryote, and the rule all makes them.
     The former reports could not be built on a cluster, as their container has no LaTeX, and some of their numbers
     were wrong, or their sections always empty. Each report has the results of its tools as tables and figures, a

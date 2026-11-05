@@ -12,12 +12,12 @@ source(file.path(pipeline_folder, "workflow", "scripts", "R", "report_helpers.R"
 report_start("mag_annotate")
 
 ma <- function(...) p("results", "mag_annotate", ...)
-read_if <- function(path, ...) if (file.exists(path)) read_table_quiet(path, ...) else NULL
+read_if <- function(tool, path, ...) load_tool(tool, if (file.exists(path)) read_table_quiet(path, ...) else NULL, otherwise = NULL)
 
-checkm2 <- read_if(ma("checkm2", "quality_report.tsv"))
-gtdbtk <- read_if(ma("gtdbtk", "gtdbtk.summary.tsv"))
-quast <- read_if(ma("quast", "report.tsv"))
-dram_stats <- read_if(ma("dram", "genome_stats.tsv"))
+checkm2 <- read_if("CheckM2", ma("checkm2", "quality_report.tsv"))
+gtdbtk <- read_if("GTDB-Tk", ma("gtdbtk", "gtdbtk.summary.tsv"))
+quast <- read_if("QUAST", ma("quast", "report.tsv"))
+dram_stats <- read_if("DRAM", ma("dram", "genome_stats.tsv"))
 
 # MIMAG needs rRNA and tRNA genes for "high quality", and only DRAM's table has those
 mimag_class <- function(completeness, contamination) {
@@ -27,7 +27,7 @@ mimag_class <- function(completeness, contamination) {
     TRUE ~ "Low"
   )
 }
-genomes <- if (!is.null(checkm2)) {
+genomes <- load_tool("CheckM2", if (!is.null(checkm2)) {
   table <- checkm2 %>%
     mutate(genome = sub("\\.fa(\\.gz)?$", "", Name), quality = mimag_class(Completeness, Contamination))
   if (!is.null(gtdbtk)) {
@@ -38,7 +38,7 @@ genomes <- if (!is.null(checkm2)) {
   table
 } else {
   tibble()
-}
+})
 
 rank_of <- function(classification, prefix) {
   pattern <- paste0("(^|;)", prefix, "__[^;]*")
@@ -54,7 +54,7 @@ section("Results in brief", {
   sentences <- c(
     if (nrow(genomes) > 0) {
       counts <- table(factor(genomes$quality, levels = c("High", "Medium", "Low")))
-      paste0("**", nrow(genomes), " genomes** were assessed with CheckM2: ", counts[["High"]], " high, ", counts[["Medium"]], " medium and ", counts[["Low"]],
+      paste0("**", plural(nrow(genomes), "genome"), "** ", if (nrow(genomes) == 1) "was" else "were", " assessed with CheckM2: ", counts[["High"]], " high, ", counts[["Medium"]], " medium and ", counts[["Low"]],
              " low quality by completeness and contamination. Mean completeness is ", fmt_pct(mean(genomes$Completeness)), ", mean contamination ", fmt_pct(mean(genomes$Contamination)), ".")
     },
     if (!is.null(gtdbtk)) {
@@ -178,7 +178,7 @@ section("Metabolism with DRAM", {
     para("DRAM annotates genes against several databases and summarizes them as metabolic functions. `results/mag_annotate/dram/product.html` is its interactive heat map, and ",
          "`metabolism_summary.xlsx` has all genes behind it.")
     show_table(dram_stats, "Genome statistics from DRAM, with rRNA and tRNA genes for MIMAG's high-quality class", "dram_genome_stats", max_rows = 30)
-    product <- read_if(ma("dram", "product.tsv"))
+    product <- read_if("DRAM", ma("dram", "product.tsv"))
     if (!is.null(product)) {
       write_tsv(product, file.path(ctx$tables, "dram_product.tsv"))
       numeric_columns <- names(product)[map_lgl(product, ~ is.numeric(.x) || is.logical(.x))]
@@ -224,7 +224,7 @@ section("Genome annotation with Bakta", {
 
 ```{r others}
 section("Other annotations", {
-  camper <- read_if(ma("camper", "annotations.tsv"))
+  camper <- read_if("CAMPER", ma("camper", "annotations.tsv"))
   if (is.null(camper)) {
     no_output("CAMPER", "results/mag_annotate/camper/annotations.tsv")
   } else {
@@ -241,7 +241,7 @@ section("Other annotations", {
     table <- read_tsv(ortho, show_col_types = FALSE)
     names(table)[1] <- "species"
     per_size <- count(table, species)
-    para("**Proteinortho** found ", fmt_int(nrow(table)), " groups of orthologous proteins among the genomes.")
+    para("**Proteinortho** found ", fmt_int(nrow(table)), " groups of orthologous proteins. Each input is the set of MAGs of one assembly, so assemblies that share reads aren't independent.")
     show_figure(
       ggplot(per_size, aes(species, n)) +
         geom_col(fill = PALETTE[[1]]) +

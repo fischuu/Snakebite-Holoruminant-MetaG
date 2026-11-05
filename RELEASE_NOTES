@@ -1,3 +1,17 @@
+# Version 0.4.72
+################################################################################
+
+The reports were tested on real output of more tools, and this changes three things. No action is needed.
+
+- A file in an unexpected format now costs only the section of its tool. Before, an error while reading stopped the whole
+  report. sylph writes HIGH in its column Eff_lambda at high coverage, and this stopped the report of read_annotate.
+- The table of DIAMOND has two counts now, reads with a hit and labels. Before, it showed the labels as hits, which is too
+  high when a protein has several labels.
+- The table of sylph has no column "Reads explained" anymore, as this value is always 100%. It has the median effective
+  coverage instead.
+
+The report of read_annotate also shows the numbers and taxa of phyloFlash now, and not only a list of its HTML files.
+
 # Version 0.4.71
 ################################################################################
 

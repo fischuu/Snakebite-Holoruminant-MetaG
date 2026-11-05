@@ -14,7 +14,7 @@ report_start("contig_annotate")
 ca <- function(...) p("results", "contig_annotate", ...)
 assemblies <- ctx$assemblies
 
-genes <- map_dfr(assemblies, function(a) {
+genes <- load_tool("Prodigal", map_dfr(assemblies, function(a) {
   file <- ca("prodigal", a, paste0(a, ".prodigal_plain.gtf"))
   if (!file.exists(file) || file.size(file) == 0) return(NULL)
   read_tsv(file, col_names = c("contig", "source", "type", "start", "end", "score", "strand", "phase", "attributes"),
@@ -24,8 +24,8 @@ genes <- map_dfr(assemblies, function(a) {
       partial = sub(";.*$", "", sub("^.*partial=", "", attributes)),
       gc = suppressWarnings(as.numeric(sub(";.*$", "", sub("^.*gc_cont=", "", attributes))))
     )
-})
-gene_summary <- if (nrow(genes) > 0) {
+}))
+gene_summary <- load_tool("Prodigal", if (nrow(genes) > 0) {
   genes %>%
     group_by(assembly_id) %>%
     summarise(
@@ -34,11 +34,11 @@ gene_summary <- if (nrow(genes) > 0) {
     )
 } else {
   tibble()
-}
+})
 
 # Whitespace-separated tables of HMMER: target, accession, query, accession, E-value, score, ...
 hmmer_dbs <- names(ctx$features$databases$hmmer)
-hmmer <- map_dfr(hmmer_dbs, function(db) {
+hmmer <- load_tool("HMMER", map_dfr(hmmer_dbs, function(db) {
   thresholds <- ctx$params$contig_annotate$hmmer$domt
   threshold <- thresholds[[db]] %||% thresholds$fallback %||% 0
   map_dfr(assemblies, function(a) {
@@ -53,9 +53,9 @@ hmmer <- map_dfr(hmmer_dbs, function(db) {
       proteins_over_threshold = sum(map_dbl(fields, ~ as.numeric(.x[[6]])) >= threshold)
     )
   })
-})
+}))
 
-counts <- map_dfr(Sys.glob(ca("featurecounts", "*", "*.prodigal_fc.txt.summary")), function(file) {
+counts <- load_tool("featureCounts", map_dfr(Sys.glob(ca("featurecounts", "*", "*.prodigal_fc.txt.summary")), function(file) {
   table <- read_table_quiet(file)
   names(table) <- c("status", "reads")
   name <- sub("\\.prodigal_fc\\.txt\\.summary$", "", basename(file))
@@ -70,7 +70,7 @@ counts <- map_dfr(Sys.glob(ca("featurecounts", "*", "*.prodigal_fc.txt.summary")
     ambiguous = sum(table$reads[table$status == "Unassigned_Ambiguity"]),
     multi = sum(table$reads[table$status == "Unassigned_MultiMapping"])
   )
-})
+}))
 
 # The rule uses --no_file_comments, so the file normally has no header, and the columns are in this order
 EMAPPER_COLUMNS <- c("query", "seed_ortholog", "evalue", "score", "eggNOG_OGs", "max_annot_lvl", "COG_category", "Description",
@@ -86,13 +86,13 @@ read_emapper <- function(file) {
   names(table) <- c(columns, paste0("extra_", seq_len(max(0, ncol(table) - length(columns)))))[seq_len(ncol(table))]
   table
 }
-eggnog <- map_dfr(assemblies, function(a) {
+eggnog <- load_tool("eggNOG-mapper", map_dfr(assemblies, function(a) {
   file <- ca("eggnog", a, "eggnog_output.emapper.annotations")
   if (!file.exists(file)) return(NULL)
   table <- read_emapper(file)
   if (is.null(table)) return(NULL)
   transmute(table, assembly_id = a, query, COG_category, KEGG_ko, Description)
-})
+}))
 ```
 
 ```{r brief}
