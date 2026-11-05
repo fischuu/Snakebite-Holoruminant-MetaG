@@ -9,3 +9,4 @@ rule quantify:
     input:
         rules.quantify__coverm.input,
         rules.quantify__samtools.input,
+        PIPELINE_REPORT / "quantify.pdf",

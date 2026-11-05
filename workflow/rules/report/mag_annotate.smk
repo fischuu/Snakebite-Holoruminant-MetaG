@@ -1,7 +1,7 @@
 rule report__mag_annotate:
     """Report on genome quality, taxonomy and annotation, data volume and resources"""
     input:
-        rules.mag_annotate.input,
+        module_results(rules.mag_annotate, "mag_annotate"),
     output:
         pdf=PIPELINE_REPORT / "mag_annotate.pdf",
         folder=directory(PIPELINE_REPORT / "mag_annotate"),

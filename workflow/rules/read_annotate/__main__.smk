@@ -9,6 +9,7 @@ include: "nonpareil.smk"
 include: "singlem.smk"
 include: "sylph.smk"
 
+
 rule read_annotate:
     """Run the read-based annotation tools"""
     input:
@@ -21,6 +22,8 @@ rule read_annotate:
         rules.read_annotate__phyloflash.input,
         rules.read_annotate__singlem.input,
         rules.read_annotate__sylph.input,
+        PIPELINE_REPORT / "read_annotate.pdf",
+
 
 rule read_annotate_extra:
     """Run the read-based annotation tools"""

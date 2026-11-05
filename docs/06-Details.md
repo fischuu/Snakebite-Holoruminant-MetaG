@@ -163,9 +163,12 @@ All tables are also in `Rreports/<module>/tables/` as TSV files with unrounded n
 | `report_contig_annotate` | Genes and annotation of the contigs |
 | `report_eukaryote` | Eukaryotic contigs and bins. This module is optional, so `all` and `report` don't include it |
 
-The rule `all` makes the first eight. A report asks for all results of its module, so calling it starts the module if it
-hasn't finished. A tool without output gets a sentence saying so, and a part of a report that fails says why in the
-PDF and in `Rreports/<module>/section_errors.txt`, so that a report doesn't stop a run at its end.
+Running a module makes its report as its last job, so `reads` also makes `Rreports/reads.pdf`. A single tool's target,
+such as `read_annotate__kraken2`, doesn't. The rule `all` makes the first eight. A report asks for all results of its
+module, so calling it starts the module if it hasn't finished. A tool without output gets a sentence saying so, and a part
+of a report that fails says why in the PDF and in `Rreports/<module>/section_errors.txt`, so that a report doesn't stop a
+run at its end. If the report's job itself fails, for example without its container, the module counts as failed, but its
+results are there, and you can make the report again with its target.
 
 The suggestions hold for data like that of the run: a test on a subset says little about the full data.
 

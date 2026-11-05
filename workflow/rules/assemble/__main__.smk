@@ -13,3 +13,4 @@ rule assemble:
     """Assemble, bin (CONCOCT/MaxBin2/MetaBAT2), combine bins with MAGScoT and dereplicate with dRep"""
     input:
         MAG_CATALOGUE,
+        PIPELINE_REPORT / "assemble.pdf",

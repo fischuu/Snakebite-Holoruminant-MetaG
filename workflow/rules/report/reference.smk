@@ -1,7 +1,7 @@
 rule report__reference:
     """Report on the host genomes and the configured databases, data volume and resources"""
     input:
-        rules.reference.input,
+        module_results(rules.reference, "reference"),
     output:
         pdf=PIPELINE_REPORT / "reference.pdf",
         folder=directory(PIPELINE_REPORT / "reference"),

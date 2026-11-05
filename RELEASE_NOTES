@@ -1,3 +1,16 @@
+# Version 0.4.73
+################################################################################
+
+Running a module now also makes its report, as its last job. So this makes Rreports/reads.pdf as well:
+
+   bash run_Snakebite-Holoruminant-MetaG.sh reads
+
+A single tool's target, such as read_annotate__kraken2, doesn't make a report. The targets report and report_<module> work
+as before.
+
+The rules of the tools didn't change, so this shouldn't make finished jobs run again. If a report's job itself fails, the
+module counts as failed, although its results are there. You can then make the report again with report_<module>.
+
 # Version 0.4.72
 ################################################################################
 

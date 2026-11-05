@@ -10,6 +10,8 @@ Each module has one report, a PDF in the folder `Rreports/` that you can use as 
 bash run_Snakebite-Holoruminant-MetaG.sh report_preprocess
 ```
 
+Running a module, such as `reads`, also makes its report, as its last job. A single tool's target, such as `read_annotate__kraken2`, doesn't.
+
 **Careful:** a report asks for all results of its module, so calling it starts that module if it hasn't finished.
 
 | Rule doing the work | Short target | Report on |
@@ -25,6 +27,10 @@ bash run_Snakebite-Holoruminant-MetaG.sh report_preprocess
 | `report__eukaryote` | `report_eukaryote` | Eukaryotic contigs and bins. The module is optional, so `all` and `report` leave this out |
 
 The target `report` asks for all of them, except the last.
+
+A module's target and its report depend on each other in a way that needs some care. The target `reads` lists `Rreports/reads.pdf`, and the rule `report__reads` needs all of the module's results. If that rule simply took `rules.reads.input`, the PDF would be among its own inputs, and Snakemake would stop because of the loop. So it takes `module_results(rules.reads, "reads")`, a small function in `rules/report/__functions__.smk` that leaves out the PDF. The test `tests/reports/check_module_targets.py` runs each target as a dry run, and it checks that each one makes its own report and no other.
+
+There was also a small trap while writing that function, and it's good to know. Snakemake reads `report` at the start of a line as its own keyword, even inside a Python function. So a variable with this name stops the whole workflow, with `Colon expected after keyword report`, in a line that looks perfectly fine.
 
 ### What a report has
 
@@ -72,7 +78,7 @@ Rscript {params.script} module=reads project={params.project_folder} \
 
 `rules` is a list of the module's rules with their benchmark patterns, which `report_rule_table()` takes from the workflow itself. So a new rule's resources appear without a change to the report. The generic helper rules, such as `helpers__fastqc`, count for the module in whose folder their files are.
 
-A report must not fail at the end of a long run because a tool wrote something unexpected. So every part runs in `section()`, which turns an error into a sentence in the PDF and a line in `Rreports/<module>/section_errors.txt`.
+A report must not fail at the end of a long run because a tool wrote something unexpected. So every part runs in `section()`, which turns an error into a sentence in the PDF and a line in `Rreports/<module>/section_errors.txt`. The first chunk of a report runs outside any section, and it reads the output of all the tools, so an unexpected file there would stop the whole report. This happened on the first real output of sylph. That's why this chunk reads each tool through `load_tool("sylph", ...)`, which does the same, and `no_output()` then says that the file couldn't be read, and not that it's missing.
 
 The container is `rocker/verse`, with the key `report`. Its LaTeX is small, and it can't download what's missing on a compute node without network. This is why a report uses `pdflatex` and only a few LaTeX packages. `tests/reports/run_test.sh` renders all reports without network, and that's the test to run after any change, since a computer with a full LaTeX hides such problems.
 

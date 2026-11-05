@@ -3,6 +3,9 @@
 
 Version 0.4.*:
 -----------
+73: Running a module now also makes its report, as its last job, so reads makes Rreports/reads.pdf. Before, only the
+    targets report and report_<module>, and the rule all, made reports. The rules of the tools didn't change.
+    New test: tests/reports/check_module_targets.py.
 72: The reports read real output of more tools now. A file in an unexpected format costs only the section of its tool, and
     no more the whole report, which is what the first real output of sylph did. phyloFlash has its numbers and taxa in the
     report. DIAMOND counts each read once, and sylph no longer claims to show how much of the reads a database explains.

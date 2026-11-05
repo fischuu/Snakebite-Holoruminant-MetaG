@@ -1,7 +1,7 @@
 rule report__assemble:
     """Report on assembly, binning and the genome catalogue, data volume and resources"""
     input:
-        rules.assemble.input,
+        module_results(rules.assemble, "assemble"),
     output:
         pdf=PIPELINE_REPORT / "assemble.pdf",
         folder=directory(PIPELINE_REPORT / "assemble"),

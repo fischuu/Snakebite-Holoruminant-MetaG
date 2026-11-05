@@ -4,6 +4,7 @@ include: "fastp.smk"
 include: "fastqc.smk"
 include: "samtools.smk"
 
+
 rule preprocess:
     """Trim reads with fastp, remove host reads with bowtie2, and evaluate with fastqc/samtools"""
     input:
@@ -11,3 +12,4 @@ rule preprocess:
         rules.preprocess__fastp.input,
         rules.preprocess__samtools.input,
         rules.preprocess__fastqc.input,
+        PIPELINE_REPORT / "preprocess.pdf",

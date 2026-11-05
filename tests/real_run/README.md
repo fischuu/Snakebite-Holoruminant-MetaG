@@ -47,7 +47,8 @@ bash $PIPELINE/tests/real_run/run_stage.sh reference
 bash $PIPELINE/tests/real_run/run_stage.sh preprocess
 ```
 
-Each call first prints a dry run's job table, then runs the jobs. The stages in order are:
+Each call first prints a dry run's job table, then runs the jobs. A stage named after a module also makes that module's
+report, as its last job, in `Rreports/`. The stages in order are:
 
 | Stage | What it does |
 |-------|--------------|
@@ -62,8 +63,8 @@ Each call first prints a dry run's job table, then runs the jobs. The stages in 
 | `eukaryote` | Separates eukaryotic contigs. Not part of `all` |
 | `read_annotate_extra` | nCycDB on the reads. Not part of `all` |
 | `contig_annotate_extra` | nCycDB on the contigs. Not part of `all` |
-| `report` | The PDF report of each module of `all`, in `Rreports/` |
-| `report_eukaryote` | The report of the module `eukaryote` |
+| `report` | The PDF report of each module of `all`, in `Rreports/`. Only those that are missing or out of date get made |
+| `report_eukaryote` | The report of the module `eukaryote`, which that stage has made already |
 
 All in one go, stopping at the first failure:
 

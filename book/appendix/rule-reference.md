@@ -19,6 +19,7 @@ Target rule: it runs nothing itself and only asks for these files.
 
 - input: `rules.reads__link.input`
 - input: `rules.reads__fastqc.input`
+- input: `PIPELINE_REPORT / "reads.pdf"`
 
 ### `reads/fastqc.smk`
 
@@ -64,6 +65,7 @@ Stage and recompress the reference host genomes
 Target rule: it runs nothing itself and only asks for these files.
 
 - input: `rules.reference__hosts.input`
+- input: `PIPELINE_REPORT / "reference.pdf"`
 
 ### `reference/hosts.smk`
 
@@ -100,6 +102,7 @@ Target rule: it runs nothing itself and only asks for these files.
 - input: `rules.preprocess__fastp.input`
 - input: `rules.preprocess__samtools.input`
 - input: `rules.preprocess__fastqc.input`
+- input: `PIPELINE_REPORT / "preprocess.pdf"`
 
 ### `preprocess/bowtie2.smk`
 
@@ -281,6 +284,7 @@ Target rule: it runs nothing itself and only asks for these files.
 - input: `rules.read_annotate__phyloflash.input`
 - input: `rules.read_annotate__singlem.input`
 - input: `rules.read_annotate__sylph.input`
+- input: `PIPELINE_REPORT / "read_annotate.pdf"`
 
 **`read_annotate_extra`**
 
@@ -681,6 +685,7 @@ Assemble, bin (CONCOCT/MaxBin2/MetaBAT2), combine bins with MAGScoT and dereplic
 Target rule: it runs nothing itself and only asks for these files.
 
 - input: `MAG_CATALOGUE`
+- input: `PIPELINE_REPORT / "assemble.pdf"`
 
 ### `assemble/binners/concoct.smk`
 
@@ -1003,6 +1008,7 @@ Target rule: it runs nothing itself and only asks for these files.
 
 - input: `rules.quantify__coverm.input`
 - input: `rules.quantify__samtools.input`
+- input: `PIPELINE_REPORT / "quantify.pdf"`
 
 ### `quantify/bowtie2.smk`
 
@@ -1168,6 +1174,7 @@ Target rule: it runs nothing itself and only asks for these files.
 - input: `rules.mag_annotate__dram_mags.input`
 - input: `rules.mag_annotate__proteinortho.output`
 - input: `rules.mag_annotate__phylophlan.output`
+- input: `PIPELINE_REPORT / "mag_annotate.pdf"`
 
 ### `mag_annotate/bakta.smk`
 
@@ -1466,6 +1473,7 @@ Target rule: it runs nothing itself and only asks for these files.
 - input: `rules.contig_annotate__diamond.input`
 - input: `rules.contig_annotate__hmmer.input`
 - input: `rules.contig_annotate__eggnog7.input`
+- input: `PIPELINE_REPORT / "contig_annotate.pdf"`
 
 **`contig_annotate_extra`**
 
@@ -1813,6 +1821,7 @@ Target rule: it runs nothing itself and only asks for these files.
 - input: `rules.eukaryote__tiara.input`
 - input: `rules.eukaryote__4cac.input`
 - input: `rules.eukaryote__remag.input`
+- input: `PIPELINE_REPORT / "eukaryote.pdf"`
 
 ### `eukaryote/remag.smk`
 
@@ -1983,7 +1992,7 @@ Target rule: it runs nothing itself and only asks for these files.
 
 Report on assembly, binning and the genome catalogue, data volume and resources
 
-- input: `rules.assemble.input`
+- input: `module_results(rules.assemble, "assemble")`
 - output: `pdf=PIPELINE_REPORT / "assemble.pdf"`
 - output: `folder=directory(PIPELINE_REPORT / "assemble")`
 - log: `PIPELINE_REPORT / "assemble.log"`
@@ -2004,7 +2013,7 @@ Report on assembly, binning and the genome catalogue, data volume and resources
 
 Report on genes and annotation of the contigs, data volume and resources
 
-- input: `rules.contig_annotate.input`
+- input: `module_results(rules.contig_annotate, "contig_annotate")`
 - output: `pdf=PIPELINE_REPORT / "contig_annotate.pdf"`
 - output: `folder=directory(PIPELINE_REPORT / "contig_annotate")`
 - log: `PIPELINE_REPORT / "contig_annotate.log"`
@@ -2025,7 +2034,7 @@ Report on genes and annotation of the contigs, data volume and resources
 
 Report on eukaryotic contigs and bins, data volume and resources
 
-- input: `rules.eukaryote.input`
+- input: `module_results(rules.eukaryote, "eukaryote")`
 - output: `pdf=PIPELINE_REPORT / "eukaryote.pdf"`
 - output: `folder=directory(PIPELINE_REPORT / "eukaryote")`
 - log: `PIPELINE_REPORT / "eukaryote.log"`
@@ -2046,7 +2055,7 @@ Report on eukaryotic contigs and bins, data volume and resources
 
 Report on genome quality, taxonomy and annotation, data volume and resources
 
-- input: `rules.mag_annotate.input`
+- input: `module_results(rules.mag_annotate, "mag_annotate")`
 - output: `pdf=PIPELINE_REPORT / "mag_annotate.pdf"`
 - output: `folder=directory(PIPELINE_REPORT / "mag_annotate")`
 - log: `PIPELINE_REPORT / "mag_annotate.log"`
@@ -2067,7 +2076,7 @@ Report on genome quality, taxonomy and annotation, data volume and resources
 
 Report on trimming and host removal: what happened to the reads, data volume and resources
 
-- input: `rules.preprocess.input`
+- input: `module_results(rules.preprocess, "preprocess")`
 - output: `pdf=PIPELINE_REPORT / "preprocess.pdf"`
 - output: `folder=directory(PIPELINE_REPORT / "preprocess")`
 - log: `PIPELINE_REPORT / "preprocess.log"`
@@ -2088,7 +2097,7 @@ Report on trimming and host removal: what happened to the reads, data volume and
 
 Report on the abundance of genomes and contigs, data volume and resources
 
-- input: `rules.quantify.input`
+- input: `module_results(rules.quantify, "quantify")`
 - output: `pdf=PIPELINE_REPORT / "quantify.pdf"`
 - output: `folder=directory(PIPELINE_REPORT / "quantify")`
 - log: `PIPELINE_REPORT / "quantify.log"`
@@ -2109,7 +2118,7 @@ Report on the abundance of genomes and contigs, data volume and resources
 
 Report on the read-based taxonomy and function, data volume and resources
 
-- input: `rules.read_annotate.input`
+- input: `module_results(rules.read_annotate, "read_annotate")`
 - output: `pdf=PIPELINE_REPORT / "read_annotate.pdf"`
 - output: `folder=directory(PIPELINE_REPORT / "read_annotate")`
 - log: `PIPELINE_REPORT / "read_annotate.log"`
@@ -2130,7 +2139,7 @@ Report on the read-based taxonomy and function, data volume and resources
 
 Report on the raw reads: samples, read numbers, quality, data volume and resources
 
-- input: `rules.reads.input`
+- input: `module_results(rules.reads, "reads")`
 - output: `pdf=PIPELINE_REPORT / "reads.pdf"`
 - output: `folder=directory(PIPELINE_REPORT / "reads")`
 - log: `PIPELINE_REPORT / "reads.log"`
@@ -2151,7 +2160,7 @@ Report on the raw reads: samples, read numbers, quality, data volume and resourc
 
 Report on the host genomes and the configured databases, data volume and resources
 
-- input: `rules.reference.input`
+- input: `module_results(rules.reference, "reference")`
 - output: `pdf=PIPELINE_REPORT / "reference.pdf"`
 - output: `folder=directory(PIPELINE_REPORT / "reference")`
 - log: `PIPELINE_REPORT / "reference.log"`

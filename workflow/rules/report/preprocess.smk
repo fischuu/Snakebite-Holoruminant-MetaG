@@ -1,7 +1,7 @@
 rule report__preprocess:
     """Report on trimming and host removal: what happened to the reads, data volume and resources"""
     input:
-        rules.preprocess.input,
+        module_results(rules.preprocess, "preprocess"),
     output:
         pdf=PIPELINE_REPORT / "preprocess.pdf",
         folder=directory(PIPELINE_REPORT / "preprocess"),

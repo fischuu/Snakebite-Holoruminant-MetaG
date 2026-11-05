@@ -8,3 +8,4 @@ rule reads:
     input:
         rules.reads__link.input,
         rules.reads__fastqc.input,
+        PIPELINE_REPORT / "reads.pdf",
