@@ -11,3 +11,4 @@ rule preprocess:
         rules.preprocess__fastp.input,
         rules.preprocess__samtools.input,
         rules.preprocess__fastqc.input,
+        PIPELINE_REPORT / "preprocess.pdf",

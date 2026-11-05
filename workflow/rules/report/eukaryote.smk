@@ -1,7 +1,7 @@
 rule report__eukaryote:
     """Report on eukaryotic contigs and bins, data volume and resources"""
     input:
-        rules.eukaryote.input,
+        module_results(rules.eukaryote, "eukaryote"),
     output:
         pdf=PIPELINE_REPORT / "eukaryote.pdf",
         folder=directory(PIPELINE_REPORT / "eukaryote"),

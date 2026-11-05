@@ -52,8 +52,8 @@ bash run_Snakebite-Holoruminant-MetaG.sh assemble__metaspades
 bash run_Snakebite-Holoruminant-MetaG.sh mag_annotate__gtdbtk
 ```
 
-Running a submodule automatically triggers its upstream dependencies. Every module has a `report_<module>`
-target, see "Reports" below.
+Running a submodule automatically triggers its upstream dependencies. A module's target also makes its report as the
+last job, and `report_<module>` asks for only that, see "Reports" below.
 
 Formatting: `snakefmt` (config in `.github/linters/.snakefmt.toml`, which sets `skip_string_normalization
 = true` for the underlying black formatter) is what CI lints with. It checks the Snakemake files a pull
@@ -210,6 +210,11 @@ is inside `section()`, which turns an error into a sentence, the first chunk rea
   such problems, so test in the container before a commit.
 - **In dplyr, `summarise()` and `transmute()` see earlier results under the same name.** `summarise(hits = sum(hits),
   genes = sum(hits > 0))` gives a wrong number of genes, silently. Tests with several jobs or libraries catch this.
+- **A module's target lists its report's PDF.** So `report__<module>` takes the module's input through `module_results()`,
+  which leaves out that PDF. Without this, they'd wait for each other. `tests/reports/check_module_targets.py` checks all
+  targets in a dry run. A new module needs both.
+- **Don't name a Python variable `report`** in a Snakemake file. Snakemake takes `report` at the start of a line as its
+  keyword, even inside a function, and stops with `Colon expected after keyword report`.
 - A new rule needs no change for its resources to appear: `report_rule_table()` in `rules/report/__functions__.smk`
   passes the rules with a benchmark from the workflow.
 - `workflow/scripts/R/report_tools.tsv` has the tool, container key, purpose and reference for the tables of tools. Tool

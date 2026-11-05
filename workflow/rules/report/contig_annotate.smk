@@ -1,7 +1,7 @@
 rule report__contig_annotate:
     """Report on genes and annotation of the contigs, data volume and resources"""
     input:
-        rules.contig_annotate.input,
+        module_results(rules.contig_annotate, "contig_annotate"),
     output:
         pdf=PIPELINE_REPORT / "contig_annotate.pdf",
         folder=directory(PIPELINE_REPORT / "contig_annotate"),

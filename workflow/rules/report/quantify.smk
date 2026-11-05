@@ -1,7 +1,7 @@
 rule report__quantify:
     """Report on the abundance of genomes and contigs, data volume and resources"""
     input:
-        rules.quantify.input,
+        module_results(rules.quantify, "quantify"),
     output:
         pdf=PIPELINE_REPORT / "quantify.pdf",
         folder=directory(PIPELINE_REPORT / "quantify"),

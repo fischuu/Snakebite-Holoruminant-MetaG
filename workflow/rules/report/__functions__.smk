@@ -4,6 +4,12 @@ from snakemake import __version__ as SNAKEMAKE_VERSION
 REPORT_IMAGE = docker.get("report", "docker://rocker/verse:4.4.2")
 
 
+def module_results(module_rule, module):
+    """All that a module's target lists, without its report, which comes after them"""
+    pdf = str(PIPELINE_REPORT / f"{module}.pdf")
+    return [item for item in module_rule.input if str(item) != pdf]
+
+
 def report_rule_table(module):
     """The rules of a module that write a benchmark, for its report: name|benchmark pattern|uses /dev/shm.
     The generic helper rules run for every module, and the report finds their files in the module's folder."""

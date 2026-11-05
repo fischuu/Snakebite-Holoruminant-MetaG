@@ -1,7 +1,7 @@
 rule report__reads:
     """Report on the raw reads: samples, read numbers, quality, data volume and resources"""
     input:
-        rules.reads.input,
+        module_results(rules.reads, "reads"),
     output:
         pdf=PIPELINE_REPORT / "reads.pdf",
         folder=directory(PIPELINE_REPORT / "reads"),

@@ -106,5 +106,10 @@ if [ $# -ge 2 ]; then
     fi
     python3 "$here/check_project.py" real "$2" "$here/expected_real_spades.tsv"
 fi
+if command -v "${SNAKEMAKE:-snakemake}" > /dev/null; then
+    echo
+    echo "== The target of each module makes its report =="
+    python3 "$here/check_module_targets.py" "$pipeline" "${SNAKEMAKE:-snakemake}"
+fi
 echo
 echo "All report tests passed."

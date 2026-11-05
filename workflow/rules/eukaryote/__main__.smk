@@ -10,3 +10,4 @@ rule eukaryote:
         rules.eukaryote__tiara.input,
         rules.eukaryote__4cac.input,
         rules.eukaryote__remag.input,
+        PIPELINE_REPORT / "eukaryote.pdf",

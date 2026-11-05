@@ -24,3 +24,4 @@ rule mag_annotate:
         rules.mag_annotate__dram_mags.input,
         rules.mag_annotate__proteinortho.output,
         rules.mag_annotate__phylophlan.output,
+        PIPELINE_REPORT / "mag_annotate.pdf",

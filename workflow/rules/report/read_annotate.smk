@@ -1,7 +1,7 @@
 rule report__read_annotate:
     """Report on the read-based taxonomy and function, data volume and resources"""
     input:
-        rules.read_annotate.input,
+        module_results(rules.read_annotate, "read_annotate"),
     output:
         pdf=PIPELINE_REPORT / "read_annotate.pdf",
         folder=directory(PIPELINE_REPORT / "read_annotate"),

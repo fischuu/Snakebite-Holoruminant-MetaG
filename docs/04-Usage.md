@@ -23,8 +23,9 @@ different setup and want to contribute a profile/configuration, please reach out
 For testing and developing, you can add to every command e.g. the option `-np` for a dry-run that prints
 the used commands.
 
-Every module has a report, a PDF in `Rreports/`. The rule `all` makes them at the end of a run, and you can
-make one on its own by adding `report_` in front of the module name, as in `report_preprocess`. See
+Every module has a report, a PDF in `Rreports/`. Running a module makes its report as its last job, and the rule
+`all` makes them too. You can also ask for one by adding `report_` in front of the module name, as in
+`report_preprocess`, which starts the module first if it hasn't finished. See
 [Reports and other output](06-Details.md#reports-and-other-output).
 
 Back to [Table of contents](#toc)
@@ -36,9 +37,10 @@ Here are some basic steps for the reads are performed.
 Usage:
 
 ```
+# This also makes the module's report, Rreports/reads.pdf
 bash run_Snakebite-Holoruminant-MetaG.sh reads
 
-# Generate the module report
+# Make the report again, or ask only for that
 bash run_Snakebite-Holoruminant-MetaG.sh report_reads
 ```
 
@@ -48,8 +50,8 @@ For testing, please check first the dry-run with commands printed by running the
 bash run_Snakebite-Holoruminant-MetaG.sh reads -np
 ```
 
-For all other modules this works in a similar fashion, just add the `-np`-option for testing and
-`report_` to the module to generate a report for the module.
+For all other modules this works in a similar fashion, just add the `-np`-option for testing. Each module
+makes its report as well, and `report_` in front of the module's name asks for that report.
 
 Back to [Table of contents](#toc)
 

@@ -21,6 +21,7 @@ rule read_annotate:
         rules.read_annotate__phyloflash.input,
         rules.read_annotate__singlem.input,
         rules.read_annotate__sylph.input,
+        PIPELINE_REPORT / "read_annotate.pdf",
 
 rule read_annotate_extra:
     """Run the read-based annotation tools"""

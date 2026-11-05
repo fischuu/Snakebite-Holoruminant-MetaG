@@ -22,7 +22,8 @@ rule contig_annotate:
         ],
         rules.contig_annotate__diamond.input,
         rules.contig_annotate__hmmer.input,
-        rules.contig_annotate__eggnog7.input,        
+        rules.contig_annotate__eggnog7.input,
+        PIPELINE_REPORT / "contig_annotate.pdf",
 
 rule contig_annotate_extra:
     input:
