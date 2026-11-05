@@ -35,13 +35,20 @@ rule contig_annotate__eggnog_find_homology:
         """ 
         DATA_DIR="{params.tmp}"
 
-        # If no nvme_storage tmp dir is configured, run emapper straight against
-        # the shared eggnog DB location instead of staging a local copy.
+        # If no nvme_storage tmp dir is configured, or the database doesn't fit into it, run emapper
+        # straight against the shared eggnog DB location instead of staging a local copy.
+        if [ -n "$DATA_DIR" ]; then
+            db_size=$(du -cbL {params.fa}/eggnog* | tail -n 1 | cut -f1)
+            tmp_avail=$(df --output=avail -B1 "$DATA_DIR" | tail -n 1)
+            if [ "$db_size" -lt "$tmp_avail" ]; then
+                cp {params.fa}/eggnog* {params.tmp} &> {log}
+            else
+                DATA_DIR=""
+            fi
+        fi
         if [ -z "$DATA_DIR" ]; then
             DATA_DIR="{params.fa}"
-        else
-            cp {params.fa}/eggnog* {params.tmp} &> {log};
-        fi;
+        fi
 
         debug "assembly_id={wildcards.assembly_id} chunk={wildcards.i} threads={threads} DATA_DIR=$DATA_DIR" 2>> {log}
 

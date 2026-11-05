@@ -27,7 +27,7 @@ prepare_project() {  # <the escalation of the rule>
 import yaml
 c = yaml.safe_load(open("config/config.yaml"))
 c["pipeline_folder"] = "/pipeline/"
-tier = lambda mem, cpus: {"runtime": 5, "mem_mb": mem, "cpus": cpus, "partition": "small", "nvme": "nvme:0"}
+tier = lambda mem, cpus: {"runtime": 5, "mem_mb": mem, "cpus": cpus, "partition": "small", "nvme": ""}
 c["resource_sets"] = {"small": tier(200, 1), "medium": tier(500, 2), "large": tier(1000, 2)}
 yaml.safe_dump(c, open("config/config.yaml", "w"))
 f = yaml.safe_load(open("config/features.yaml"))

@@ -1,3 +1,37 @@
+# Version 0.4.75
+################################################################################
+
+The defaults are for CSC's Roihu now. Puhti and Mahti were retired on 15 October 2026, and on their values Roihu stops jobs
+with "Requested node configuration is not available".
+
+Change your project: it has its own copy of config/config.yaml, and of the profile and the run script, and an update of the
+pipeline doesn't touch them. In your project's config/config.yaml, take over from the pipeline's copy:
+
+   tmp_storage, nvme_storage and the whole block resource_sets
+
+In your project's profile, remove the line with gres. In your run script, load Snakemake with these two lines, or keep yours
+if it works:
+
+   module load bio-apps/v202603
+   module load snakemake/9.14.0
+
+What changed, and why:
+
+- No set asks for --gres=nvme, as on Roihu this only exists on the hugemem nodes. All jobs get a local disk in $TMPDIR
+  without asking, with 20 GiB in small and longrun, and 600 GiB in medium. The sets with _nvme in their name stay, so that
+  config/escalation.yaml still fits, and they're now the same as those without it.
+- The local disk is $TMPDIR, as CSC asks. $LOCAL_SCRATCH isn't there in a normal job on Roihu, and as rules run in strict
+  mode, an unset variable stops them.
+- Time limits fit the partitions: longrun and highmem_longrun have 10 days instead of 14.
+- highmem and highmem_longrun run in small and longrun, whose large nodes take 1500 GiB. In the hugemem partitions the memory
+  depends on the number of cores, and 20 cores can't have 1.4 TB.
+- full_node is a whole node of the partition medium, with 384 cores and 36 hours, and it costs 288 billing units per hour.
+  Only Kraken2 uses it.
+- The eggNOG rules only copy the database if it fits into the local disk, and otherwise leave it where it is.
+
+Roihu's default quotas are 250 GiB of scratch and 500,000 files, and extensions don't move over from Puhti. Check them with
+csc-workspaces, as the databases alone need far more than that.
+
 # Version 0.4.74
 ################################################################################
 

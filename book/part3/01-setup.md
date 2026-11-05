@@ -51,7 +51,7 @@ report that a database file doesn't exist, although you can see it from the logi
 |------|-------------|
 | `projectFolder=` | The project folder |
 | `Profile=` | The profile of your cluster, see below |
-| `module load snakemake/9.11.6` | How Snakemake is made available on your system |
+| `module load snakemake/9.14.0` | How Snakemake is made available on your system. On Roihu, `module load bio-apps/v202603` comes first |
 | `APPTAINER_TMPDIR`, `APPTAINER_CACHEDIR` | Where Apptainer unpacks images. The default in the home folder is usually too small |
 | `XDG_CACHE_HOME` | Where Snakemake keeps its cache, for the same reason. Commented out by default |
 | `--jobs 150` | How many jobs may be in the queue at once |
@@ -105,12 +105,12 @@ first. Three settings say where temporary files go:
 
 | Key | Default | Meaning |
 |-----|---------|---------|
-| `tmp_storage` | `$TMP` | Normal temporary files |
-| `nvme_storage` | `$LOCAL_SCRATCH` | A fast local disk |
+| `tmp_storage` | `$TMPDIR` | Normal temporary files |
+| `nvme_storage` | `$TMPDIR` | A fast local disk |
 | `shm_storage` | `/dev/shm` | Memory used as a disk, which is the fastest |
 
-These values are written into the shell commands, so a variable like `$LOCAL_SCRATCH` is only read on the compute node when the job runs. Check that the
-variables exist on your cluster. The names here are the ones used on CSC's Puhti.
+These values are written into the shell commands, so a variable like `$TMPDIR` is only read on the compute node when the job runs. Check that the
+variables exist on your cluster. These are the ones on CSC's Roihu, where `$LOCAL_SCRATCH` exists only when it's reserved on a hugemem node.
 
 The switches say whether the fast storage is used at all:
 
@@ -141,19 +141,19 @@ Note that 4CAC, in the module `eukaryote`, needs the assembly graph of metaSPAde
 
 `metaspades_slots: 10` is the limit mentioned above.
 
-`resource_sets` is the list of job sizes. These are the defaults, written for CSC's Puhti, with the time limit in minutes, the memory in MB and the local disk in GB:
+`resource_sets` is the list of job sizes. These are the defaults, written for CSC's Roihu, with the time limit in minutes and the memory in MB. On Roihu the local disk can't be reserved outside the hugemem partitions, so the value `nvme` is empty in all of them, and the sets with `_nvme` in their name are the same as those without. Each job gets `$TMPDIR` anyway, with 20 GiB in `small` and `longrun`, and 600 GiB in `medium`:
 
-| Set | Minutes | MB | CPUs | Partition | Disk (GB) |
-|-----|------|--------|------|-----------|------|
-| `small` | 300 | 16000 | 1 | `small` | 0 |
-| `medium` | 4000 | 160000 | 10 | `small` | 0 |
-| `medium_nvme` | 4000 | 160000 | 10 | `small` | 10 |
-| `large` | 4000 | 320000 | 20 | `small` | 0 |
-| `large_nvme` | 4000 | 320000 | 20 | `small` | 50 |
-| `highmem` | 4000 | 1400000 | 20 | `hugemem` | 250 |
-| `longrun` | 20000 | 320000 | 20 | `longrun` | 250 |
-| `highmem_longrun` | 20000 | 1400000 | 20 | `hugemem_longrun` | 250 |
-| `full_node` | 4000 | 360000 | 40 | `small` | 1000 |
+| Set | Minutes | MB | CPUs | Partition |
+|-----|------|--------|------|-----------|
+| `small` | 300 | 16000 | 1 | `small` |
+| `medium`, `medium_nvme` | 4000 | 160000 | 10 | `small` |
+| `large`, `large_nvme` | 4000 | 320000 | 20 | `small` |
+| `highmem` | 4000 | 1400000 | 20 | `small` |
+| `longrun` | 14400 | 320000 | 20 | `longrun` |
+| `highmem_longrun` | 14400 | 1400000 | 20 | `longrun` |
+| `full_node` | 2160 | 740000 | 384 | `medium` |
+
+`tests/resources/check_resource_sets.py` checks these against Roihu's published limits. A request for more memory or disk than a node has doesn't wait in a queue, it stops at once with `Requested node configuration is not available`. A time limit beyond a partition's can be worse, as depending on the cluster's settings, the job may simply wait forever. `highmem` runs in `small`, whose largest nodes take 1500 GiB, because the memory in `hugemem` is tied to the number of cores, and `full_node` is a real whole node, which costs as much as one.
 
 On another cluster, change the partitions first, because SLURM refuses a job for a partition that doesn't exist. The values are also generous on purpose
 and not calibrated. A real run will show you how much your rules really need, because `sacct` reports it, and then you can make them smaller. Queues get
@@ -255,7 +255,7 @@ reads of the second row would be ignored without a warning, because all files ar
 
 ## `config/profiles/`
 
-A profile holds the settings of a cluster, as @sec-cluster explains. The repository has `Puhti` and `Migale`. For another system, copy one to a new folder and adjust it. The file must be called `config.yaml`:
+A profile holds the settings of a cluster, as @sec-cluster explains. The repository has `Roihu` and `Migale`. For another system, copy one to a new folder and adjust it. The file must be called `config.yaml`:
 
 ```
 executor: slurm
@@ -266,10 +266,9 @@ default-resources:
     cpus_per_task: 1
     slurm_partition: "small"
     slurm_account: "project_2010176"
-    gres: "'nvme:0'"
 ```
 
-`slurm_account` is the project that pays for the jobs, so change it to yours. `gres` is specific to clusters with local disks that have to be requested. On a system without them, remove it here, and set `nvme`
+`slurm_account` is the project that pays for the jobs, so change it to yours. On a system where local disk has to be requested, add `gres` here, and set `nvme` in the resource sets accordingly.
 in the resource sets accordingly.
 
 ## Checking the setup

@@ -54,7 +54,7 @@ Snakemake restarts the failed job with the next set when you start the pipeline 
 
 ## Time
 
-Long jobs can hit the limit of a partition. On Puhti, `small` allows 3 days, and `longrun` allows 14. The sets `longrun` and `highmem_longrun` are for that. Rules like metaSPAdes on a big co-assembly, MaxBin2 and REMAG are the usual candidates.
+Long jobs can hit the limit of a partition. On Roihu, `small` allows 3 days, and `longrun` allows 10. The sets `longrun` and `highmem_longrun` are for that. Rules like metaSPAdes on a big co-assembly, MaxBin2 and REMAG are the usual candidates.
 
 ## Containers can't see a file
 
@@ -72,7 +72,7 @@ A related trap is `$TMPDIR`. The run script binds the project's `tmp/` to `/tmp`
 | The home folder | Apptainer's and Snakemake's caches | Set `APPTAINER_CACHEDIR` and `XDG_CACHE_HOME` in the run script |
 | The project's `tmp/` | `du -sh tmp` | Remove what killed jobs left behind |
 | `/dev/shm` on the node | The log of the rule | Use the set `full_node`, or set `kraken2_shm` and the like to `"False"` |
-| The local disk | The `nvme` value in the resource set | Use a set with more disk |
+| The local disk | `$TMPDIR`, with 20 GiB in `small` and `longrun`, and 600 GiB in `medium` | Use `medium`, which costs a whole node, or leave the database where it is with `copy_dbs: "False"` |
 
 ## Starting again after a problem
 

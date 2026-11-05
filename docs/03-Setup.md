@@ -101,9 +101,9 @@ database as well as a rather large one called `refseq500`. Just comment out the 
 
 
 ## config/profiles/
-Here are the HPC profiles stored. The current default configuration is adjusted to our system called Puhti
-and is located in the subfolder `Puhti/` in the file `config.yaml`. For your own system, create a new
-subfolder with the name of your system and copy the config file from `Puhti/` there to adjust. Please do
+Here are the HPC profiles stored. The current default configuration is adjusted to CSC's system called Roihu
+and is located in the subfolder `Roihu/` in the file `config.yaml`. For your own system, create a new
+subfolder with the name of your system and copy the config file from `Roihu/` there to adjust. Please do
 not rename the yaml file, it needs to be `config.yaml`. 
 
 Here, set your typical default resources and check what requirements your generic slurm (or whatever executor

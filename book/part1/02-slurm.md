@@ -20,7 +20,7 @@ large        up 3-00:00:00      1   idle localhost
 A **partition** is a group of nodes with its own rules, such as a maximum run time. The `*` marks the default, and `idle` means that the node has nothing to do. On a real cluster, this list is much longer, with
 states such as `mix` (partly used), `alloc` (fully used) and `drain` (being taken out of service).
 
-Each cluster has its own partitions. On Puhti, there are for example `small`, `large`, `longrun`, `hugemem` and `gpu`. The values in this pipeline's `config.yaml` refer to those names, so if you run on another
+Each cluster has its own partitions. On Roihu, there are for example `small`, `medium`, `large`, `longrun`, `hugemem` and `gpumedium`. The values in this pipeline's `config.yaml` refer to those names, so if you run on another
 cluster, those are what you need to change (@sec-setup).
 
 ## Your first job script
@@ -53,7 +53,7 @@ To the shell, lines starting with `#` are comments. SLURM reads the `#SBATCH` li
 | `--cpus-per-task` | How many CPU cores |
 | `--mem` | How much memory in total, like `500M` or `64G` |
 | `--output` | Where stdout and stderr go. `%j` becomes the job number |
-| `--gres` | Other resources. On Puhti: `--gres=nvme:100` asks for 100 GB of fast local disk |
+| `--gres` | Other resources. On Roihu's hugemem nodes, `--gres=nvme:100` asks for 100 GiB of local disk. Other nodes don't have this, and asking there stops the job at once |
 
 You submit it with `sbatch`, which answers immediately with the job's number. Your terminal is free again while the job waits and runs:
 
@@ -229,7 +229,7 @@ Nobody knows the right values in advance, and it depends on your data. Some advi
 - **Start from something similar.** A benchmark file from an earlier project tells you more than any rule of thumb.
 - **Look at what you really used.** `sacct` shows `MaxRSS` for memory and `Elapsed` for time. Compare them with your request.
 - **Don't ask for much more than you need.** Bigger requests wait longer, and on most systems you pay for what you reserve, whether you use it or not.
-- **Time limits decide the partition.** On Puhti, jobs longer than three days need `longrun`.
+- **Time limits decide the partition.** On Roihu, jobs longer than three days need `longrun`.
 - **More cores don't always help.** Many tools stop getting faster at some point, while the queue time keeps growing.
 
 This pipeline's answer to the problem is to start with a modest request, and go up when a job fails. @sec-pipeline-patterns describes that.

@@ -10,7 +10,7 @@ configFile="${projectFolder}/config/config.yaml"
 # It is recommended to copy the Profile folder to a new folder with the name of
 # your cluster
 ################################################################################
-Profile=$projectFolder/config/profiles/Puhti
+Profile=$projectFolder/config/profiles/Roihu
 
 # Debug verbosity for the pipeline's own [DEBUG] messages (Snakefile-parse-time
 # and per-rule shell scripts). Off by default; turn on per-run without editing
@@ -26,7 +26,8 @@ export PIPELINE_DEBUG="${PIPELINE_DEBUG:-0}"
 # module system, but other systems might have it available per standard installation.
 # In that case you can comment out the follwing line
 ################################################################################
-module load snakemake/9.11.6
+module load bio-apps/v202603
+module load snakemake/9.14.0
 
 # For use with Apptainer, set these variables
 ################################################################################

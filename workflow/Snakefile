@@ -213,8 +213,11 @@ ESCALATION_CONFIG = {k: [x.strip() for x in v.split(",")] for k, v in raw.items(
 # shell.prefix replaces Snakemake's default prefix, so it has to repeat
 # "set -euo pipefail": without that, a rule ignores any failing command
 # except its last one.
+# A container may not see the folder that $TMPDIR names, as /tmp is bound to the project's tmp folder there. So it's made
+# here, as rules and tools expect that it exists.
 shell.prefix(
     'set -euo pipefail; '
+    'if [ -n "${{TMPDIR:-}}" ]; then mkdir -p "$TMPDIR" 2> /dev/null || true; fi; '
     'debug() {{ '
     'if [ "${{PIPELINE_DEBUG:-0}}" = "1" ]; then echo "[DEBUG] $*" >&2; fi; '
     '}}; '
