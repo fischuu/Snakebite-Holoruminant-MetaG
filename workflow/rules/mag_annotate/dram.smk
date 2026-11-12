@@ -120,8 +120,22 @@ rule mag_annotate__dram__distill:
         # DRAM wants to create its output folder itself
         rm -rf "$workdir"
 
-        DRAM.py distill -i {input.annotations} -o "$workdir" \
-            --trna_path {input.trnas} --rrna_path {input.rrnas} --config_loc {params.dram_config}
+        # DRAM writes no table when it finds no tRNAs or no rRNAs, and the annotate rule leaves an empty file then.
+        # distill can't read an empty file, so it only gets the tables that have something in them. genome_stats.tsv
+        # then has no columns for what's missing.
+        tables=""
+        if [ -s {input.trnas} ]; then
+            tables="$tables --trna_path {input.trnas}"
+        else
+            echo "No tRNAs were found, so distill gets no table of them"
+        fi
+        if [ -s {input.rrnas} ]; then
+            tables="$tables --rrna_path {input.rrnas}"
+        else
+            echo "No rRNAs were found, so distill gets no table of them"
+        fi
+
+        DRAM.py distill -i {input.annotations} -o "$workdir" $tables --config_loc {params.dram_config}
 
         mv "$workdir"/* {DRAM}/
         rm -rf "$workdir"

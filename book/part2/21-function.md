@@ -50,7 +50,7 @@ This book has no real output of this tool yet. @sec-tutorial-waiting says why, a
 ## Pitfalls
 
 - **Temporary files.** DRAM starts tRNAscan-SE, which reads `$TMPDIR`, and on the cluster the inherited value points to a place that the container can't see. Without the rule's fix, DRAM would crash in this step. The comment in the rule explains this.
-- **Empty tables.** If there's no tRNA, DRAM writes no table. The rule then leaves an empty file, as the next step needs one.
+- **Empty tables.** If DRAM finds no tRNAs or no rRNAs, it writes no table of them. The annotate rule then leaves an empty file, as Snakemake expects one, and distill only gets the tables that have something in them, as it can't read an empty file. Before version 0.4.76 it got them all, and stopped with `EmptyDataError: No columns to parse from file`. `genome_stats.tsv` then has no columns for what's missing, so it can't give MIMAG's assembly quality.
 - **Paths in the config.** All database paths have to exist from the project folder. If you keep the databases elsewhere, you have to change this file.
 
 ## Reference
