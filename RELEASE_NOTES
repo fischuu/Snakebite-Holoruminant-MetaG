@@ -29,9 +29,6 @@ Coming from 0.4.62 or earlier, read the notes of 0.4.67 to 0.4.76 below. In shor
    config/params.yaml (0.4.74). Follow the renamed rules in config/escalation.yaml (0.4.67, 0.4.69).
 3. Do a dry run first, and look at why each job would run. The rules that 0.4.69 and 0.4.74 fixed should run again.
 
-This pipeline was originally derived from mg_assembly by Jorge Langa and colleagues. README.md, in its section
-"Provenance and acknowledgements", describes how.
-
 # Version 0.4.76
 ################################################################################
 
