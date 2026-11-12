@@ -1,3 +1,37 @@
+# Version 0.6.0
+################################################################################
+
+The first release since 0.4.62, in February 2026. It holds all changes of 0.4.63 to 0.4.76, which the notes below
+describe, and it ran successfully on CSC's Roihu with the example data. The version goes from 0.4 to 0.6, and there is
+no 0.5.
+
+The run script loads Snakemake 9.27.1 now:
+
+   module load snakemake/9.27.1
+
+Don't use snakemake/9.14.0 on Roihu. Versions 9.14.0 to 9.14.4 stop every SLURM job with
+"assert self.workflow.is_main_process" (Snakemake issue 3853, fixed in 9.14.5).
+
+New since 0.4.62:
+
+- The module eukaryote labels contigs as eukaryotic or prokaryotic, with Tiara, 4CAC and REMAG (0.4.66)
+- Every module has a report, Rreports/<module>.pdf, with results, methods, data volume and resources (0.4.71 to 0.4.73)
+- The defaults are for CSC's Roihu (0.4.75)
+- tests/real_run/ runs the whole pipeline on a cluster with the example data, and book/ is a handbook of the pipeline
+
+Coming from 0.4.62 or earlier, read the notes of 0.4.67 to 0.4.76 below. In short:
+
+1. Check your results. Rules ran without strict mode in some versions (0.4.68), clean reads could be truncated
+   (0.4.69), and the Krona charts (0.4.69) and the results of MaxBin2, Nonpareil and eggNOG-mapper on MAGs (0.4.74) were
+   wrong.
+2. Change your project, as it has its own copy of the configuration. Take over tmp_storage, nvme_storage and
+   resource_sets in config/config.yaml, and remove gres from your profile (0.4.75). Set Nonpareil's X to 1000 in
+   config/params.yaml (0.4.74). Follow the renamed rules in config/escalation.yaml (0.4.67, 0.4.69).
+3. Do a dry run first, and look at why each job would run. The rules that 0.4.69 and 0.4.74 fixed should run again.
+
+This pipeline was originally derived from mg_assembly by Jorge Langa and colleagues. README.md, in its section
+"Provenance and acknowledgements", describes how.
+
 # Version 0.4.76
 ################################################################################
 
