@@ -3,6 +3,9 @@
 
 Version 0.4.*:
 -----------
+76: DRAM's distill stopped with "EmptyDataError: No columns to parse from file" when the bins of an assembly had no
+    rRNAs or no tRNAs, as DRAM then writes no table, and the rule before leaves an empty file. Both distill rules now
+    only give DRAM the tables that have something in them.
 75: The defaults are for CSC's Roihu now, as Puhti and Mahti were retired on 15 October 2026. On Puhti's values, jobs
     stopped with "Requested node configuration is not available". Please read RELEASE_NOTES, as your project has its own copy.
     No set asks for --gres=nvme anymore, which on Roihu only exists on the hugemem nodes. Time limits fit the partitions,

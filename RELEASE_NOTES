@@ -1,3 +1,16 @@
+# Version 0.4.76
+################################################################################
+
+DRAM's distill stopped with "EmptyDataError: No columns to parse from file" when it found no rRNAs or no tRNAs in the
+genomes of an assembly, which happens easily on small test data. DRAM writes no table in that case, the rule before
+leaves an empty file, and distill can't read that. Both distill rules now only give DRAM the tables that have something
+in them, and their logs say which ones they left out.
+
+genome_stats.tsv then has no columns for rRNAs or tRNAs, and no assembly quality, for that assembly. To check that DRAM
+really found none, look for "No rRNAs were detected" in the annotate log of that assembly.
+
+Nothing to change in your project. Snakemake runs the failed distill job again by itself.
+
 # Version 0.4.75
 ################################################################################
 
