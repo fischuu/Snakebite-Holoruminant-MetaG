@@ -1,6 +1,12 @@
 # CHANGELOG
 ##############
 
+Version 0.6.*:
+-----------
+0: Release 0.6.0, after a successful test run on CSC's Roihu with the example data. It is 0.4.76 with one change: the
+   run script loads snakemake/9.27.1, as snakemake/9.14.0 stops every SLURM job. RELEASE_NOTES says what changed since
+   the last release, 0.4.62, and what to change in a project. There is no version 0.5.
+
 Version 0.4.*:
 -----------
 76: DRAM's distill stopped with "EmptyDataError: No columns to parse from file" when the bins of an assembly had no

@@ -51,7 +51,7 @@ report that a database file doesn't exist, although you can see it from the logi
 |------|-------------|
 | `projectFolder=` | The project folder |
 | `Profile=` | The profile of your cluster, see below |
-| `module load snakemake/9.14.0` | How Snakemake is made available on your system. On Roihu, `module load bio-apps/v202603` comes first |
+| `module load snakemake/9.27.1` | How Snakemake is made available on your system. On Roihu, don't use 9.14.0 to 9.14.4, which stop every SLURM job |
 | `APPTAINER_TMPDIR`, `APPTAINER_CACHEDIR` | Where Apptainer unpacks images. The default in the home folder is usually too small |
 | `XDG_CACHE_HOME` | Where Snakemake keeps its cache, for the same reason. Commented out by default |
 | `--jobs 150` | How many jobs may be in the queue at once |
