@@ -33,8 +33,9 @@ rule mag_annotate__bakta:
         # not inside the container's bind-mounted one (same root cause as the
         # magscot/parallel fix). Point it at our own guaranteed-to-exist
         # subdirectory instead of trusting the inherited value.
-        tmp_dir="/tmp/bakta.$$"
-        mkdir -p "$tmp_dir"
+        tmp_dir=$(mktemp -d "/tmp/bakta.XXXXXX")
+        trap 'rm -rf "$tmp_dir"' EXIT
+        trap 'exit 143' TERM INT
         export TMPDIR="$tmp_dir"
 
         bakta --db {params.db} \
@@ -86,8 +87,9 @@ rule mag_annotate__bakta_mags__run:
         # subprocess) does its own $TMPDIR lookup, which on this cluster
         # inherits a SLURM per-job path invisible inside the container's
         # bind-mounted /tmp. Use our own guaranteed-to-exist subdirectory.
-        tmp_dir="/tmp/bakta_mags.{wildcards.assembly_id}.$$"
-        mkdir -p "$tmp_dir"
+        tmp_dir=$(mktemp -d "/tmp/bakta_mags.{wildcards.assembly_id}.XXXXXX")
+        trap 'rm -rf "$tmp_dir"' EXIT
+        trap 'exit 143' TERM INT
         export TMPDIR="$tmp_dir"
 
         bakta --db {params.db} \

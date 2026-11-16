@@ -37,7 +37,7 @@ rule contig_annotate__diamond__assign:
         try_log={log}.try{resources.attempt}
         set +u
         
-        echo "Starting Diamond rule attempt {resources.attempt}" > "$try_log" 1>&2
+        echo "Starting Diamond rule attempt {resources.attempt}" > "$try_log"
         debug "threads={threads} out_folder={params.out_folder} run_in_shm={params.run_in_shm} copy_dbs={params.copy_dbs}" 2>> "$try_log"
         mkdir --parents {params.out_folder} 2>> "$try_log" 1>&2
 
@@ -63,6 +63,25 @@ rule contig_annotate__diamond__assign:
         : "${{NVME:=}}"
 
         set -u
+
+        # However the job ends (success, error, or TERM from SLURM), remove this job's staged
+        # DB copy and keep the log: on success the .try file becomes {log}, on failure it's
+        # copied there, so the error message doesn't stay hidden in the .try file.
+        STAGED=""
+        cleanup() {{
+            rc=$?
+            if [ -n "$STAGED" ]; then
+                rm -rf "$STAGED" 2>> "$try_log" || true
+            fi
+            if [ "$rc" -eq 0 ]; then
+                mv "$try_log" {log}
+            else
+                cp "$try_log" {log} 2> /dev/null || true
+            fi
+            exit "$rc"
+        }}
+        trap cleanup EXIT
+        trap 'exit 143' TERM INT
 
         echo "DB_SRC: $DB_SRC, COPY_DBS: {params.copy_dbs}" 2>> "$try_log" 1>&2
         debug "SHM=$SHM NVME=$NVME DB_SHM=$DB_SHM DB_NVME=$DB_NVME" 2>> "$try_log"
@@ -98,8 +117,13 @@ rule contig_annotate__diamond__assign:
             fi
 
             if [ "$NEED_COPY" = "true" ]; then
-                mkdir -p "$DB_DST"
-                cp "$DB_SRC" "$DB_DST" 2>> "$try_log"
+                # Stage into a folder of this job's own (mktemp makes a new, unique one): jobs of
+                # other assemblies on the same node stage the same DB at the same time, and with
+                # a shared folder they collided ("cp: cannot create regular file ...: File
+                # exists") and deleted the DB from under each other when done.
+                DB_DST=$(mktemp -d "$DB_DST.XXXXXX" 2>> "$try_log")
+                STAGED="$DB_DST"
+                cp "$DB_SRC" "$DB_DST/" 2>> "$try_log"
                 echo "Database copied to $DB_DST" 2>> "$try_log" 1>&2
 
                 echo "Remove file extension from {params.diamond_path}" 2>> "$try_log" 1>&2
@@ -119,12 +143,7 @@ rule contig_annotate__diamond__assign:
         debug "fa={input.fa} output={output} threads={threads}" 2>> "$try_log"
 
         diamond blastp -d "$DB_LOC" -q {input.fa} -o {output} -p {threads} 2>> "$try_log"
-  
-        if [ "{params.run_in_shm}" = "True" ] && [ "$DB_DST" = "$DB_SHM" ]; then
-            rm -rfv "$DB_DST" 2>> "$try_log"
-        fi
-
-        mv "$try_log" {log}
+        # The staged copy and the log are taken care of by cleanup() above.
         """
 
 

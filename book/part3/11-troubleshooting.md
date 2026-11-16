@@ -96,9 +96,13 @@ The rules fail on purpose if the database fits neither in `/dev/shm` nor on the 
 
 For Kraken2, the database then runs from the network disk, and this can get very slow. Also, look out for leftover copies in `/dev/shm` from killed jobs.
 
+### DIAMOND: "cp: cannot create regular file ...: File exists"
+
+Before version 0.6.1, all DIAMOND jobs on a node copied a database into the same folder, such as `/dev/shm/hyddb`, and two of them could collide. The error is in `{log}.try1` next to the empty log of the rule. Update the pipeline: each job now has a folder of its own.
+
 ### eggNOG-mapper: waiting forever
 
-`contig_annotate__eggnog_orthology_chunk` waits while another job copies the database. If this other job was killed during the copy, the folder `$DATA_DIR/.lock` stays there and other jobs on that node wait until their time limit runs out. In the log, the last line is `Another job is copying the DB, waiting...`. Cancel the jobs, and let the node be cleaned up, or use `copy_dbs: "False"`.
+Before version 0.6.1, `contig_annotate__eggnog_orthology_chunk` waited for a lock folder `$DATA_DIR/.lock` while another job copied the database. If this other job was killed during the copy, the folder stayed there and other jobs on that node waited until their time limit ran out, with `Another job is copying the DB, waiting...` as the last line of the log. Update the pipeline: the lock is taken with `flock` now, and the system releases it when a job dies.
 
 ### MAGScoT or dRep: no bins
 

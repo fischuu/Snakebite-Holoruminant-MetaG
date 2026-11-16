@@ -8,7 +8,7 @@
 
 ## The DIAMOND test
 
-`tests/diamond_staging/run_test.sh` needs only Docker. It runs the real rules `read_annotate__diamond__assign` and `contig_annotate__diamond__assign` with a stand-in for `diamond`. It checks where the database comes from in each situation: without any fast storage, with one and with two resource sets, with `copy_dbs: "False"`, and with a copy in `/dev/shm` or on the local disk. On the rules before version 0.4.69, 8 of its checks fail.
+`tests/diamond_staging/run_test.sh` needs only Docker. It runs the real rules `read_annotate__diamond__assign` and `contig_annotate__diamond__assign` with a stand-in for `diamond`. It checks where the database comes from in each situation: without any fast storage, with one and with two resource sets, with `copy_dbs: "False"`, and with a copy in `/dev/shm` or on the local disk. It also checks that each job copies into a folder of its own, leaves another job's copy alone, and removes its copy also when DIAMOND fails. On the rules before version 0.4.69, 8 of its checks fail.
 
 ## The Krona test
 

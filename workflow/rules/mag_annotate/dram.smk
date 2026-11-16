@@ -38,8 +38,9 @@ rule mag_annotate__dram__annotate:
         # internally, which independently reads $TMPDIR for its own scratch
         # files -- point it at a guaranteed-to-exist subdirectory instead of
         # the inherited (container-invisible) SLURM per-job path.
-        sys_tmp_dir="/tmp/dram.$$"
-        mkdir -p "$sys_tmp_dir"
+        sys_tmp_dir=$(mktemp -d "/tmp/dram.XXXXXX")
+        trap 'rm -rf "$sys_tmp_dir"' EXIT
+        trap 'exit 143' TERM INT
         export TMPDIR="$sys_tmp_dir"
 
         echo "host: $(hostname)"

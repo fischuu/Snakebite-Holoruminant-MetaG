@@ -63,7 +63,7 @@ These rules do what @sec-tool-eggnog describes, in its two steps. Each chunk has
 emapper.py -m diamond --data_dir $DATA_DIR --override --no_annot --no_file_comments --cpu {threads} -i {input.files} ...
 ```
 
-This is the search with DIAMOND. It only needs the fast DIAMOND database, and this is copied to `nvme_storage` first, if that's configured. `--no_annot` stops the program after the search, and leaves a `.emapper.seed_orthologs` file.
+This is the search with DIAMOND. It only needs the fast DIAMOND database, and this is copied to a folder of the job's own in `nvme_storage` first, if that's configured and the database fits. The copy is removed however the job ends. `--no_annot` stops the program after the search, and leaves a `.emapper.seed_orthologs` file.
 
 ### `contig_annotate__eggnog_orthology_chunk`
 
@@ -77,11 +77,11 @@ emapper.py --data_dir $DATA_DIR \
 
 This step turns the hits into annotations. It reads a big database all the time, so it should be on fast storage, and many jobs may share one copy on a node. This explains why this rule is so long: it has to make sure that exactly one job copies the database, that the others wait, and that the last job deletes it.
 
-- A **counter** file says how many jobs are using the copy. `flock` protects it, so two jobs can't change it at the same moment.
-- A **lock** folder says who does the copying. `mkdir` either creates a folder or fails, so only one job can succeed.
-- A **done** file tells the waiting jobs that the copy is finished.
+- A **lock** file, `eggnog_data.lock` next to the copy, is taken with `flock` by each job, both to copy and to count itself in or out. The copying happens while the lock is held, so the other jobs simply wait for the lock. If the copying job dies, the system releases its lock, and the next job copies again.
+- A **done** file in the copy says that it's complete. Without it, the next job removes what's there and copies again.
+- A **counter** file, `eggnog_data.users`, says how many jobs are using the copy. A `trap` counts a job out however it ends, also when it fails or SLURM ends it with `TERM`, and the last job removes the copy.
 
-If a job gets killed, the counter stays too high, and the copy in `/dev/shm` remains until the node cleans it up. With `copy_dbs: "False"`, all this is skipped.
+Lock and counter are next to the copy, not in it, so all jobs lock the same file, also while the copy is removed. Before version 0.6.1, the lock was a folder in the copy: a job killed while copying left it there, and the other jobs on the node waited until their time limit. A job that failed was never counted out, so the copy stayed. Only a job killed with `SIGKILL` can still leave the counter too high, and then the copy remains until the node cleans it up. With `copy_dbs: "False"`, all this is skipped.
 
 ### `contig_annotate__eggnog_merge_annotations`
 
@@ -170,4 +170,4 @@ To get the amount of a function in a sample, you join two tables: the annotation
 - This module works on all contigs of each assembly, whether binned or not.
 - Prodigal finds the genes, and featureCounts counts the reads on them.
 - The proteins are cut into chunks for eggNOG-mapper, which is why the pipeline needs a checkpoint here.
-- The chunks share a copy of the database on the node, and files with counters and locks keep them from getting in each other's way.
+- The chunks share a copy of the database on the node, and a lock with `flock` and a counter keep them from getting in each other's way.

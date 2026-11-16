@@ -39,7 +39,7 @@ rule read_annotate__diamond__assign:
         r"""
         set +u
 
-        echo "Starting Diamond rule attempt {resources.attempt}" > {log} 1>&2
+        echo "Starting Diamond rule attempt {resources.attempt}" > {log}
         debug "threads={threads}, out_folder={params.out_folder}, run_in_shm={params.run_in_shm}, copy_dbs={params.copy_dbs}" 2>> {log}
         mkdir --parents {params.out_folder} 2>> {log} 1>&2
 
@@ -65,6 +65,12 @@ rule read_annotate__diamond__assign:
         : "${{NVME:=}}"
 
         set -u
+
+        # However the job ends (success, error, or TERM from SLURM), remove this job's staged
+        # DB copy, also when it was staged to NVMe/$TMPDIR rather than /dev/shm.
+        STAGED=""
+        trap 'if [ -n "$STAGED" ]; then rm -rf "$STAGED"; fi' EXIT
+        trap 'exit 143' TERM INT
 
         echo "DB_SRC: $DB_SRC, COPY_DBS: {params.copy_dbs}" 2>> {log} 1>&2
         debug "SHM=$SHM NVME=$NVME DB_SHM=$DB_SHM DB_NVME=$DB_NVME" 2>> {log}
@@ -100,8 +106,13 @@ rule read_annotate__diamond__assign:
             fi
 
             if [ "$NEED_COPY" = "true" ]; then
-                mkdir -p "$DB_DST"
-                cp "$DB_SRC" "$DB_DST" 2>> {log}
+                # Stage into a folder of this job's own (mktemp makes a new, unique one): jobs of
+                # other samples on the same node stage the same DB at the same time, and with a
+                # shared folder they collided ("cp: cannot create regular file ...: File exists")
+                # and deleted the DB from under each other when done.
+                DB_DST=$(mktemp -d "$DB_DST.XXXXXX" 2>> {log})
+                STAGED="$DB_DST"
+                cp "$DB_SRC" "$DB_DST/" 2>> {log}
                 echo "Database copied to $DB_DST" 2>> {log} 1>&2
 
                 echo "Remove file extension from {params.diamond_path}" 2>> {log} 1>&2
@@ -122,10 +133,7 @@ rule read_annotate__diamond__assign:
 
         diamond blastx -d "$DB_LOC" -q {input.forwards} -o {output.out_R1} -p {threads} --max-target-seqs {params.max_target_seqs} 2>> {log}
         diamond blastx -d "$DB_LOC" -q {input.reverses} -o {output.out_R2} -p {threads} --max-target-seqs {params.max_target_seqs} 2>> {log}
-
-        if [ "{params.run_in_shm}" = "True" ] && [ "$DB_DST" = "$DB_SHM" ]; then
-            rm -rfv "$DB_DST" 2>> {log}
-        fi
+        # The staged copy is removed by the EXIT trap above.
         """
 
 

@@ -55,7 +55,9 @@ fi
 
 The third case explains the escalation here. If the database fits nowhere, the attempt fails on purpose, and the next resource set may offer a bigger disk. Only the last attempt runs from the slow original place.
 
-At the end the rule removes the copy in `/dev/shm`. If the job gets killed before that, the copy stays until the node cleans up. This can be a reason why a later job on the same node sees less space.
+Each job copies the database into a folder of its own, which `mktemp -d` makes next to the configured place, for example `/dev/shm/standard.k3Xq9a`. Several jobs on one node often stage the same database at the same moment, for example the DIAMOND jobs of different samples, and with one shared folder they got in each other's way: a copy failed with `cp: cannot create regular file ...: File exists`, or a job deleted the database while another one still read it. Before version 0.6.1 this could happen.
+
+A `trap` on the exit of the shell removes the copy however the job ends: when it's done, when a command fails, and when SLURM ends it with `TERM` at its time limit. Only a job killed with `SIGKILL` leaves its copy behind, until the node cleans up. This can be a reason why a later job on the same node sees less space.
 
 With `copy_dbs: "False"` nothing is copied, and the database is read in place.
 
@@ -209,7 +211,7 @@ This rule concatenates the logs of all libraries. `read_annotate__phyloflash` is
 
 ### `read_annotate__diamond__assign`
 
-This rule compares the reads with a protein database. It does its staging in nearly the same way as Kraken2, and then runs twice, once per read file:
+This rule compares the reads with a protein database. It does its staging in nearly the same way as Kraken2, into a folder of its own job, and then runs twice, once per read file:
 
 ```bash
 diamond blastx -d "$DB_LOC" -q {input.forwards} -o {output.out_R1} -p {threads} --max-target-seqs {params.max_target_seqs}

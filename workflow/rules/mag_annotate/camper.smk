@@ -37,7 +37,12 @@ rule mag_annotate__camper__annotate:
             debug "no nvme storage configured, staging CAMPER db to $tmp_db_dir" 2>> {log}
         fi
 
-        mkdir -p $tmp_db_dir
+        # Stage into a folder of this job's own, and remove it (and the scratch folder below)
+        # however the job ends
+        mkdir -p "$tmp_db_dir"
+        tmp_db_dir=$(mktemp -d "$tmp_db_dir/camper_db.XXXXXX")
+        trap 'rm -rf "$tmp_db_dir" "${{sys_tmp_dir:-}}"' EXIT
+        trap 'exit 143' TERM INT
         cp {params.camper_db}/* $tmp_db_dir 2>> {log} 1>&2
 
         tmpdir={params.camper_dir}/tmp
@@ -51,8 +56,7 @@ rule mag_annotate__camper__annotate:
         # at a guaranteed-to-exist subdirectory instead of the inherited
         # (container-invisible) SLURM per-job path, same root cause as the
         # magscot/bakta/DRAM tRNAscan-SE fixes.
-        sys_tmp_dir="/tmp/camper.$$"
-        mkdir -p "$sys_tmp_dir"
+        sys_tmp_dir=$(mktemp -d /tmp/camper.XXXXXX)
         export TMPDIR="$sys_tmp_dir"
 
         debug "running camper_annotate: genes={input.genes} tmpdir=$tmpdir tmp_db_dir=$tmp_db_dir" 2>> {log}

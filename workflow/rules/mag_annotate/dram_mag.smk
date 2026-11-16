@@ -44,8 +44,9 @@ rule mag_annotate__dram_mag__annotate:
         # annotate crashes on tRNAscan-SE and this rule's own fallback below
         # silently swallows that by touching empty output files, which then
         # only surfaces as a confusing pandas EmptyDataError in distill.
-        sys_tmp_dir="/tmp/dram_mag.{wildcards.assembly_id}.$$"
-        mkdir -p "$sys_tmp_dir"
+        sys_tmp_dir=$(mktemp -d "/tmp/dram_mag.{wildcards.assembly_id}.XXXXXX")
+        trap 'rm -rf "$sys_tmp_dir"' EXIT
+        trap 'exit 143' TERM INT
         export TMPDIR="$sys_tmp_dir"
 
         echo "Hostname: $(hostname)"
