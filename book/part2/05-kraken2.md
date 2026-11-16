@@ -65,7 +65,7 @@ Databases are listed in `features.yaml`. The `standard` database needs about 140
 
 ## On real data
 
-@sec-tutorial-read-annotate shows its real output formats, with a toy database that holds a single genome. Results on these data with a real database will come from a complete run on a cluster, as @sec-tutorial-waiting says.
+@sec-tutorial-read-annotate shows its real output formats, with a toy database that holds a single genome. @sec-tutorial-kraken2-real shows it with a real database of 8 GB, which classifies 3.36% of the read pairs of `ERR2019410`, and explains how to read that low number. Results with the complete database will come from a complete run on a cluster, as @sec-tutorial-waiting says.
 
 ## Pitfalls
 

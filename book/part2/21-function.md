@@ -155,12 +155,12 @@ As in DRAM, the rule sets its own `TMPDIR`, because of tRNAscan-SE. The comment 
 
 ## On real data
 
-This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+@sec-tutorial-bakta shows real output with the light database, which has far fewer known proteins than the full one. So its share of hypothetical proteins, 77% in that run, isn't what you'd get in a real one.
 
 ## Pitfalls
 
 - **Many contigs.** Bakta is meant for genomes, and on a large assembly, it takes a long time.
-- **Database version.** The database has to fit the version of the tool.
+- **Database version.** The database has to fit the version of the tool. This also goes for the AMRFinderPlus database inside it. If it doesn't fit, Bakta stops near its end, with `amrfinder error! error code: 1`, as @sec-tutorial-bakta shows. The command in that message solves it, and it's quicker to find this out with a small test.
 - **`--force`** overwrites the output folder, which is what the rules want here. Keep this in mind if you run it by hand.
 
 ## Reference
@@ -297,7 +297,7 @@ The rule needs at least two assemblies, so with a single assembly, it fails.
 
 ## On real data
 
-This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+@sec-tutorial-proteinortho shows real output, for the two assemblies of the small run. They share their reads, so the 793 groups in both aren't a real core genome.
 
 ## Reference
 

@@ -133,12 +133,13 @@ Three settings are important:
 
 ## On real data
 
-This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+@sec-tutorial-metaspades shows real output of this rule, on 1 million read pairs per sample, and it compares it with MEGAHIT. It confirms the problem with `-m` from above: the log says `Memory limit (in Gb): 6500`.
 
 ## Pitfalls
 
 - **Running out of memory** is the most common failure. The log's last lines tell you how far it got. To give it more, add a larger resource set to the rule in `escalation.yaml`.
 - **Restarting.** After a failure of the job, the working folder stays there. To use it, you could resume with `--continue`, but the rule doesn't do that.
+- **No minimum length.** MEGAHIT has `min_contig_len` in `params.yaml`, and this rule has nothing of the kind. On the same reads, it gives 24,362 contigs where MEGAHIT gives 549, with an N50 of 351 against 2,415. Above the same minimum length, the two are close. Compare only like with like, and remember that tools downstream get all those contigs too, as @sec-tutorial-4cac shows.
 - **Many small files.** These can be a real problem for shared file systems, and they are also a reason for packing them into an archive.
 
 ## Reference

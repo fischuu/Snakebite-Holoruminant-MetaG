@@ -9,6 +9,9 @@ Docker but no Apptainer and no cluster. Part IV of the book quotes the results.
 - `run.sh` runs targets in that project, one job at a time.
 - `show_results.sh` records what the book quotes into `../transcripts/real_tools.txt`.
 - `small_demos.sh` runs FastQC, Kraken2 and Krona by hand on a part of the reads, and records that into `../transcripts/real_tools_small_demos.txt`.
+- `extra_tools.sh` runs more tools with the pipeline's rules: those with a database small enough for a laptop, or with a small real alternative, and metaSPAdes in a copy of the project.
+- `native_fastqc.sh` runs the FastQC of the image on a native Java, on all the reads.
+- `show_extra.sh` records what the book quotes from those two into `../transcripts/real_tools_extra.txt`. It uses `compare_assemblies.py` and `compare_labels.py`, and `check_4cac_ids.py`, which checks the names in the table of 4CAC on real data.
 
 To use them, you need the subsets from the example archive, see `tests/real_run/README.md`:
 

@@ -51,12 +51,13 @@ The rule still contains a commented part for testing the escalation, and you can
 
 ## On real data
 
-This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+@sec-tutorial-sylph shows real output, with a database of only the genome from this run. It shows the columns and the behaviour at low coverage, but it can't show a real profile, which will come from a complete run on a cluster.
 
 ## Pitfalls
 
 - **The genome names are file names.** To get a taxonomy, you need the metadata of the database. For GTDB, the accession in `Genome_file` is the link.
 - **Abundance refers to what was found.** The percentages add up to 100 over the detected genomes, not over your whole sample. If much of the community isn't in the database, the percentages are too high in absolute terms.
+- **`Eff_lambda` isn't always a number.** It's `HIGH` at high coverage. So when you read several tables into a program, a column can have a different type in each of them, and joining them can fail. It stopped a whole report of this pipeline, as @sec-tutorial-found lists.
 - **A database of the wrong type.** Sketches made for short reads and for long reads are built with different settings. Use the right one.
 
 ## Reference

@@ -110,7 +110,7 @@ contributions from Raphael Eisenhofer and Amalia Toffano. We gratefully acknowle
   contain code taken directly from `mg_assembly`.
 - **The re-implementation.** Between August and November 2026 (starting with commit
   [`d3e207f`](https://github.com/fischuu/Snakebite-Holoruminant-MetaG/commit/d3e207f)) we re-implemented
-  that code. This was not a clean-room rewrite: it was done by a developer who knew the earlier code,
+  that code. This wasn't done from scratch: it was done by a developer who knew the earlier code,
   with AI assistance (Claude Code). The overall flow of the pipeline and the choice and order of tools
   for assembly, binning and dereplication still follow the design of `mg_assembly`, and some rule names,
   file names, result paths, the contig id format and individual lines remain the same or similar.
