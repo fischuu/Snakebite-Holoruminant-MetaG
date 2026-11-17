@@ -1,0 +1,440 @@
+### FastQC on all reads
+$ for f in results/reads/*_fastqc.zip results/preprocess/fastp/*_fastqc.zip results/preprocess/bowtie2/nonphix/*_fastqc.zip; do unzip -p $f '*/summary.txt' | awk -F '\t' -v f=$f '$1 != "PASS" {print $1, $2, f}'; done | sed 's#results/##; s#_fastqc.zip##'
+FAIL Per sequence GC content reads/ERR2019410.lib1_1
+WARN Overrepresented sequences reads/ERR2019410.lib1_1
+FAIL Per sequence GC content reads/ERR2019410.lib1_2
+FAIL Per sequence GC content reads/ERR2019412.lib1_1
+FAIL Per sequence GC content reads/ERR2019412.lib1_2
+FAIL Per base sequence content reads/ERR2019415.lib1_1
+FAIL Per sequence GC content reads/ERR2019415.lib1_1
+FAIL Per base sequence content reads/ERR2019415.lib1_2
+FAIL Per sequence GC content reads/ERR2019415.lib1_2
+FAIL Per sequence GC content preprocess/fastp/ERR2019410.lib1_1
+WARN Sequence Length Distribution preprocess/fastp/ERR2019410.lib1_1
+FAIL Per sequence GC content preprocess/fastp/ERR2019410.lib1_2
+WARN Sequence Length Distribution preprocess/fastp/ERR2019410.lib1_2
+FAIL Per sequence GC content preprocess/fastp/ERR2019412.lib1_1
+WARN Sequence Length Distribution preprocess/fastp/ERR2019412.lib1_1
+FAIL Per sequence GC content preprocess/fastp/ERR2019412.lib1_2
+WARN Sequence Length Distribution preprocess/fastp/ERR2019412.lib1_2
+FAIL Per base sequence content preprocess/fastp/ERR2019415.lib1_1
+FAIL Per sequence GC content preprocess/fastp/ERR2019415.lib1_1
+WARN Sequence Length Distribution preprocess/fastp/ERR2019415.lib1_1
+FAIL Per base sequence content preprocess/fastp/ERR2019415.lib1_2
+FAIL Per sequence GC content preprocess/fastp/ERR2019415.lib1_2
+WARN Sequence Length Distribution preprocess/fastp/ERR2019415.lib1_2
+FAIL Per sequence GC content preprocess/bowtie2/nonphix/ERR2019410.lib1_1
+WARN Sequence Length Distribution preprocess/bowtie2/nonphix/ERR2019410.lib1_1
+FAIL Per sequence GC content preprocess/bowtie2/nonphix/ERR2019410.lib1_2
+WARN Sequence Length Distribution preprocess/bowtie2/nonphix/ERR2019410.lib1_2
+FAIL Per sequence GC content preprocess/bowtie2/nonphix/ERR2019412.lib1_1
+WARN Sequence Length Distribution preprocess/bowtie2/nonphix/ERR2019412.lib1_1
+FAIL Per sequence GC content preprocess/bowtie2/nonphix/ERR2019412.lib1_2
+WARN Sequence Length Distribution preprocess/bowtie2/nonphix/ERR2019412.lib1_2
+FAIL Per base sequence content preprocess/bowtie2/nonphix/ERR2019415.lib1_1
+FAIL Per sequence GC content preprocess/bowtie2/nonphix/ERR2019415.lib1_1
+WARN Sequence Length Distribution preprocess/bowtie2/nonphix/ERR2019415.lib1_1
+FAIL Per base sequence content preprocess/bowtie2/nonphix/ERR2019415.lib1_2
+FAIL Per sequence GC content preprocess/bowtie2/nonphix/ERR2019415.lib1_2
+WARN Sequence Length Distribution preprocess/bowtie2/nonphix/ERR2019415.lib1_2
+
+$ unzip -p results/reads/ERR2019410.lib1_1_fastqc.zip '*/fastqc_data.txt' | sed -n '/^>>Basic Statistics/,/^>>END_MODULE/p' | cut -f 1,2
+>>Basic Statistics	pass
+#Measure	Value
+Filename	ERR2019410.lib1_1.fq.gz
+File type	Conventional base calls
+Encoding	Sanger / Illumina 1.9
+Total Sequences	1000000
+Total Bases	101 Mbp
+Sequences flagged as poor quality	0
+Sequence length	101
+%GC	44
+>>END_MODULE
+
+### Kraken2 and Krona with a real database
+$ cat results/read_annotate/kraken2/standard_08gb/ERR2019410.lib1.log
+Loading database information... done.
+935567 sequences (188.83 Mbp) processed in 102.557s (547.3 Kseq/m, 110.47 Mbp/m).
+  31464 sequences classified (3.36%)
+  904103 sequences unclassified (96.64%)
+
+$ head -n 12 results/read_annotate/kraken2/standard_08gb/ERR2019410.lib1.report
+ 96.64	904103	904103	U	0	unclassified
+  3.36	31464	2016	R	1	root
+  3.15	29444	73	R1	131567	  cellular organisms
+  3.10	28990	2166	D	2	    Bacteria
+  2.21	20668	3	D1	1783270	      FCB group
+  2.07	19328	15	D2	68336	        Bacteroidota/Chlorobiota group
+  2.06	19303	477	P	976	          Bacteroidota
+  1.98	18526	9	C	200643	            Bacteroidia
+  1.98	18498	577	O	171549	              Bacteroidales
+  1.78	16643	1000	F	171552	                Prevotellaceae
+  0.74	6924	883	G	838	                  Prevotella
+  0.34	3195	242	G1	2638335	                    unclassified Prevotella
+
+$ grep -h 'sequences classified' results/read_annotate/kraken2/standard_08gb/*.log
+  31464 sequences classified (3.36%)
+  30439 sequences classified (3.20%)
+  22570 sequences classified (2.36%)
+
+$ awk -F '\t' '$4 == "G"' results/read_annotate/kraken2/standard_08gb/ERR2019410.lib1.report | sort -t $'\t' -k 2,2nr | head -n 8
+  0.74	6924	883	G	838	                  Prevotella
+  0.65	6107	3255	G	2974251	                  Segatella
+  0.25	2306	0	G	558436	                  Xylanibacter
+  0.14	1337	0	G	832	                Fibrobacter
+  0.06	549	0	G	2815786	                  Sodaliphilus
+  0.04	399	88	G	816	                  Bacteroides
+  0.04	382	7	G	906	                Megasphaera
+  0.04	373	5	G	2767893	                Lentilactobacillus
+
+$ grep -c '<node name=' results/read_annotate/krona/standard_08gb/ERR2019410.lib1.html
+3267
+
+### DIAMOND with CAZy
+$ tail -n 3 results/read_annotate/diamond/cazy_ERR2019410_lib1.log
+Total time = 1028.16s
+Reported 43776 pairwise alignments, 43776 HSPs.
+43776 queries aligned.
+
+$ head -n 3 results/read_annotate/diamond/cazy/ERR2019410.lib1_R1.out
+ERR2019410.11/1	AHW60282.1|GH43_19|GH43_34	64.5	31	10	1	91	2	580	610	2.99e-04	40.8
+ERR2019410.34/1	QUO23328.1|GT51	71.0	31	9	0	7	99	450	480	2.20e-07	49.7
+ERR2019410.40/1	UWP19973.1|GT5	84.8	33	5	0	100	2	144	176	5.53e-15	71.2
+
+$ wc -l results/read_annotate/diamond/cazy/*.out
+   43797 results/read_annotate/diamond/cazy/ERR2019410.lib1_R1.out
+   43776 results/read_annotate/diamond/cazy/ERR2019410.lib1_R2.out
+   50996 results/read_annotate/diamond/cazy/ERR2019412.lib1_R1.out
+   50981 results/read_annotate/diamond/cazy/ERR2019412.lib1_R2.out
+   39963 results/read_annotate/diamond/cazy/ERR2019415.lib1_R1.out
+   39801 results/read_annotate/diamond/cazy/ERR2019415.lib1_R2.out
+  269314 total
+
+$ head -n 3 results/read_annotate/diamond/cazy/summary_a.tsv | cut -f 1-3
+Feature	ERR2019410.lib1_R1.out	ERR2019410.lib1_R2.out
+2.4.1.20	7	13
+2.4.1.241	3	2
+
+$ head -n 3 results/read_annotate/diamond/cazy/summary_b.tsv | cut -f 1-3
+Feature	ERR2019410.lib1_R1.out	ERR2019410.lib1_R2.out
+2.4.1.20	3.5	6.5
+2.4.1.241	1.5	1
+
+$ tail -n +2 results/read_annotate/diamond/cazy/summary_a.tsv | awk -F '\t' '{s = 0; for (i = 2; i <= NF; i++) if ($i != "NA") s += $i; print s, $1}' | sort -nr | head -n 5
+25757 GT2
+14493 GH2
+14109 GT4
+12161 GH3
+6157 CBM48
+
+$ for f in a b; do awk -F '\t' -v f=$f 'NR > 1 && $2 != "NA" {s += $2} END {print "summary_" f, s}' results/read_annotate/diamond/cazy/summary_$f.tsv; done
+summary_a 51154
+summary_b 43797
+
+$ cut -f 1,2 results/read_annotate/diamond/benchmark/cazy_ERR2019410_lib1.tsv
+s	h:m:s
+2062.4895	0:34:22
+
+### DIAMOND with HydDB
+$ tail -n 2 results/contig_annotate/diamond/hyddb_coasm.log
+Reported 0 pairwise alignments, 0 HSPs.
+0 queries aligned.
+
+### sylph, with a database of the run's own genome
+$ cut -f 2,3,4,5,6,8,12 results/read_annotate/sylph/ERR2019410.lib1.profiling.tsv | sed 's#results/assemble/drep/dereplicated_genomes/##'
+Genome_file	Taxonomic_abundance	Sequence_abundance	Adjusted_ANI	Eff_cov	Eff_lambda	Containment_ind
+coasm:bin_000001.fa.gz	100.0000	100.0000	99.85	3.263	HIGH	6556/6874
+
+$ cut -f 3,5,6,8,12 results/read_annotate/sylph/ERR2019412.lib1.profiling.tsv
+Taxonomic_abundance	Adjusted_ANI	Eff_cov	Eff_lambda	Containment_ind
+100.0000	100.00	0.582	0.582	3086/6874
+
+$ cut -f 3,5,6,8,12 results/read_annotate/sylph/ERR2019415.lib1.profiling.tsv
+Taxonomic_abundance	Adjusted_ANI	Eff_cov	Eff_lambda	Containment_ind
+100.0000	99.05	0.215	0.215	991/6874
+
+### phyloFlash
+$ tar -xzOf results/read_annotate/phyloflash/ERR2019410_lib1.phyloFlash.tar.gz ERR2019410_lib1.phyloFlash.report.csv | sed -n '8,12p;18,21p'
+input reads,933448
+input read segments,1866896
+mapped SSU reads,1586
+mapped SSU read segments,2671
+mapping ratio,0.170
+NTUs observed once,8
+NTUs observed twice,4
+NTUs observed three or more times,32
+NTU Chao1 richness estimate,40.000
+
+$ tar -xzOf results/read_annotate/phyloflash/ERR2019410_lib1.phyloFlash.tar.gz ERR2019410_lib1.phyloFlash.NTUabundance.csv | head -n 8
+Bacteria;Bacteroidota;Bacteroidia;Bacteroidales,745
+Bacteria;Pseudomonadota;Gammaproteobacteria;Enterobacterales,169
+Bacteria;Bacillota;Clostridia;Lachnospirales,149
+Bacteria;(Bacteria);(Bacteria);(Bacteria),124
+Bacteria;Bacillota;Clostridia;Oscillospirales,59
+Eukaryota;SAR;Alveolata;Ciliophora,42
+Bacteria;Bacillota;Negativicutes;Veillonellales-Selenomonadales,36
+Bacteria;Fibrobacterota;Fibrobacteria;Fibrobacterales,34
+
+$ for l in ERR2019410 ERR2019412 ERR2019415; do tar -xzOf results/read_annotate/phyloflash/${l}_lib1.phyloFlash.tar.gz ${l}_lib1.phyloFlash.NTUabundance.csv | grep -i '^Eukaryota' | head -n 3; echo; done
+Eukaryota;SAR;Alveolata;Ciliophora,42
+Eukaryota;(Eukaryota);(Eukaryota);(Eukaryota),6
+Eukaryota;Amorphea;Obazoa;Opisthokonta,3
+
+Eukaryota;SAR;Alveolata;Ciliophora,54
+Eukaryota;(Eukaryota);(Eukaryota);(Eukaryota),5
+Eukaryota;SAR;(SAR);(SAR),3
+
+Eukaryota;SAR;Alveolata;Ciliophora,127
+Eukaryota;(Eukaryota);(Eukaryota);(Eukaryota),20
+Eukaryota;SAR;(SAR);(SAR),8
+
+
+$ grep -m 1 'Walltime' results/read_annotate/phyloflash/ERR2019410_lib1.phyloFlash.log
+[00:36:18] Walltime used: 6.30 minutes with 8 CPU cores
+
+$ for l in ERR2019410 ERR2019412 ERR2019415; do tar -xzOf results/read_annotate/phyloflash/${l}_lib1.phyloFlash.tar.gz ${l}_lib1.phyloFlash.report.csv | grep '^NTU' | cut -d , -f 2 | xargs; done
+8 4 32 40.000
+11 7 27 35.643
+15 4 30 58.125
+
+$ grep -A 1 'SPAdes exited' results/read_annotate/phyloflash/ERR2019410_lib1.phyloFlash.log
+[00:36:16] SPAdes exited with error, this may happen if no sequences were
+	   assembled Possible causes include coverage per sequence too low
+
+$ tar -xzOf results/read_annotate/phyloflash/ERR2019410_lib1.phyloFlash.tar.gz ERR2019410_lib1.spades.out | grep -m 1 'qemu'
+qemu: uncaught target signal 11 (Segmentation fault) - core dumped
+
+### CheckM2
+$ cut -f 1,2,3,4,6 results/mag_annotate/checkm2/quality_report.tsv
+Name	Completeness	Contamination	Completeness_Model_Used	Coding_Density
+coasm:bin_000001.fa	61.5	0.09	Gradient Boost (General Model)	0.871
+
+$ cut -f 1,2 results/mag_annotate/checkm2/benchmark.tsv
+s	h:m:s
+1066.8746	0:17:46
+
+### Bakta, with the light database
+$ cat results/mag_annotate/bakta/bakta.txt
+Sequence(s):
+Length: 1647187
+Count: 554
+GC: 56.9
+N50: 3208
+N ratio: 0.0
+coding density: 69.6
+
+Annotation:
+tRNAs: 16
+tmRNAs: 1
+rRNAs: 3
+ncRNAs: 4
+ncRNA regions: 3
+CRISPR arrays: 0
+CDSs: 1539
+pseudogenes: 0
+hypotheticals: 1180
+signal peptides: 0
+sORFs: 0
+gaps: 0
+oriCs: 0
+oriVs: 0
+oriTs: 0
+
+Bakta:
+Software: v1.9.3
+Database: v5.1, light
+DOI: 10.1099/mgen.0.000685
+URL: github.com/oschwengers/bakta
+
+$ sed -n '6,8p' results/mag_annotate/bakta/bakta.tsv
+#Sequence Id	Type	Start	Stop	Strand	Locus Tag	Gene	Product	DbXrefs
+contig_1	cds	470	721	-	MGKAHE_00005		hypothetical protein	
+contig_1	cds	1001	1498	-	MGKAHE_00010		hypothetical protein	
+
+$ grep -c 'hypothetical protein' results/mag_annotate/bakta/bakta.tsv
+1180
+
+$ grep 'EXPERT-AMRFINDER' results/mag_annotate/bakta/bakta.log | cut -d ' ' -f 3-
+INFO - EXPERT-AMRFINDER - found=1
+
+$ cut -f 1,2 results/mag_annotate/bakta/benchmark.tsv
+s	h:m:s
+1277.6554	0:21:17
+
+### Proteinortho
+$ head -n 3 results/mag_annotate/proteinortho/proteinortho.proteinortho.tsv
+# Species	Genes	Alg.-Conn.	bakta_ERR2019410.faa	bakta_coasm.faa
+2	3	0.33	KEMBFC_00025	MGKAHE_01270,MGKAHE_07345
+2	3	0.33	KEMBFC_00030	MGKAHE_01955,MGKAHE_01265
+
+$ sed -n '/^# number of groups for each/,/^$/p' results/mag_annotate/proteinortho/proteinortho.proteinortho-graph.summary
+# number of groups for each input species:
+bakta_ERR2019410.faa	793	100%
+bakta_coasm.faa	793	100%
+
+
+### REMAG, on the co-assembly of MEGAHIT
+$ grep -E 'Using device|Processed' results/eukaryote/remag/coasm.filter.log | perl -pe 's/\e\[[0-9;]*m//g' | cut -d '|' -f 3-
+ Using device: cpu
+ Processed 900 sequences: kept 67 eukaryotic, filtered 833 non-eukaryotic
+
+$ cut -f 1,2 results/eukaryote/remag/benchmark/coasm.filter.tsv
+s	h:m:s
+10779.9882	2:59:39
+
+$ head -n 3 results/eukaryote/remag/coasm.tsv
+contig_id	length	prediction	eukaryote_prob	confidence	num_windows	resampled
+coasm:bin_NA@contig_00000001	2134	non_eukaryote	0.1198	1.0000	4	False
+coasm:bin_NA@contig_00000002	1555	non_eukaryote	0.2050	0.7500	4	False
+
+$ cut -f 3 results/eukaryote/remag/coasm.tsv | tail -n +2 | sort | uniq -c
+  67 eukaryote
+ 833 non_eukaryote
+
+$ cat results/eukaryote/remag/coasm.bin.log
+141484 bp classified eukaryotic
+below min_bin_size (500000 bp), no bin possible; skipping REMAG binning
+
+$ python3 "book/examples/real_tools/compare_labels.py" results/eukaryote/tiara/coasm.tsv results/eukaryote/remag/coasm.tsv
+Tiara	eukaryote	non_eukaryote
+archaea	5	105
+bacteria	37	686
+eukarya	23	17
+prokarya	0	22
+unknown	2	3
+contigs compared: 900
+
+### metaSPAdes
+$ grep -m 1 'Memory limit' results/assemble/metaspades/coasm.log
+  Memory limit (in Gb): 6500
+
+$ grep -m 1 'Thread limit\|Threads:' results/assemble/metaspades/coasm.log
+  Threads: 8
+
+$ cut -f 1,2 results/assemble/metaspades/benchmark/coasm.tsv
+s	h:m:s
+3542.5559	0:59:02
+
+$ cut -f 1,2 results/assemble/metaspades/benchmark/ERR2019410.tsv
+s	h:m:s
+1040.5718	0:17:20
+
+$ ls -l results/assemble/metaspades | awk '{print $5, $9}' | grep -E 'coasm|ERR2019410.fa.gz|ERR2019410.tar.gz'
+2727751 ERR2019410.fa.gz
+74330275 ERR2019410.tar.gz
+9033201 coasm.fa.gz
+158354 coasm.log
+256472735 coasm.tar.gz
+136260379 coasm_R1_concat.fastq.gz
+139969490 coasm_R2_concat.fastq.gz
+
+$ gzip -dc results/assemble/metaspades/ERR2019410.fa.gz | awk '/^>/ {if (l) print l; l = 0; next} {l += length($0)} END {print l}' | sort -nr | awk '{n++; s += $1; if ($1 >= 200) a++; if ($1 >= 500) b++; if ($1 >= 1000) c++; if ($1 >= 1500) d++; if ($1 >= 1500) e += $1} END {print "contigs", n, "bases", s; print ">= 200", a; print ">= 500", b; print ">= 1000", c; print ">= 1500", d, "bases", e}'
+contigs 24362 bases 9221847
+>= 200 23781
+>= 500 3134
+>= 1000 1091
+>= 1500 625 bases 1705476
+
+$ gzip -dc results/assemble/metaspades/coasm.fa.gz | awk '/^>/ {if (l) print l; l = 0; next} {l += length($0)} END {print l}' | sort -nr | awk '{n++; s += $1; if ($1 >= 200) a++; if ($1 >= 500) b++; if ($1 >= 1000) c++; if ($1 >= 1500) d++; if ($1 >= 1500) e += $1} END {print "contigs", n, "bases", s; print ">= 200", a; print ">= 500", b; print ">= 1000", c; print ">= 1500", d, "bases", e}'
+contigs 94759 bases 30435788
+>= 200 92558
+>= 500 7697
+>= 1000 1701
+>= 1500 914 bases 2663152
+
+### Tiara on metaSPAdes
+$ sed -n '1,7p' results/eukaryote/tiara/log_coasm.tsv
+First iteration statistics:
+	archaea: 209
+	bacteria: 1308
+	eukarya: 115
+	organelle: 2
+	prokarya: 47
+	unknown: 20
+
+$ sed -n '1,7p' results/eukaryote/tiara/log_ERR2019410.tsv
+First iteration statistics:
+	archaea: 177
+	bacteria: 827
+	eukarya: 49
+	organelle: 1
+	prokarya: 28
+	unknown: 9
+
+### 4CAC
+$ head -n 3 results/eukaryote/4cac/ERR2019410.tsv | cut -f 1,2,3,6,7
+contig_id	node_id	class	prokar_score	eukar_score
+ERR2019410:bin_NA@contig_00000001	NODE_1_length_13170_cov_2.378040	prokarya	0.9285428	0.00038095997
+ERR2019410:bin_NA@contig_00000002	NODE_2_length_12608_cov_2.439417	prokarya	0.34207305	0.0016502232
+
+$ cut -f 3 results/eukaryote/4cac/ERR2019410.tsv | tail -n +2 | sort | uniq -c | sort -nr
+11402 prokarya
+9106 uncertain
+2881 eukarya
+ 972 phage
+   1 plasmid
+
+$ grep -E 'contigs contained|corrected|propagation' results/eukaryote/4cac/ERR2019410.log
+24362 contigs contained in the path file: results/eukaryote/4cac/ERR2019410/scaffolds.paths
+0 edge need to be corrected! 
+Complete the correction step. 0.000 classified edges were corrected, and 0.000 with >2 supporting neighbors!
+Complete the propagation step. 210.000 uncertain edges were classified, and 21.000 with >1 supporting neighbors!
+
+$ cut -f 1,2 results/eukaryote/4cac/benchmark/ERR2019410.tsv
+s	h:m:s
+121.2807	0:02:01
+
+$ grep -E 'Read [0-9]+ sequences|Killed' results/eukaryote/4cac/coasm.log.try1 | cut -c 1-60
+Read 94759 sequences
+
+$ tail -n 1 results/eukaryote/4cac/coasm.log.try3
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+$ python3 "book/examples/real_tools/check_4cac_ids.py" results/eukaryote/4cac/ERR2019410.tsv results/assemble/metaspades/ERR2019410.fa.gz
+contigs in the assembly: 24362
+lines in the table: 24362
+not in the assembly: 0
+with another length: 0
+
+$ python3 "book/examples/real_tools/compare_labels.py" results/eukaryote/tiara/ERR2019410.tsv results/eukaryote/4cac/ERR2019410.tsv
+Tiara	eukarya	phage	prokarya	uncertain
+archaea	17	5	129	26
+bacteria	54	19	653	101
+eukarya	24	8	6	11
+organelle	0	0	1	0
+prokarya	4	0	19	5
+unknown	1	2	5	1
+contigs compared: 1091
+
+### Two runs of the same project
+$ cd "first" && gzip -dc results/preprocess/bowtie2/decontaminated_reads/ERR2019410.lib1_1.fq.gz | md5
+b0a3a6901857fdb0231b2c6ef181bd47
+
+$ cd "second" && gzip -dc results/preprocess/bowtie2/decontaminated_reads/ERR2019410.lib1_1.fq.gz | md5
+b0a3a6901857fdb0231b2c6ef181bd47
+
+$ python3 "book/examples/real_tools/compare_assemblies.py" "first/results/assemble/megahit/coasm.fa.gz" "second/results/assemble/megahit/coasm.fa.gz"
+contigs: 900 and 901
+bases: 2480429 and 2481971
+same contigs in the same order: False
+only in the first: 0 contigs, 0 bases
+only in the second: 1 contigs, 1542 bases
+
+$ python3 "book/examples/real_tools/compare_assemblies.py" "first/results/assemble/megahit/ERR2019410.fa.gz" "second/results/assemble/megahit/ERR2019410.fa.gz"
+contigs: 549 and 549
+bases: 1370369 and 1370369
+same contigs in the same order: False
+only in the first: 1 contigs, 2192 bases
+only in the second: 1 contigs, 2192 bases
+
+$ ls "first/results/assemble/metabat2/coasm" "second/results/assemble/metabat2/coasm"
+second/results/assemble/metabat2/coasm:
+bin.1.fa.gz
+bin.2.fa.gz
+
+first/results/assemble/metabat2/coasm:
+bin.1.fa.gz
+
+$ python3 "tests/real_tools/check_results.py" "second"
+All 41 values as expected
+

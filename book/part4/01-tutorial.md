@@ -1321,6 +1321,60 @@ coasm:bin_NA@contig_00000001	bacteria	n/a
 coasm:bin_NA@contig_00000002	bacteria	n/a
 ```
 
+### REMAG {#sec-tutorial-remag}
+
+REMAG, the third tool, ran on the same co-assembly of MEGAHIT, with the pipeline's rules and `extra_tools.sh <project> remag`. It took two settings that only this computer needs. Intel's OpenMP, in REMAG's container, can't read the layout of the processor under emulation and aborts, so `KMP_AFFINITY=disabled` turns that off. And with the default `hyenadna_batch_size` of 1024, the job was killed three times after 16 minutes, so the run used 16. Neither is needed on a cluster.
+
+Its classifier is a language model of DNA, and here it ran on the processor, as nothing else is available:
+
+```text
+$ grep -E 'Using device|Processed' results/eukaryote/remag/coasm.filter.log | perl -pe 's/\e\[[0-9;]*m//g' | cut -d '|' -f 3-
+ Using device: cpu
+ Processed 900 sequences: kept 67 eukaryotic, filtered 833 non-eukaryotic
+```
+
+That took three hours for 900 contigs, under emulation, which is why REMAG's resource sets can escalate to `longrun`:
+
+```text
+$ cut -f 1,2 results/eukaryote/remag/benchmark/coasm.filter.tsv
+s	h:m:s
+10779.9882	2:59:39
+```
+
+Its table has a line per contig, with the probability and how sure it is:
+
+```text
+$ head -n 3 results/eukaryote/remag/coasm.tsv
+contig_id	length	prediction	eukaryote_prob	confidence	num_windows	resampled
+coasm:bin_NA@contig_00000001	2134	non_eukaryote	0.1198	1.0000	4	False
+coasm:bin_NA@contig_00000002	1555	non_eukaryote	0.2050	0.7500	4	False
+```
+
+The eukaryotic contigs add up to too little for a bin, so the rule skipped the binning, as @sec-module-eukaryote explains:
+
+```text
+$ cat results/eukaryote/remag/coasm.bin.log
+141484 bp classified eukaryotic
+below min_bin_size (500000 bp), no bin possible; skipping REMAG binning
+```
+
+This is the expected outcome for a run this small, and not an error. A eukaryotic genome needs far more sequence than 141 kb, and the full data will show whether there's enough of it there.
+
+How do REMAG and Tiara compare on the same 900 contigs? Tiara's labels are in the rows, and REMAG's in the columns:
+
+```text
+$ python3 "book/examples/real_tools/compare_labels.py" results/eukaryote/tiara/coasm.tsv results/eukaryote/remag/coasm.tsv
+Tiara	eukaryote	non_eukaryote
+archaea	5	105
+bacteria	37	686
+eukarya	23	17
+prokarya	0	22
+unknown	2	3
+contigs compared: 900
+```
+
+Tiara calls 40 contigs eukaryotic and REMAG 67, and 23 are in both. This is the same picture as with 4CAC below: the tools agree on most prokaryotic contigs, and much less on the eukaryotic ones. So treat a contig that only one tool calls eukaryotic as a suggestion. The run on `ERR2019410` didn't finish here, as it reached the time limit of four hours that this run gave REMAG.
+
 ### Tiara and 4CAC on metaSPAdes {#sec-tutorial-4cac}
 
 4CAC needs the assembly graph of metaSPAdes, so it ran in the project of @sec-tutorial-metaspades. Tiara ran there too, so that the two can be compared on the same contigs. Tiara only looks at contigs of at least 1,000 bases, because of `min_len` in `params.yaml`:
@@ -1499,6 +1553,6 @@ These parts have no real output on these data in this book yet. When the complet
 | `mag_annotate` | CAMPER | It works on the output of DRAM |
 | `mag_annotate` | Bakta with the full database | 73 GB as a download. Shown here with the light one |
 | `eukaryote` | 4CAC on the co-assembly | Memory, with 94,759 contigs. Shown here on `ERR2019410` |
-| `eukaryote` | REMAG | REMAG_WAITING |
+| `eukaryote` | REMAG's bins, and REMAG on `ERR2019410` | The co-assembly had 141 kb of eukaryotic contigs, too little for a bin, and `ERR2019410` reached the time limit of this run. Shown here: REMAG's classification of the co-assembly |
 
 Run times and memory on real hardware will come from that run too, from `sacct`.

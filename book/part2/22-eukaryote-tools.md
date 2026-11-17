@@ -161,7 +161,7 @@ Two precautions in these rules are worth noting:
 
 ## On real data
 
-This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+@sec-tutorial-remag shows real output on the co-assembly of the small run: 67 of 900 contigs called eukaryotic, 23 of them also by Tiara. Their 141 kb were too little for a bin, so binning was skipped, and the bins will come from a complete run on a cluster.
 
 ## Pitfalls
 
