@@ -388,7 +388,7 @@ Target rule: it runs nothing itself and only asks for these files.
 
 **`read_annotate__kraken2__assign`**
 
-Classify every sample against one kraken2 database in a single job kraken2 has no way to keep the database resident across multiple single-sample invocations, so it's staged once onto fast local storage (/dev/shm, falling back to NVMe, falling back to running in place on the final retry) and every sample is classified against that one copy. NOTE: if the job is killed, a staged copy may be left behind in /dev/shm.
+Classify every sample against one kraken2 database in a single job kraken2 has no way to keep the database resident across multiple single-sample invocations, so it's staged once onto fast local storage (/dev/shm, falling back to NVMe, falling back to running in place on the final retry) and every sample is classified against that one copy. The copy goes to a folder of the job's own and is removed however the job ends, except when it's killed with SIGKILL.
 
 - input: `forwards=[FASTP / f"{sample_id}.{library_id}_1.fq.gz" for sample_id, library_id in SAMPLE_LIBRARY]`
 - input: `reverses=[FASTP / f"{sample_id}.{library_id}_2.fq.gz" for sample_id, library_id in SAMPLE_LIBRARY]`
@@ -1576,7 +1576,7 @@ Find homolog genes in data (EGGNOG).
 
 **`contig_annotate__eggnog_orthology_chunk`**
 
-Annotate eggnog hits table per chunk (EGGNOG) using /dev/shm for speed, with usage counter to ensure DB is only deleted once all jobs are finished.
+Annotate eggnog hits table per chunk (EGGNOG) using /dev/shm for speed. The chunk jobs on a node share one copy of the DB, guarded by flock and a count of the jobs using it, and the last job removes it.
 
 - input: `seed=CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.seed_orthologs"`
 - output: `annotation=CONTIG_EGGNOG / "{assembly_id}/Chunks/prodigal.chunk.{i}.emapper.annotations"`

@@ -34,11 +34,12 @@ rule assemble__magscot__prodigal:
         # config tmp_storage, which resolves to the same) is a per-job path of the real host /tmp,
         # which the container cannot see, because its /tmp is bind-mounted to the project's tmp/
         # folder (see --singularity-args in the run script). So use an own folder in the
-        # container's /tmp, unique per job as that folder is shared by all running jobs. A killed
-        # job leaves it behind.
-        TMPDIR="/tmp/magscot_prodigal.{wildcards.assembly_id}.{resources.attempt}.$$"
+        # container's /tmp, unique per job as that folder is shared by all running jobs (mktemp
+        # makes a new, unique one), and removed however the job ends.
+        TMPDIR=$(mktemp -d "/tmp/magscot_prodigal.{wildcards.assembly_id}.XXXXXX")
         export TMPDIR
-        mkdir -p "$TMPDIR"
+        trap 'rm -rf "$TMPDIR"' EXIT
+        trap 'exit 143' TERM INT
         debug "TMPDIR=$TMPDIR"
 
         zcat {input} \

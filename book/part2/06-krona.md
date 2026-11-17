@@ -48,7 +48,7 @@ In a test with the real tool and the pipeline's taxonomy database, on a small re
 
 ## On real data
 
-@sec-tutorial-read-annotate shows it drawing a real report of Kraken2, with a toy database. Charts on these data with a real database will come from a complete run on a cluster, as @sec-tutorial-waiting says.
+@sec-tutorial-read-annotate shows it drawing a real report of Kraken2, with a toy database, and @sec-tutorial-kraken2-real with a real database of 8 GB. Charts with the complete database will come from a complete run on a cluster, as @sec-tutorial-waiting says.
 
 ## Pitfalls
 

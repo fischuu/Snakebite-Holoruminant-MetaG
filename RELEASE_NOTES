@@ -1,3 +1,41 @@
+# Version 0.6.1
+################################################################################
+
+A critical fix for runs with many jobs at once, and for all users of 0.6.0 and earlier.
+
+Jobs that run on the same node got in each other's way when they copied a database to fast storage (copy_dbs: "True"):
+
+- All DIAMOND jobs of read_annotate and contig_annotate copied a database into the same folder, such as /dev/shm/hyddb.
+  When two of them copied at the same moment, one failed with "cp: cannot create regular file ...: File exists", and the
+  first one to finish removed the database while others still read it. The error only showed in
+  <log>.try1, while the log of the rule stayed empty.
+- The eggNOG chunk jobs of contig_annotate share one copy per node. If the job that copied it was killed, the others
+  waited until their time limit. A job that failed never counted itself out, so the copy stayed in memory.
+- Copies on the local disk were never removed by DIAMOND, Kraken2, the eggNOG search and CAMPER, and eggNOG-mapper on
+  MAGs only removed its copy on success. Inside the container, $TMPDIR is in the project's tmp folder on /scratch, so
+  these copies fill the project's quota.
+
+Now each job copies into a folder of its own, made with mktemp, and a trap removes it however the job ends: when it's
+done, when a command fails, or when SLURM ends it at its time limit. The eggNOG chunk jobs still share a copy, now
+guarded by flock, so a job that dies releases its lock and the next one copies again. bakta, DRAM and MAGScoT use
+unique temporary folders in the container's /tmp, which the jobs on all nodes share.
+
+Nothing to change in your project. Snakemake runs the failed jobs again.
+
+Check your DIAMOND results if several DIAMOND jobs ran at the same time with copy_dbs: "True". A job could read the
+database while another job copied the same database over it. This most likely ended in an error, but incomplete hits
+can't be ruled out. To be sure, run the DIAMOND rules again, for example
+
+   bash run_Snakebite-Holoruminant-MetaG.sh contig_annotate__diamond --forcerun contig_annotate__diamond__assign
+   bash run_Snakebite-Holoruminant-MetaG.sh read_annotate__diamond --forcerun read_annotate__diamond__assign
+
+Clean up after earlier versions: copies from finished jobs may still use space in your project's tmp folder,
+for example
+
+   du -sh /scratch/<project>/<run folder>/tmp
+
+and you can remove the eggnog_data folders and the folders of databases there once no job of the pipeline runs.
+
 # Version 0.6.0
 ################################################################################
 

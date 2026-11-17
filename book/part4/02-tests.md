@@ -8,7 +8,7 @@
 
 ## The DIAMOND test
 
-`tests/diamond_staging/run_test.sh` needs only Docker. It runs the real rules `read_annotate__diamond__assign` and `contig_annotate__diamond__assign` with a stand-in for `diamond`. It checks where the database comes from in each situation: without any fast storage, with one and with two resource sets, with `copy_dbs: "False"`, and with a copy in `/dev/shm` or on the local disk. On the rules before version 0.4.69, 8 of its checks fail.
+`tests/diamond_staging/run_test.sh` needs only Docker. It runs the real rules `read_annotate__diamond__assign` and `contig_annotate__diamond__assign` with a stand-in for `diamond`. It checks where the database comes from in each situation: without any fast storage, with one and with two resource sets, with `copy_dbs: "False"`, and with a copy in `/dev/shm` or on the local disk. It also checks that each job copies into a folder of its own, leaves another job's copy alone, and removes its copy also when DIAMOND fails. On the rules before version 0.4.69, 8 of its checks fail.
 
 ## The Krona test
 
@@ -22,7 +22,7 @@
 
 `run_test.sh <subsets> <new project>` makes such a project from scratch and then runs the check. This takes hours under emulation.
 
-Each number has a tolerance in `expected.tsv`. It's 0 where a tool gives the same result each time, 5% for the assemblies, and 50% for the number of bins.
+Each number has a tolerance in `expected.tsv`. It's 0 up to the clean reads, where tools give the same result each time. It's 5% for the assemblies and for all that directly follows from their contigs, such as the genes from Prodigal and the contigs from Tiara. And it's 50% for the number of bins, but at least one bin. These tolerances come from a second, real run, which @sec-tutorial-repeat describes: with identical clean reads, MEGAHIT made one more contig, Prodigal found one more gene, and MetaBAT2 found one more bin.
 
 When a difference is right, because you meant to change something, run `check_results.py <project> --write`, and say why in the commit. Look at the differences first, as this is the whole point of the test. When a number changes, ask why.
 

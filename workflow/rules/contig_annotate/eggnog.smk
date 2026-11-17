@@ -41,7 +41,12 @@ rule contig_annotate__eggnog_find_homology:
             db_size=$(du -cbL {params.fa}/eggnog* | tail -n 1 | cut -f1)
             tmp_avail=$(df --output=avail -B1 "$DATA_DIR" | tail -n 1)
             if [ "$db_size" -lt "$tmp_avail" ]; then
-                cp {params.fa}/eggnog* {params.tmp} &> {log}
+                # A folder of this job's own, removed again however the job ends (before, the
+                # copy was never removed, and in the container $TMPDIR is on /scratch)
+                DATA_DIR=$(mktemp -d "$DATA_DIR/eggnog_db.XXXXXX")
+                trap 'rm -rf "$DATA_DIR"' EXIT
+                trap 'exit 143' TERM INT
+                cp {params.fa}/eggnog* "$DATA_DIR"/ &> {log}
             else
                 DATA_DIR=""
             fi
@@ -58,8 +63,9 @@ rule contig_annotate__eggnog_find_homology:
 
 rule contig_annotate__eggnog_orthology_chunk:
     """
-    Annotate eggnog hits table per chunk (EGGNOG) using /dev/shm for speed,
-    with usage counter to ensure DB is only deleted once all jobs are finished.
+    Annotate eggnog hits table per chunk (EGGNOG) using /dev/shm for speed. The chunk jobs
+    on a node share one copy of the DB, guarded by flock and a count of the jobs using it,
+    and the last job removes it.
     """
     input:
         seed=CONTIG_EGGNOG
@@ -94,89 +100,79 @@ rule contig_annotate__eggnog_orthology_chunk:
         nvme=config["nvme_storage"],
     shell:
         """
-      debug "assembly_id={wildcards.assembly_id} chunk={wildcards.i} threads={threads} copy_dbs={params.copy_dbs} run_in_shm={params.run_in_shm}" 2>> {log}
+        exec >> {log} 2>&1
+        debug "assembly_id={wildcards.assembly_id} chunk={wildcards.i} threads={threads} copy_dbs={params.copy_dbs} run_in_shm={params.run_in_shm}"
 
-      # check if dbs should be copied, otherwise use the original location
-        if [ {params.copy_dbs} = "True" ]; then
-        
-          # check first which destination to use (shm or nvme)
+        DATA_DIR="{params.fa}"
+        REGISTERED=false
+        if [ "{params.copy_dbs}" = "True" ]; then
             if [ "{params.run_in_shm}" = "True" ]; then
-              echo "Config allowed /dev/shm use for this rule" 2>> {log} 1>&2
-              DATA_DIR="{params.shm}/eggnog_data"
+                echo "Config allowed /dev/shm use for this rule"
+                DATA_DIR="{params.shm}/eggnog_data"
             else
-              echo "Config disallowed /dev/shm use for this rule, using nvme space instead" 2>> {log} 1>&2
-              DATA_DIR="{params.nvme}/eggnog_data"
-            fi          
-            
-          # Initiate the copy and chunk running
-            LOCK_FILE="$DATA_DIR/.lock"
-            DONE_FILE="$DATA_DIR/.done"
-            COUNTER_FILE="$DATA_DIR/.counter"
-    
-            mkdir -p $DATA_DIR
-    
-            # === Increment counter safely ===
-            (
-                flock -x 200
-                COUNT=0
-                if [ -f "$COUNTER_FILE" ]; then
-                    COUNT=$(cat "$COUNTER_FILE")
-                fi
-                COUNT=$((COUNT + 1))
-                echo $COUNT > "$COUNTER_FILE"
-                echo "Incremented counter: $COUNT jobs using DB" >> {log}
-                debug "reference count now $COUNT for $DATA_DIR" 2>> {log}
-            ) 200>"$COUNTER_FILE.lock"
-    
-            # === Copy DB if not already done ===
-            if [ ! -f "$DONE_FILE" ]; then
-                if mkdir "$LOCK_FILE" 2>/dev/null; then
-                    echo "This job has the lock, copying DB..." >> {log}
-                    cp -r {params.fa}/* $DATA_DIR/ >> {log} 2>&1
-                    touch "$DONE_FILE"
-                    rmdir "$LOCK_FILE"
-                else
-                    echo "Another job is copying the DB, waiting..." >> {log}
-                    while [ ! -f "$DONE_FILE" ]; do
-                        sleep 30
-                    done
-                fi
+                echo "Config disallowed /dev/shm use for this rule, using nvme space instead"
+                DATA_DIR="{params.nvme}/eggnog_data"
             fi
-      # If db copy is not requested, use the original location
-        else 
-            DATA_DIR={params.fa}
+
+            # All chunk jobs on a node share one staged copy of the database. The lock and the
+            # count of jobs using the copy are kept next to it, not inside it, so all jobs lock
+            # the same file, also while the copy is removed or made again.
+            LOCK_FILE="$DATA_DIR.lock"
+            COUNTER_FILE="$DATA_DIR.users"
+
+            # However the job ends (success, error, or TERM from SLURM), count this job out;
+            # the last job using the copy removes it.
+            release_db() {{
+                rc=$?
+                if [ "$REGISTERED" = true ]; then
+                    (
+                        flock -x 9
+                        count=$(cat "$COUNTER_FILE" 2> /dev/null || echo 1)
+                        count=$((count - 1))
+                        if [ "$count" -le 0 ]; then
+                            echo "No more jobs using the DB, removing $DATA_DIR"
+                            rm -rf "$DATA_DIR" "$COUNTER_FILE"
+                        else
+                            echo "$count" > "$COUNTER_FILE"
+                            echo "Remaining jobs using the DB: $count"
+                        fi
+                    ) 9> "$LOCK_FILE"
+                fi
+                exit "$rc"
+            }}
+            trap release_db EXIT
+            trap 'exit 143' TERM INT
+
+            # Copy (if needed) and count this job in, under one exclusive lock. Other jobs wait
+            # on the lock rather than polling for a marker, and if the copying job dies, the
+            # lock goes with it: the next job finds no .done marker and copies again, instead
+            # of all jobs waiting forever.
+            (
+                flock -x 9
+                if [ ! -f "$DATA_DIR/.done" ]; then
+                    echo "Copying the eggnog DB to $DATA_DIR"
+                    rm -rf "$DATA_DIR"
+                    mkdir -p "$DATA_DIR"
+                    cp -r {params.fa}/* "$DATA_DIR"/
+                    touch "$DATA_DIR/.done"
+                fi
+                count=$(cat "$COUNTER_FILE" 2> /dev/null || echo 0)
+                echo $((count + 1)) > "$COUNTER_FILE"
+                echo "Jobs using the DB: $((count + 1))"
+            ) 9> "$LOCK_FILE"
+            REGISTERED=true
         fi
 
         # === Run emapper ===
         mkdir -p {params.outdir}
-        debug "seed={input.seed} DATA_DIR=$DATA_DIR outdir={params.outdir} threads={threads}" 2>> {log}
-        emapper.py --data_dir $DATA_DIR \
+        debug "seed={input.seed} DATA_DIR=$DATA_DIR outdir={params.outdir} threads={threads}"
+        emapper.py --data_dir "$DATA_DIR" \
                    --annotate_hits_table {input.seed} \
                    --no_file_comments \
                    -o {params.out} \
                    --output_dir {params.outdir} \
                    --override \
-                   --cpu {threads} >> {log} 2>&1
-
-        # === Decrement counter and cleanup if last job (only when a shared
-        # staged copy was actually made -- nothing to reference-count or
-        # clean up when running straight from the original database) ===
-        if [ {params.copy_dbs} = "True" ]; then
-            (
-                flock -x 200
-                COUNT=$(cat "$COUNTER_FILE")
-                COUNT=$((COUNT - 1))
-                if [ $COUNT -le 0 ]; then
-                    echo 0 > "$COUNTER_FILE"
-                    echo "No more jobs using DB, cleaning $DATA_DIR" >> {log}
-                    rm -rf "$DATA_DIR"
-                    rm -f "$DONE_FILE"
-                else
-                    echo $COUNT > "$COUNTER_FILE"
-                    echo "Remaining jobs using DB: $COUNT" >> {log}
-                fi
-            ) 200>"$COUNTER_FILE.lock"
-        fi
+                   --cpu {threads}
 
         touch {output.done}
     """

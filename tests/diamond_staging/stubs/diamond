@@ -8,5 +8,6 @@ while [ $# -gt 0 ]; do
     esac
 done
 echo "$db" >> "$DIAMOND_CALLS"
+[ "${DIAMOND_FAIL:-0}" = 1 ] && { echo "Error: failing on purpose" >&2; exit 1; }
 [ -e "$db" ] || [ -e "$db.dmnd" ] || exit 1
 echo "a hit" > "$out"

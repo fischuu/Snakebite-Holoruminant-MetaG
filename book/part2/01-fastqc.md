@@ -63,7 +63,7 @@ The rule simply calls `fastqc {input}`, which runs with one thread per file.
 
 ## On real data
 
-@sec-tutorial-reads shows the real report of this tool on 100,000 reads, and @sec-tutorial-preprocess shows it after trimming. Its `FAIL` for the GC content is an example of what the section above says about metagenomes.
+@sec-tutorial-reads shows the real report of this tool on 100,000 reads, and @sec-tutorial-preprocess shows it after trimming. Its `FAIL` for the GC content is an example of what the section above says about metagenomes. @sec-tutorial-fastqc-all has the marks of all the reads, in 18 files, where a mark appears that the small subset didn't show.
 
 ## Pitfalls
 

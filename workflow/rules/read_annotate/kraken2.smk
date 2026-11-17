@@ -5,7 +5,8 @@ rule read_annotate__kraken2__assign:
     single-sample invocations, so it's staged once onto fast local storage
     (/dev/shm, falling back to NVMe, falling back to running in place on the
     final retry) and every sample is classified against that one copy.
-    NOTE: if the job is killed, a staged copy may be left behind in /dev/shm.
+    The copy goes to a folder of the job's own and is removed however the job ends, except
+    when it's killed with SIGKILL.
     """
     input:
         forwards=[
@@ -75,6 +76,11 @@ rule read_annotate__kraken2__assign:
 
         avail_bytes() ( timeout 100s df --output=avail -B1 "$1" 2>/dev/null | tail -1 || echo 0 )
 
+        # However the job ends (success, error, or TERM from SLURM), remove the staged copy
+        staged=""
+        trap 'if [ -n "$staged" ]; then rm -rf "$staged"; fi' EXIT
+        trap 'exit 143' TERM INT
+
         db_dst="$db_src"
         if [ "{params.copy_dbs}" = "True" ]; then
             db_size=$(du -sb "$db_src" | cut -f1)
@@ -100,8 +106,10 @@ rule read_annotate__kraken2__assign:
             fi
 
             if [ "$db_dst" != "$db_src" ]; then
+                # A folder of this job's own, so no other job can stage into or delete it
+                db_dst=$(mktemp -d "$db_dst.XXXXXX")
+                staged="$db_dst"
                 echo "staging database to $db_dst"
-                mkdir -p "$db_dst"
                 rsync --archive --recursive --times "$db_src"/*.k2d "$db_dst"
                 debug "database staged, $(du -sh "$db_dst" 2>/dev/null | cut -f1) at $db_dst"
             fi
@@ -131,9 +139,7 @@ rule read_annotate__kraken2__assign:
                 | pigz --processes {threads} > "$out_gz"
         done
 
-        if [ "{params.run_in_shm}" = "True" ] && [ "$db_dst" = "$db_shm" ]; then
-            rm --recursive --force --verbose "$db_dst"
-        fi
+        # The staged copy is removed by the EXIT trap above.
     """
 
 

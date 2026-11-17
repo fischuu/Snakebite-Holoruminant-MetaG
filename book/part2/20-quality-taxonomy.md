@@ -108,7 +108,7 @@ dRep uses the older CheckM for its filter, as @sec-tool-drep explains, so you ca
 
 ## On real data
 
-This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+@sec-tutorial-checkm2 shows real output with the real database: the one genome of the small run gets 61.5% completeness and 0.09% contamination.
 
 ## Pitfalls
 

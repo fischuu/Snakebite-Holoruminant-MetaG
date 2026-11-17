@@ -60,12 +60,13 @@ An R script turns the hits of the reads into feature tables, in `read_annotate__
 
 ## On real data
 
-This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+@sec-tutorial-diamond shows real output for reads with the real CAZy database, and @sec-tutorial-hyddb for proteins with HydDB.
 
 ## Pitfalls
 
 - **`--max-target-seqs 1` doesn't mean the best hit.** DIAMOND reports the best hit it finds with the current settings, and with the fast defaults this is usually, but not always, the best one in the database.
 - **Memory.** It's controlled by the block size `-b`, and the number of chunks `-c`. By default a job of this kind needs some tens of GB. If it's killed for memory, make the blocks smaller.
+- **Two summary tables, with different sums.** A protein can have several labels. `summary_a.tsv` counts a read fully for each one, and `summary_b.tsv` shares it out among them. On real data, the same file gives 51,154 and 43,797, and only the second is the number of reads with a hit. The rule for KEGG only writes the first one, under both names.
 - **The two mates count separately.** In the rule for reads, each mate gets its own hit. Don't count them as two independent observations of a fragment.
 - **Hits aren't functions.** A hit to an enzyme with low identity doesn't prove the same activity. Filter by identity and by alignment length.
 

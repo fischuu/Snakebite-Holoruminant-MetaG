@@ -48,8 +48,10 @@ run_rule() {  # <rule> <target>
         --allowed-rules "$1" --latency-wait 1 "$2" > run.log 2>&1
 }
 
-database_used() {
-    if [ -f "$DIAMOND_CALLS" ]; then sort -u "$DIAMOND_CALLS" | tr '\n' ';'; fi
+database_used() {  # the random part of a job's own staging folder (mktemp) is shown as XXXXXX
+    if [ -f "$DIAMOND_CALLS" ]; then
+        sort -u "$DIAMOND_CALLS" | sed -E 's#\.[[:alnum:]]{6}/#.XXXXXX/#' | tr '\n' ';'
+    fi
 }
 
 for rule in read_annotate__diamond__assign contig_annotate__diamond__assign; do
@@ -82,14 +84,30 @@ for rule in read_annotate__diamond__assign contig_annotate__diamond__assign; do
     prepare_project True True /dev/shm /nonexistent medium
     run_rule "$rule" "$target"
     check "the rule finishes" 0 $?
-    check "diamond reads the copy" "/dev/shm/test/test;" "$(database_used)"
-    check "the copy is gone" 0 "$(ls /dev/shm/test 2>/dev/null | wc -l)"
+    check "diamond reads the copy, in a folder of the job's own" "/dev/shm/test.XXXXXX/test;" "$(database_used)"
+    check "the copy is gone" 0 "$(ls -d /dev/shm/test* 2>/dev/null | wc -l)"
+
+    echo "== $rule: another job's copy of the same database is in /dev/shm: leave it alone"
+    prepare_project True True /dev/shm /nonexistent medium
+    mkdir -p /dev/shm/test && echo "another job's copy" > /dev/shm/test/test.dmnd
+    run_rule "$rule" "$target"
+    check "the rule finishes" 0 $?
+    check "the other job's copy is still there" 1 "$(ls /dev/shm/test 2>/dev/null | wc -l)"
+    rm -rf /dev/shm/test
+
+    echo "== $rule: diamond fails: the copy is removed all the same"
+    prepare_project True True /dev/shm /nonexistent medium
+    DIAMOND_FAIL=1 run_rule "$rule" "$target"
+    rc=$?
+    check "the rule fails" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+    check "the copy is gone" 0 "$(ls -d /dev/shm/test* 2>/dev/null | wc -l)"
 
     echo "== $rule: /dev/shm not allowed, the local disk has room: use the copy there"
     prepare_project True False /dev/shm /tmp/nvme medium
     run_rule "$rule" "$target"
     check "the rule finishes" 0 $?
-    check "diamond reads the copy" "/tmp/nvme/test/test;" "$(database_used)"
+    check "diamond reads the copy, in a folder of the job's own" "/tmp/nvme/test.XXXXXX/test;" "$(database_used)"
+    check "the copy is gone" 0 "$(ls /tmp/nvme 2>/dev/null | wc -l)"
 done
 
 if [ "$failures" -gt 0 ]; then

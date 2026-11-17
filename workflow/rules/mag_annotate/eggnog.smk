@@ -33,6 +33,9 @@ rule mag_annotate__eggnog:
         data_dir={params.db}
         if [ "{params.copy_dbs}" = "True" ]; then
             mkdir --parents {params.tmp_dir}
+            # Remove the copy however the job ends, not only on success
+            trap 'rm -rf {params.tmp_dir}' EXIT
+            trap 'exit 143' TERM INT
             db_size=$(du -sbL {params.db} | cut -f1)
             tmp_avail=$(df --output=avail -B1 {params.tmp_dir} | tail -n 1)
             if [ "$db_size" -lt "$tmp_avail" ]; then

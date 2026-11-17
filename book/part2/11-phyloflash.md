@@ -52,12 +52,14 @@ The library name has an underscore instead of the usual dot, as in `ERR2019410_l
 
 ## On real data
 
-This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+@sec-tutorial-phyloflash shows real output with the real database, on 1 million read pairs per sample. It found rRNA in 0.17% of the pairs of `ERR2019410`, and it finds ciliates in all three samples.
 
 ## Pitfalls
 
 - **Host rRNA.** Eukaryotic SSU reads of the host would dominate, if host reads were still there. This pipeline removes them first, so this isn't an issue here, as long as the host genome is in `features.yaml` and it contains those genes.
 - **Read length.** Very short reads don't work well. The tool has a lower limit on read length, and it warns about it.
+- **Its Chao1 value is too low.** It adds the estimate to the taxa seen at least three times, and not to all those seen. On these data, this gives 40 where it saw 44 taxa, as @sec-tutorial-phyloflash shows. Don't use it.
+- **A failed assembly doesn't stop it, and its message can mislead.** It exits with 0, and it says that coverage may be too low. @sec-tutorial-phyloflash shows a case where SPAdes had really crashed, so look in `<library>.spades.out` in the archive.
 - **The share of SSU reads is small.** Usually it's well below 1% of reads. So with little sequencing, there may be too few reads for an assembly, and the report will be empty.
 
 ## Reference

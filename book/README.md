@@ -10,7 +10,7 @@ data. The finished book is [Snakebite-MetaG-book.pdf](Snakebite-MetaG-book.pdf),
 | Part I: Foundations (Linux, SLURM, containers, Snakemake) | Written, and its examples run on a test cluster |
 | Part II: The tools | Written. The versions are read from the images |
 | Part III: The modules | Written. Appendix A lists all rules, generated from the code |
-| Part IV: Tutorial with real data | Written from a small run with the real tools. The tools with large databases wait for a complete run on a cluster, which its section "What's still waiting" lists |
+| Part IV: Tutorial with real data | Written from a small run with the real tools, with a second run to compare. Three tools used a smaller database. The tools with large databases wait for a complete run on a cluster, which its section "What's still waiting" lists |
 
 ## What is where
 

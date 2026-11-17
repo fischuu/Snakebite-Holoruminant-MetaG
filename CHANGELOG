@@ -3,6 +3,15 @@
 
 Version 0.6.*:
 -----------
+1: Critical fix: jobs on the same node no longer get in each other's way when they copy a database to fast storage.
+   All DIAMOND jobs copied a database into the same folder, such as /dev/shm/hyddb, so a job could fail with
+   "cp: cannot create regular file ...: File exists", or lose the database when another job removed it. Each job of
+   DIAMOND, Kraken2, eggNOG-mapper (search and MAGs) and CAMPER now copies into a folder of its own (mktemp), and removes
+   it however the job ends, also when a command fails or SLURM ends it. Copies on the local disk weren't removed at all.
+   The eggNOG chunk jobs still share one copy per node, guarded by flock now: a job that died while copying made the
+   others wait until their time limit, and a failed job never counted itself out. bakta, DRAM and MAGScoT got unique
+   temporary folders in the container's /tmp, which all nodes share. A failed DIAMOND job of contig_annotate now has its
+   error in its log, and not only in the .try file. Please read RELEASE_NOTES.
 0: Release 0.6.0, after a successful test run on CSC's Roihu with the example data. It is 0.4.76 with one change: the
    run script loads snakemake/9.27.1, as snakemake/9.14.0 stops every SLURM job. RELEASE_NOTES says what changed since
    the last release, 0.4.62, and what to change in a project. There is no version 0.5.

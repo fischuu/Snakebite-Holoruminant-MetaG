@@ -31,7 +31,7 @@ case "${1:-}" in
         shift  # the "bash" that Snakemake names, the entrypoint below replaces it
         exec docker run --rm --platform linux/amd64 --entrypoint bash \
             --memory "${DOCKER_MEMORY:-7g}" \
-            -e PIPELINE_DEBUG="${PIPELINE_DEBUG:-0}" -e TMPDIR=/tmp \
+            -e PIPELINE_DEBUG="${PIPELINE_DEBUG:-0}" -e TMPDIR=/tmp ${KMP_AFFINITY:+-e KMP_AFFINITY="$KMP_AFFINITY"} \
             -v "$PROJECT:$PROJECT" -v "$PIPELINE:$PIPELINE:ro" -w "$PWD" \
             "$image" "$@" ;;
 esac

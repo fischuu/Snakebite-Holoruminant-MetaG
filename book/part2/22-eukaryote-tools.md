@@ -100,12 +100,12 @@ This comes from a third-party image, `metagenlab/4cac:1.0`, with the scripts in 
 
 ## On real data
 
-This book has no real output of this tool yet. @sec-tutorial-waiting says why, and it will come from a complete run on a cluster.
+@sec-tutorial-4cac shows real output on the assembly of `ERR2019410`, and how it compares with Tiara. On the same 1,091 contigs, Tiara calls 49 eukaryotic and 4CAC 100, and only 24 are in both. At this low coverage, its graph step changes little.
 
 ## Pitfalls
 
 - **MEGAHIT or your own assemblies.** The target does nothing then, as @sec-module-eukaryote explains.
-- **Memory.** The resource sets of this rule escalate up to `highmem`, as large graphs can take a lot of it.
+- **Memory.** The resource sets of this rule escalate up to `highmem`, as large graphs can take a lot of it. Its use grows with the number of contigs, and metaSPAdes keeps all the short ones. On 7 GB, 24,362 contigs fit, and 94,759 didn't, with 8 or with 2 processes. Fewer processes don't solve this.
 
 ## Reference
 
